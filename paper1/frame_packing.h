@@ -27,13 +27,14 @@ namespace cfd {
 
 
 	private:
-		MessageVec message_set;
-		FrameVec frame_set;
 
-		EcuPeriodMessageMap period_msg_map; //message按照ECU对、period的二级分表
 
 
 	public:
+		MessageVec message_set;
+		CanfdFrameVec frame_set;
+
+		EcuPeriodMessageMap period_msg_map; //message按照ECU对、period的二级分表
 		//计算带宽利用率
 		double calc_bandwidth_utilization() {
 			double U = 0;
@@ -49,7 +50,7 @@ namespace cfd {
 				message_set.emplace_back(i);
 				period_msg_map[vec[i].ecu_pair][vec[i].period].emplace_back(i);// 按ecu对和周期将消息分组
 			}
-			//initial_frames();
+			initial_frames();
 
 		}
 		// 根据消息集合生成一个初始帧列表，TODO 生成一张ECU对的分表

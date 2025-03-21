@@ -87,7 +87,7 @@ namespace cfd {
 	using MessageInfoVec = std::vector<MessageInfo>;
 	extern MessageInfoVec message_info_vec;//全局维护一个message info 表
 
-	//消息实体类，每个消息有一个隐式的id，即其对应的info在数组中的index
+	//消息实体类
 	class Message {
 	private:
 		size_t message_index = -1;		//	指向对应的MessageInfo
@@ -147,7 +147,7 @@ namespace cfd {
 		int period = -1;        // 周期，单位为微秒(μs)
 		int deadline = -1;      // 时限，同周期
 		int offset = 0;         // 偏移，单位为微秒(μs)，可以使用assign_offset方法分配frame集合中所有任务的合适offset
-		EcuPair ecu_pair;
+		
 		double trans_time = 0;   // 数据帧在系统内的传输时间
 
 	
@@ -188,8 +188,9 @@ namespace cfd {
 
 	public:
 		FrameId id = 0;//id由生成时顺序给出 
+		EcuPair ecu_pair;
 
-		std::set<Message, ComparatorMsgOffsetAscend> msg_set;//CANFD帧装载的消息 的指针， 按 offset 升序排列
+		std::set<Message, ComparatorMsgOffsetAscend> msg_set;//CANFD帧装载的消息 的索引， 按 offset 升序排列
 
 		//获取所装载消息中最小的offset
 		int get_min_msg_offset();
@@ -336,7 +337,7 @@ namespace cfd {
 			offset = 0;
 		}
 	};
-	using FrameVec = std::vector<CanfdFrame>;
+	using CanfdFrameVec = std::vector<CanfdFrame>;
 
 	class CanfdUtils {
 	public:
@@ -344,13 +345,18 @@ namespace cfd {
 		//从 文件file 读取 消息info集合mset
 		static void read_messages(MessageInfoVec& mset, const std::string& file);
 
-		//向 流os 写入表头的工具函数
-		static void write_heading_to_stream(std::ostream& os);
-		//向 流os 写入 单个消息m，heading=true表示输出表头
+		//向 流os 写入message表头的工具函数
+		static void write_msg_heading_to_stream(std::ostream& os);
+		// 向 流os 写入frame表头的工具函数
+		static void write_frame_heading_to_stream(std::ostream& os);
+		// 向 流os 写入 单个消息m，heading=true表示输出表头
 		static void write_msg_to_stream(std::ostream& os, const MessageInfo& msg, bool heading = true);
+		// 向 流os 写入 单个帧frame，heading=true表示输出表头
+		static void write_frame_to_stream(std::ostream& os, const CanfdFrame& frame, bool heading = true);
 		//向 流os 写入 消息集合mset，heading=true表示输出表头
 		static void write_mset_to_stream(std::ostream& os, const MessageInfoVec& mset, bool heading = true);
-
+		//向 流os 写入 帧集合fset，heading=true表示输出表头
+		static void write_fset_to_stream(std::ostream& os, const CanfdFrameVec& fset, bool heading = true);
 
 		//将消息集合mset写入文件file内，默认为重写，append=true使得直接在上次的内容后追加写入
 		static void write_messages(MessageInfoVec& mset, const std::string& file, bool append = false);
@@ -363,6 +369,9 @@ namespace cfd {
 		static void print_message(const MessageVec& mset, bool append = false);
 		static void print_message(const Message& msg, bool append);
 		static void print_message(const MessageInfo& msg, bool append = false);
+
+		static void print_frame(const CanfdFrame& frame, bool append = false);
+		static void print_frame(const CanfdFrameVec& fset, bool append = false);
 	};
 
 }

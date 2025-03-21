@@ -48,9 +48,9 @@ namespace cfd {
 
 
 
-    void CanfdUtils::write_heading_to_stream(std::ostream& os) {
+    void CanfdUtils::write_msg_heading_to_stream(std::ostream& os) {
         os << std::left
-            << std::setw(8) << "CODE"
+            << std::setw(22) << "CODE"
             << std::setw(12) << "data_size"
             << std::setw(10) << "period"
             << std::setw(10) << "deadline"
@@ -60,14 +60,48 @@ namespace cfd {
             << std::setw(10) << "level"
             << std::endl;
     }
+    void CanfdUtils::write_frame_heading_to_stream(std::ostream& os) {
+        os << std::left
+            << std::setw(9) << "FrameID"
+            << std::setw(14) << "payload_size"
+            << std::setw(10) << "priority"
+            << std::setw(10) << "period"
+            << std::setw(10) << "deadline"
+            << std::setw(10) << "SrcECU"
+            << std::setw(10) << "DstECU"
+            << std::setw(10) << "offset"
+            << std::endl;
+    }
+    void CanfdUtils::write_frame_to_stream(std::ostream& os, const CanfdFrame& frame, bool heading)
+    {
+        if (heading) {
+            // 输出帧表头
+            write_frame_heading_to_stream(os);
+        }
+        os << std::setw(9) << frame.id
+            << std::setw(14) << frame.get_paylaod_size()
+            << std::setw(10) << frame.get_priority()
+            << std::setw(10) << frame.get_period()
+            << std::setw(10) << frame.get_deadline()
+            << std::setw(10) << frame.ecu_pair.src_ecu
+            << std::setw(10) << frame.ecu_pair.dst_ecu
+            << std::setw(10) << frame.get_offset()
+            << std::endl;
+        // 输出消息表头
+        write_msg_heading_to_stream(os);
+        for (const auto& msg : frame.msg_set) {
+            write_msg_to_stream(os, message_info_vec[msg.get_id_message()], false);
+        }
+        std::cout << "=============================================================================\n";
 
+    }
     void CanfdUtils::write_msg_to_stream(std::ostream& os, const MessageInfo& msg, bool heading)
     {
         if (heading) {
             // 输出表头
-            write_heading_to_stream(os);
+            write_msg_heading_to_stream(os);
         }
-        os << std::setw(8) << msg.code
+        os << std::setw(22) << msg.code
             << std::setw(12) << msg.data_size
             << std::setw(10) << msg.period
             << std::setw(10) << msg.deadline
@@ -78,11 +112,20 @@ namespace cfd {
             << std::endl;
     }
 
+    //向 流os 写入 帧集合fset，heading=true表示输出表头
+    void CanfdUtils::write_fset_to_stream(std::ostream& os, const CanfdFrameVec& fset, bool heading) {
+        // 输出每一条消息
+        for (const auto& frame : fset) {
+            write_frame_to_stream(os, frame);
+            
+        }
+    }
+
     void CanfdUtils::write_mset_to_stream(std::ostream& os, const MessageInfoVec& mset, bool heading)
     {
         if (heading) {
             // 输出表头
-            write_heading_to_stream(os);
+            write_msg_heading_to_stream(os);
         }
 
         // 输出每一条消息
@@ -104,10 +147,17 @@ namespace cfd {
     void CanfdUtils::print_message(const MessageInfo& msg, bool append){
         write_msg_to_stream(std::cout, msg, append);
     }
+
+
     void CanfdUtils::print_message(const Message& msg, bool append) {
         write_msg_to_stream(std::cout, message_info_vec[msg.get_id_message()], append);
     }
-
+    void CanfdUtils::print_frame(const CanfdFrame& frame, bool append ) {
+        write_frame_to_stream(std::cout, frame, append);
+    }
+    void CanfdUtils::print_frame(const CanfdFrameVec& fset, bool append ) {
+        write_fset_to_stream(std::cout, fset, append);
+    }
     void CanfdUtils::print_message(const MessageInfoVec& mset, bool append) {
         write_mset_to_stream(std::cout, mset, append);
     }
@@ -277,6 +327,8 @@ namespace cfd {
         }
         return true;
     }
+
+
 
 
 }
