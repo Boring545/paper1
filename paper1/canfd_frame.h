@@ -25,32 +25,35 @@ namespace cfd {
 	constexpr int SIZE_IDENTIFIER = 11;					// CANFD帧 标识符长度，标准帧的11位标识符，扩展帧可以有29位
 	constexpr int FACTOR_M_F_PERIOD = 2;				// 消息打包时，所允许的 消息周期/帧周期 的最大倍数
 	constexpr double FACTOR_TIME_MSG_USABLE_WAIT=0.25;	// 消息有效等待时间的因子
-	constexpr double FACTOR_MSG_WAIT_WINDOW = 0.5;		// 消息有效等待区间因子
-	constexpr double TIME_BIT_ARBITRATION = 1;			// 传输一个bit所用时间，单位为微秒(μs)（1Mbps）
-	constexpr double TIME_BIT_TRANSMISSION = 0.2;		// 传输一个bit所用时间，单位为微秒(μs)（5Mbps）
+	constexpr double FACTOR_MSG_WAIT_WINDOW = 0.8;		// 消息有效等待区间因子
+	constexpr double TIME_BIT_ARBITRATION = 0.001;			// 传输一个bit所用时间，单位为毫秒(ms)（1Mbps）
+	constexpr double TIME_BIT_TRANSMISSION = 0.0002;		// 传输一个bit所用时间，单位为毫秒(ms)（5Mbps）
 
 
 	constexpr int OPTION_MESSAGE_SIZE[]  = { 1, 2, 4, 8, 16, 32, 64 };									// 信号尺寸选项
 	constexpr int NUM_MESSAGE_SIZE = std::size(OPTION_MESSAGE_SIZE);
 	constexpr double PROBABILITY_MESSAGE_SIZE[] = { 0.35, 0.49, 0.13, 0.008, 0.013, 0.005, 0.002 };	// 选择概率
 	
-	constexpr int OPTION_MESSAGE_PERIOD[] = { 1, 2, 5, 10, 20, 50, 100 };								// 周期大小选项
+	constexpr int OPTION_MESSAGE_PERIOD[] = { 1, 2, 5, 10, 20, 50, 100 };								// 周期大小选项,单位为ms
 	constexpr int NUM_MESSAGE_PERIOD = std::size(OPTION_MESSAGE_PERIOD);
 	constexpr double PROBABILITY_MESSAGE_PERIOD[] = { 0.03, 0.02, 0.02, 0.25, 0.25, 0.03, 0.2 };		// 选择概率
 
-	constexpr int OPTION_MESSAGE_ECU[] = { 0,1,2,3,4,5 };												// ecu集合选项
-	constexpr int NUM_MESSAGE_ECU = std::size(OPTION_MESSAGE_ECU);
+	constexpr int OPTION_ECU[] = { 0,1,2,3,4 };												// ecu集合选项
+	constexpr int NUM_ECU = std::size(OPTION_ECU);
 
 	constexpr int OPTION_MESSAGE_LEVEL[] = { 0, 1, 2 };												// 安全等级选项
 	constexpr int NUM_MESSAGE_LEVEL = std::size(OPTION_MESSAGE_LEVEL);
 	constexpr double PROBABILITY_MESSAGE_LEVEL[3] = { 0.85,0.1,0.05 };									// 选择概率
 
+	constexpr int OPTION_CANFD_PAYLOAD_SIZE[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64 };
+	constexpr int NUM_CANFD_PAYLOAD_SIZE = std::size(OPTION_CANFD_PAYLOAD_SIZE);
 
 	using EcuId = size_t;
 	using FrameId = size_t;
 	using MessageCode = size_t;
 
-	struct EcuPair {
+	class EcuPair {
+	public:
 		EcuId src_ecu = 0;        // 源ECU
 		EcuId dst_ecu = 0;        // 目ECU
 		EcuPair(int src = 0, int dst = 0)
@@ -58,9 +61,11 @@ namespace cfd {
 		bool  operator==(const EcuPair& other) const {
 			return (src_ecu == other.src_ecu) && (dst_ecu == other.dst_ecu);
 		}
-		bool  operator!=(const EcuPair& other) const {
-			return (src_ecu != other.src_ecu) || (dst_ecu != other.dst_ecu);
+		EcuPair(const EcuPair& other) {
+			src_ecu = other.src_ecu;
+			dst_ecu = other.dst_ecu;
 		}
+
 	};
 	struct EcuPairHash {
 		size_t operator()(const EcuPair& key) const {
@@ -289,13 +294,6 @@ namespace cfd {
 		CanfdFrame(int _id) {
 			this->id = _id;
 		}
-		CanfdFrame(int _offset, int _exec, int _deadline, int _period, int _id) {
-			offset = _offset;
-			trans_time = _exec;
-			deadline = _deadline;
-			period = _period;
-			id = _id;
-		}
 		CanfdFrame(const CanfdFrame& other) {
 			msg_set = other.msg_set;
 
@@ -306,6 +304,7 @@ namespace cfd {
 			priority = other.priority;
 			trans_time = other.trans_time;
 			id = other.id;
+			ecu_pair = other.ecu_pair;
 			offset = other.offset;
 		}
 		CanfdFrame(CanfdFrame&& other) noexcept {
@@ -318,23 +317,11 @@ namespace cfd {
 			priority = other.priority;
 			trans_time = other.trans_time;
 			id = other.id;
+			ecu_pair = other.ecu_pair;
 			offset = other.offset;
+
 		}
 		~CanfdFrame() {
-		}
-
-
-		void clear() {
-			this->msg_set.clear();
-
-			data_size = 0;
-			payload_size = 0;
-			deadline = -1;
-			period = -1;
-			priority = -1;
-			trans_time = 0.0;
-			id = -1;
-			offset = 0;
 		}
 	};
 	using CanfdFrameVec = std::vector<CanfdFrame>;

@@ -7,5 +7,11 @@ project ("paper1")
 
 set(CMAKE_CXX_STANDARD 17)
 
-# 包含子项目。
+# 针对 MSVC 编译器，关闭优化
+if (MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Od /Zi")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /Zi")
+endif()
+
+# 包含子项目
 add_subdirectory ("paper1")

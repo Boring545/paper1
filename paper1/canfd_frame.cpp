@@ -175,8 +175,8 @@ namespace cfd {
   
         std::discrete_distribution<>dist_period(PROBABILITY_MESSAGE_PERIOD, PROBABILITY_MESSAGE_PERIOD+ NUM_MESSAGE_PERIOD);
 
-        std::uniform_int_distribution<>dist_ecu1(0, NUM_MESSAGE_ECU - 1);
-        std::uniform_int_distribution<>dist_ecu2(0, NUM_MESSAGE_ECU - 2);
+        std::uniform_int_distribution<>dist_ecu1(0, NUM_ECU - 1);
+        std::uniform_int_distribution<>dist_ecu2(0, NUM_ECU - 2);
 
         std::uniform_real_distribution<> dist_offset(0.0, 1.0);
 
@@ -185,9 +185,9 @@ namespace cfd {
         int size = 0, period = 0, deadline = 0, src = 0, dst = 0, offset = 0, level = 0;
 
         // 获取一个ecu数组的备份
-        std::array<int, NUM_MESSAGE_ECU> option_ecu_copy;
-        for (size_t i = 0; i < NUM_MESSAGE_ECU; ++i) {
-            option_ecu_copy[i] = OPTION_MESSAGE_ECU[i];
+        std::array<int, NUM_ECU> option_ecu_copy;
+        for (size_t i = 0; i < NUM_ECU; ++i) {
+            option_ecu_copy[i] = OPTION_ECU[i];
         }
 
         std::hash<std::string> hash_fn;
@@ -199,7 +199,7 @@ namespace cfd {
             deadline = period;
 
             src = option_ecu_copy[dist_ecu1(gen)];
-            std::swap(option_ecu_copy[NUM_MESSAGE_ECU - 1], option_ecu_copy[src]);
+            std::swap(option_ecu_copy[NUM_ECU - 1], option_ecu_copy[src]);
             dst = option_ecu_copy[dist_ecu2(gen)];
             
             offset = dist_offset(gen) * period;
@@ -228,14 +228,16 @@ namespace cfd {
 
     int CanfdFrame::payload_size_trans(int size)
     {
-        int payload_sizes[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64 };
-        int num_sizes = sizeof(payload_sizes) / sizeof(payload_sizes[0]);//16
-        double byte_size = double(size / 8.0);
-        for (int i = 0; i < num_sizes; ++i) {
-            if (byte_size <= payload_sizes[i]) {
-                return payload_sizes[i];
-            }
+        int byte_size = (size + 7) / 8;  // 向上取整
+        // 使用二分查找寻找合适的 payload size
+        auto it = std::lower_bound(OPTION_CANFD_PAYLOAD_SIZE, OPTION_CANFD_PAYLOAD_SIZE+NUM_CANFD_PAYLOAD_SIZE , byte_size);
+
+        // 如果找到适当的值，返回
+        if (it != std::end(OPTION_CANFD_PAYLOAD_SIZE)) {
+            return *it;
         }
+
+        // 如果没有找到合适的值，返回 -1
         return -1;
     }
 
@@ -277,7 +279,7 @@ namespace cfd {
             return false;
         }
         //源目ECU一致
-        if ( m.get_ecu_pair() != this->ecu_pair) {
+        if (!( m.get_ecu_pair() == this->ecu_pair)) {
             return false;
         }
         // 待装载消息的offset 不可相对已装载最小消息的offset相差过多
@@ -287,26 +289,20 @@ namespace cfd {
         double temp_wctt = calc_wctt(this->data_size + m.get_data_size());
 
         int temp_offset = m.get_offset();
-        //if()
-        for (const auto& msg : msg_set) {
-            if (msg.get_offset() > temp_offset)
-                temp_offset = msg.get_offset();
+        int wait_delay = 0;
+        if (temp_offset < get_max_msg_offset()) {
+            temp_offset = get_max_msg_offset();//offset为所有消息中最大的offset
+            if (m.get_offset() < get_min_msg_offset()) {
+                wait_delay = (temp_offset - m.get_offset() + this->period) % this->period;
+            }
         }
-        int temp_deadline = this->period;
-
-        //int wait_delay = 0;//消息等待帧的 等待延迟
-        //for (const MessagePtr& mp : loaded_msgs) {
-        //    wait_delay = (this->offset - mp->offset + this->period)% this->period;
-        //    if (wait_delay + temp_wctt > deadline) return false;
-        //    //获取最短的截止日期
-        //    if (mp->deadline - wait_delay < temp_deadline) {
-        //        temp_deadline = deadline - wait_delay;
-        //    }
-        //}
+        else {
+            //新消息的offset成为帧的offset，
+            wait_delay=(temp_offset - get_min_msg_offset() + this->period) % this->period;
+        }
         //CANFD帧截止时间太紧张则舍弃
-        if (temp_deadline < temp_wctt) {
-            return false;
-        }
+        if (wait_delay + temp_wctt > deadline) return false;
+        int temp_deadline = deadline - wait_delay;
 
         this->set_data_size(this->data_size + m.get_data_size());
         this->set_offset(temp_offset);
@@ -316,17 +312,17 @@ namespace cfd {
         return true;
     }
 
-    bool CanfdFrame::add_message(MessageVec& s)
-    {
-        bool flag = true;
-        for (auto msg : s) {
-            if (!add_message(msg)) {
-                std::cout << "WARNNING::帧无法插入" << std::endl;
-                CanfdUtils::print_message(msg, true);
-            }
-        }
-        return true;
-    }
+    //bool CanfdFrame::add_message(MessageVec& s)
+    //{
+    //    bool flag = true;
+    //    for (auto msg : s) {
+    //        if (!add_message(msg)) {
+    //            std::cout << "WARNNING::帧无法插入" << std::endl;
+    //            CanfdUtils::print_message(msg, true);
+    //        }
+    //    }
+    //    return true;
+    //}
 
 
 

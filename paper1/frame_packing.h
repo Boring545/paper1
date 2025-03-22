@@ -12,7 +12,10 @@ namespace cfd {
 		ComparatorIndexByValue(const MessageVec& mv, const std::vector<int>& v) : mvec(mv),vec(v) {}
 
 		bool operator()(int idx1, int idx2) const {
-			return mvec[vec[idx1]].get_offset() < mvec[vec[idx2]].get_offset();  // 根据 offset 排序
+			if (mvec[vec[idx1]].get_offset() != mvec[vec[idx2]].get_offset()) {
+				return mvec[vec[idx1]].get_offset() < mvec[vec[idx2]].get_offset();
+			}
+			return idx1 < idx2;  // offset相同，按索引升序
 		}
 	};
 
@@ -25,78 +28,26 @@ namespace cfd {
 		using PeriodMessageMap = std::map<int, std::vector<int>>;		// 相同ECUpair下，不同周期对应的message索引分表,通过message_set[索引]选取message
 		using EcuPeriodMessageMap = std::unordered_map<EcuPair, PeriodMessageMap, EcuPairHash>;	// 根据【ECUpair，period】选择PeriodMessageMap分表
 
-
-	private:
-
-
-
 	public:
 		MessageVec message_set;
 		CanfdFrameVec frame_set;
 
 		EcuPeriodMessageMap period_msg_map; //message按照ECU对、period的二级分表
-		//计算带宽利用率
-		double calc_bandwidth_utilization() {
-			double U = 0;
-			for (auto& frame : frame_set) {
-				U += frame.get_trans_time() / frame.get_period();
-			}
-			return U;
-		}
 
 		PackingScheme(const MessageInfoVec& vec) {
 			size_t n = vec.size();
-			for (size_t i = 0; i < n;++i) {
+			for (size_t i = 0; i < n; ++i) {
 				message_set.emplace_back(i);
 				period_msg_map[vec[i].ecu_pair][vec[i].period].emplace_back(i);// 按ecu对和周期将消息分组
 			}
 			initial_frames();
 
 		}
+		//计算带宽利用率
+		double calc_bandwidth_utilization();
+
 		// 根据消息集合生成一个初始帧列表，TODO 生成一张ECU对的分表
-		void initial_frames() {
-			int period = 0;
-			FrameId frame_id = 0;
-
-			//每次遍历处理一对ecu的单向传输
-			for (auto& ecu_map : period_msg_map) {
-				//每次遍历处理一组period的消息打包
-				for (auto& period_map : ecu_map.second) {
-					period = period_map.first;
-					//索引set，存储索引，按照 Message 的 offset 排序
-					std::set<int, ComparatorIndexByValue> temp_set(ComparatorIndexByValue(message_set,period_map.second));
-					// 插入索引
-					for (int i = 0; i < period_map.second.size(); ++i) {
-						temp_set.insert(i);
-					}
-					//根据消息分段方法遍历消息集合，向帧中填充，直至全部装载完毕
-					auto mit = temp_set.begin();	//当前分析的消息迭代器
-					while (mit != temp_set.end()) {
-						auto next_mit = std::next(mit);	//下一个迭代器，为了避免mit删除后失效
-						int frame_index = frame_set.size();	//标记当前正在装载的frame
-						int left = message_set[period_map.second[*mit]].get_offset();		//当前分析的消息mit对应的有效区间左边界
-						int right = left + message_set[period_map.second[*mit]].get_deadline() * FACTOR_MSG_WAIT_WINDOW;
-
-						frame_set.emplace_back(frame_id++, message_set[period_map.second[*mit]]);	// 创建一个帧，同时向帧中插入当前消息mit，此操作一定能成功
-						temp_set.erase(mit);											// 删除已经插入的消息mit
-						
-						//向当前分析的帧frame_set[frame_index]反复插入message
-						while (next_mit != temp_set.end() && message_set[period_map.second[*next_mit]].get_offset() <= right) {
-							mit = next_mit;
-							next_mit = std::next(mit);
-							bool inserted = frame_set[frame_index].add_message(message_set[period_map.second[*mit]], SIZE_LIMIT_CANFD_DATA);
-							if (inserted) {
-								// 如果消息成功插入，删除该消息，插入失败则跳过该消息
-								temp_set.erase(mit);
-							}
-						}
-						mit = temp_set.begin();//frame装载完毕，重选要考虑的基准message
-					}
-				}
-
-				
-			}
-		}
+		void initial_frames();
 
 
 	};
