@@ -1,7 +1,7 @@
 #include "priority_allocation.h"
-#include"debug_tool.h"
+#include"packing_scheme.h"
 
-namespace cfd::schedual::paper1 {
+namespace cfd::schedule::paper1 {
     int offset_trans(int target, int basis, int T)
     {
         if (target < basis) {
@@ -204,9 +204,7 @@ namespace cfd::schedual::paper1 {
         DEBUG_MSG_DEBUG2(std::cout, "=============================== ");
         return true;
     }
-
-    bool assign_priority(PackingScheme& scheme)
-    {
+    bool assign_priority(cfd::PackingScheme& scheme) {
         return assign_priority(scheme.frame_map);
     }
 }

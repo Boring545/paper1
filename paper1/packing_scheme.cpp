@@ -1,5 +1,6 @@
-#include"frame_packing.h"
+#include"packing_scheme.h"
 #include"priority_allocation.h"
+#include"packing_algorithms/sa_algorithm.h"
 namespace cfd {
 	//计算带宽利用率
 
@@ -16,18 +17,6 @@ namespace cfd {
 		return U;
 	}
 
-	struct ComparatorIndexByValue {
-		const MessageVec& mvec;
-		const std::vector<MessageID>& vec;
-		// 构造函数，传入数组指针
-		ComparatorIndexByValue(const MessageVec& mv, const std::vector<MessageID>& v) : mvec(mv), vec(v) {}
-		bool operator()(int idx1, int idx2) const {
-			if (mvec[vec[idx1]].get_offset() != mvec[vec[idx2]].get_offset()) {
-				return mvec[vec[idx1]].get_offset() < mvec[vec[idx2]].get_offset();
-			}
-			return idx1 < idx2;  // offset相同，按索引升序
-		}
-	};
 
 
 	void PackingScheme::init_frames()
@@ -64,12 +53,33 @@ namespace cfd {
 				}
 			}
 		}
+#ifdef OFFSET_TEST
+		std::random_device rd;
+		std::mt19937 gen(rd());
+#else
+
+#endif // OFFSET_TEST
+
+		for (auto& [id, frame] : frame_map) {
+			int period = frame.get_period(); // 获取当前帧的周期
+
+#ifdef OFFSET_TEST
+			// 随机分配 [0, period-1) 范围内的自然数
+			std::uniform_int_distribution<int> dist(0, period - 1); // 左闭右闭，范围 0 到 period-1
+			int offset = dist(gen);
+#else
+			int offset = 0;
+#endif // OFFSET_TEST
+			
+
+			frame.set_offset(offset); // 假设 CanfdFrame 有 set_offset 方法
+		}
 
 		if (calc_bandwidth_utilization() > 0.95) {
 			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "信号类型太多，导致帧过多，传输困难", " U = ", calc_bandwidth_utilization());
 		}
 
-		if (!cfd::schedual::paper1::assign_priority(this->frame_map)) {
+		if (!cfd::schedule::paper1::assign_priority(this->frame_map)) {
 			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "初始方案无法分配优先级，无法调度");
 		}
 	}
@@ -101,5 +111,19 @@ namespace cfd {
 	}
 
 
+}
+
+double cfd::packing::frame_pack(PackingScheme& scheme, PACK_METHOD method) {
+
+	double utilization = 0;
+	switch (method) {
+	case PACK_METHOD::SIMULATED_ANNEALING:
+		utilization = heuristics::simulated_annealing(scheme);
+		break;
+	default:
+		break;
+	}
+
+	return utilization;
 }
 

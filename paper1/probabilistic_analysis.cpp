@@ -1,5 +1,5 @@
 ﻿#include"probabilistic_analysis.h"
-namespace cfd::schedual::paper2 {
+namespace cfd::schedule::paper2 {
 
 	// 计算阶乘
 	long long int factorial(int m) {
@@ -206,88 +206,7 @@ namespace cfd::schedual::paper2 {
 		return cnt;
 	}
 
-	int create_backup_frames(PackingScheme& scheme, std::vector<bak_msg_rem>& bak_msgs,
-		CanfdFrameVec& sorted_frames,
-		std::unordered_map<FrameId, ProbResult>& result,
-		std::unordered_map<FrameId, double>& max_fault_rate,
-		const CanfdFrame& frame, double cost_max_error_frame) {
-
-		bool need_more_frames = true;
-		auto period = frame.get_period();
-		auto ecu_pair = frame.ecu_pair;
-		int created_frames_count = 0;  // 新增帧的数量
-		int priority_offset = 1;
-
-		while (need_more_frames) {
-			// 1. 创建新帧
-			FrameId new_frame_id = scheme.add_frame(period, period, ecu_pair, 0);
-			CanfdFrame& new_frame = scheme.frame_map[new_frame_id];
-			new_frame.set_priority(frame.get_priority() + priority_offset);
-			priority_offset++;
-			created_frames_count++;
-
-			// 2. 添加消息
-			for (int k = 0; k < bak_msgs.size(); k++) {
-				if (bak_msgs[k].remain_prob >= 1.0) continue;
-				Message msg_backup(bak_msgs[k].backup_msg.get_id_message());
-				if (new_frame.add_message(msg_backup)) {
-					scheme.message_set.emplace_back(msg_backup);
-				}
-			}
-
-			// 3. 确定新帧的优先级位置,插入并更新
-			auto it = std::lower_bound(sorted_frames.begin(), sorted_frames.end(), new_frame,
-				[](const CanfdFrame& a, const CanfdFrame& b) {
-					return a.get_priority() < b.get_priority();
-				});
-			auto inserted_it = sorted_frames.insert(it, new_frame);
-			int new_frame_index = std::distance(sorted_frames.begin(), inserted_it);
-
-			// 更新新插入帧之后的所有帧的优先级
-			for (int i = new_frame_index + 1; i < sorted_frames.size(); ++i) {
-				sorted_frames[i].set_priority(sorted_frames[i].get_priority() + 1);
-			}
-
-			// 为备份帧添加最大故障率，后面analyze_frame_probability会用
-			int max_level = 0;
-			for (auto& msg : new_frame.msg_set) {
-				max_level = std::max(max_level, msg.get_level());
-			}
-			max_fault_rate[new_frame.get_id()] = THRESHOLD_RELIABILITY[max_level];
-
-
-
-			// 4. 分析新帧概率
-			ProbResult frame_result = analyze_frame_probability(
-				new_frame, sorted_frames, max_fault_rate,
-				new_frame_index, cost_max_error_frame
-			);
-			result[new_frame_id] = frame_result;
-			// 调试输出
-			DEBUG_MSG_DEBUG1(std::cout, "===========备份帧============: ");
-			DEBUG_MSG_DEBUG1(std::cout, cfd::utils::get_frame_string(new_frame));
-			DEBUG_MSG_DEBUG1(std::cout, "响应时间期望: ", frame_result.e_response_time);
-			DEBUG_MSG_DEBUG1(std::cout, "不可调度的概率: ", frame_result.p_timeout, "\n");
-
-			// 5. 更新剩余概率
-			for (int k = 0; k < bak_msgs.size(); k++) {
-				if (bak_msgs[k].remain_prob >= 1.0) continue;
-
-				if (new_frame.msg_set.count(bak_msgs[k].backup_msg) > 0) {
-					bak_msgs[k].remain_prob /= frame_result.p_timeout;
-				}
-			}
-
-			// 6. 检查终止条件
-			need_more_frames = std::any_of(
-				bak_msgs.begin(), bak_msgs.end(),
-				[](const bak_msg_rem& bmr) { return bmr.remain_prob < 1.0; }
-			);
-
-		}
-
-		return created_frames_count;
-	}
+	
 
 
 
@@ -372,7 +291,8 @@ namespace cfd::schedual::paper2 {
 						msg.get_level(),
 						msg.get_type(),
 						THRESHOLD_RELIABILITY[msg.get_level()], 
-						prob_res.p_timeout
+						prob_res.p_timeout // 信号的故障概率 = 报文的故障概率 只在信号无offset，信号周期等于deadline时
+						//TODO frame的不可调度概率不完全等于所装载的每个帧的不可调度概率，但理论上，同周期的信号，deadline和帧deadline一致，那些周期为帧周期倍数的信号，是特殊点
 					};
 				}
 				else {
@@ -420,7 +340,9 @@ namespace cfd::schedual::paper2 {
 				DEBUG_MSG_DEBUG1(std::cout, "本次总计新增 ", bcnt, " 个同源信号副本");
 				DEBUG_MSG_DEBUG1(std::cout, "元启发算法重新初始化打包方案");
 				scheme.re_init_frames();//重新初始化帧打包方案
-				cfd::packing::heuristics::simulated_annealing(scheme);// sa优化
+				auto sa = cfd::packing::PACK_METHOD::SIMULATED_ANNEALING;
+				cfd::packing::frame_pack(scheme, sa);// sa优化
+				
 
 				DEBUG_MSG_DEBUG1(std::cout, "对添加副本信号的信打包方案进行概率分析");
 				return probabilistic_analysis(scheme, enable_backup, timestamp);//递归分析直至收敛

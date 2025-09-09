@@ -1,10 +1,13 @@
-#include"canfd_frame.h"
+#ifndef PACKINGSCHEME_H
+#define PACKINGSCHEME_H
+
 #include<unordered_set>
-#ifndef FRAMEPACKING_H
-#define FRAMEPACKING_H
+#include"canfd_frame.h"
+
 
 namespace cfd {
-	constexpr double LIMIT_BANDWIDTH = 0.995;	// 带宽利用率上限
+	constexpr double LIMIT_BANDWIDTH = 0.9;	// 带宽利用率上限
+	class PackingScheme;
 
 
 
@@ -21,7 +24,7 @@ namespace cfd {
 
 		std::unordered_set<int> free_ids;  // 可复用的ID池,给帧标号用,加入新帧时从池里选择id，帧清空时id返回池，池为空则分配frame_map.size()作为id
 
-		// 根据消息集合生成一个初始帧列表
+		// 根据消息集合生成初始化的帧集合，作为生成初始打包方案
 		void init_frames();
 
 
@@ -40,7 +43,7 @@ namespace cfd {
 		//回收帧的id
 		void recover_id(int id);
 
-		// 重新用元启发算法初始化帧序列
+		// 重新初始化，生成初始打包方案
 		inline void re_init_frames() {
 			for (auto& m : message_set) {
 				m.clear_frame();
@@ -57,6 +60,18 @@ namespace cfd {
 				std::cout << "id error\n";
 			}
 			auto result = this->frame_map.try_emplace(id, id, msg);
+#ifdef OFFSET_TEST
+			
+			std::random_device rd;
+			std::mt19937 gen(rd());
+			std::uniform_int_distribution<int> dist(0, msg.get_period() - 1); // 左闭右闭，范围 0 到 period-1
+			int offset = dist(gen);
+#else
+			int offset = 0;
+#endif // OFFSET_TEST
+
+			this->frame_map[id].set_offset(offset);
+
 			if (result.second) {
 				msg.assign_frame(id);
 				return id;
@@ -181,7 +196,13 @@ namespace cfd {
 	};
 }
 
-
+namespace cfd::packing {
+	enum class PACK_METHOD {
+		SIMULATED_ANNEALING=0, // SA 打包
+	};
+	// 对初始化后的scheme进行打包
+	double frame_pack(PackingScheme& scheme, PACK_METHOD method);
+}
 
 
 #endif // !FRAMEPACKING_H

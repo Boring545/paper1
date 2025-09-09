@@ -1,9 +1,14 @@
-#include"canfd_frame.h"
-#include"frame_packing.h"
 #ifndef PRIORITY_ALLOCATION_H
 #define PRIORITY_ALLOCATION_H
 
-namespace cfd::schedual::paper1{
+#include"canfd_frame.h"
+#include"debug_tool.h"
+namespace cfd {
+    class PackingScheme;
+}
+
+
+namespace cfd::schedule::paper1{
     /*
         paper1 方法来自OPTIMAL PRIORITY ASSIGNMENT AND FEASIBILITY OF STATIC PRIORITY TASKS WITH ARBITRARY START TIMES
         可以为无关键期的帧集合分配理论最优的优先级，该方法将优先级分配与可调度性分析合二为一
@@ -37,8 +42,9 @@ namespace cfd::schedual::paper1{
 
     //为无关键期帧集合分配优先级，成功分配也表示可调度，返回true
     bool assign_priority(CanfdFrameMap& frame_map);
+    bool assign_priority(cfd::PackingScheme& scheme);
 
-    bool assign_priority(PackingScheme& scheme);
+
 }
 
 #endif // !PRIORITY_ALLOCATION_H

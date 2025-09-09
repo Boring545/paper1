@@ -1,0 +1,1302 @@
+[
+    {
+        "code": 6961113382178024663,
+        "data_size": 1,
+        "deadline": 1,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 1,
+        "type": 0
+    },
+    {
+        "code": 5985296168777458702,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 6022245776755998742,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 9408080477742986469,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 5
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 1075806203497892111,
+        "data_size": 1,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 0
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 12283881637322673541,
+        "data_size": 2,
+        "deadline": 5,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 5,
+        "type": 0
+    },
+    {
+        "code": 4733188655920753252,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 6267937541714440344,
+        "data_size": 4,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 1700857224254147010,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 16472518156895536170,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 15567014469701932705,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 9270025197275402552,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 365378830966860388,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 15126339936959501335,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 14023355144246416939,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 531795417045202242,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 13045262915397960041,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 4290886992965164900,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 18409695075091429569,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 7773748164995104650,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 5600103131569557396,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 14167012673065778354,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 8580865621794880001,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 4787226144922438972,
+        "data_size": 4,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 17668946002096853069,
+        "data_size": 2,
+        "deadline": 5,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 5,
+        "type": 0
+    },
+    {
+        "code": 14680507836397534183,
+        "data_size": 8,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 5803167102791953666,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 1369849696141212783,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 1
+        },
+        "level": 3,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 654853970485388602,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 0
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 10111793325399898808,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 1736588758280000833,
+        "data_size": 4,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 2451340892996244937,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 2613186399584227220,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 3375869202609672248,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 11471340204077115353,
+        "data_size": 2,
+        "deadline": 1,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 1,
+        "type": 0
+    },
+    {
+        "code": 12353796000296588651,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 5
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 5075960490006045853,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 0
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 11544492337588536582,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 6337443589395555017,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 2944382996061127318,
+        "data_size": 64,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 11395508265848987103,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 13625470859736502428,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 6954115626300465211,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 18374042518405200736,
+        "data_size": 1,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 4
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 5434783265267216917,
+        "data_size": 2,
+        "deadline": 5,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 2
+        },
+        "level": 3,
+        "offset": 0,
+        "period": 5,
+        "type": 0
+    },
+    {
+        "code": 10290603574811818460,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 8467868026058204242,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 4885525932786368676,
+        "data_size": 1,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 15976670625772969253,
+        "data_size": 8,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 2
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 14193439454163957361,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 3949787039082793292,
+        "data_size": 4,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 10638823122934392323,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 1
+    },
+    {
+        "code": 5814094950401220773,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 1605788435404086456,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 2
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 18389968985681867363,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 13948730680767969018,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 16762843643858522376,
+        "data_size": 4,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 4
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 10416181529821039302,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 4
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 14894782319337052840,
+        "data_size": 4,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 8946840976143481751,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 5
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 5243256963933648163,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 9865666074710940692,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 4
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 2157480879221442750,
+        "data_size": 4,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 16943579986228047463,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 14961307960599527500,
+        "data_size": 1,
+        "deadline": 50,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 50,
+        "type": 0
+    },
+    {
+        "code": 10809756738639474437,
+        "data_size": 2,
+        "deadline": 50,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 2
+        },
+        "level": 3,
+        "offset": 0,
+        "period": 50,
+        "type": 0
+    },
+    {
+        "code": 10277796250724600843,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 1
+        },
+        "level": 3,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 9530072356890397840,
+        "data_size": 2,
+        "deadline": 50,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 50,
+        "type": 0
+    },
+    {
+        "code": 12564152343723619049,
+        "data_size": 1,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 64618938377749043,
+        "data_size": 4,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 1
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 4282305652105264284,
+        "data_size": 8,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 11364409689794685824,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 1271738549390807323,
+        "data_size": 2,
+        "deadline": 5,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 5,
+        "type": 0
+    },
+    {
+        "code": 10847025957922217453,
+        "data_size": 1,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 3447843373742657145,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 16477242801125541607,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 3983577141899364403,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 0
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 1275658938784015685,
+        "data_size": 4,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 3
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 15042100466641376263,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 1
+    },
+    {
+        "code": 12964153653399909592,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 16218134281272093742,
+        "data_size": 1,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 10929137843476736248,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 1
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 14723129492707086844,
+        "data_size": 4,
+        "deadline": 50,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 50,
+        "type": 0
+    },
+    {
+        "code": 11900823223846520468,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 4
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 2717802420061548762,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 17195671983758533104,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 3
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 5356882529801273178,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 0,
+            "src_ecu": 3
+        },
+        "level": 1,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 12326363485388982806,
+        "data_size": 1,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 14387071231600945314,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 464863758106145209,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 2
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 6833759195100166198,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 1,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 4965302092490645549,
+        "data_size": 1,
+        "deadline": 2,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 2,
+        "type": 0
+    },
+    {
+        "code": 16413335933989068702,
+        "data_size": 4,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 2
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 10020445179700493804,
+        "data_size": 2,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 0
+        },
+        "level": 2,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    },
+    {
+        "code": 398786665142315,
+        "data_size": 4,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 13279621085605070265,
+        "data_size": 2,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 2,
+            "src_ecu": 4
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 4905165350799977371,
+        "data_size": 1,
+        "deadline": 50,
+        "ecu_pair": {
+            "dst_ecu": 5,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 50,
+        "type": 0
+    },
+    {
+        "code": 7829032433962532296,
+        "data_size": 2,
+        "deadline": 20,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 2
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 20,
+        "type": 0
+    },
+    {
+        "code": 14068822117843391141,
+        "data_size": 1,
+        "deadline": 10,
+        "ecu_pair": {
+            "dst_ecu": 4,
+            "src_ecu": 5
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 10,
+        "type": 0
+    },
+    {
+        "code": 14238736741933846899,
+        "data_size": 4,
+        "deadline": 100,
+        "ecu_pair": {
+            "dst_ecu": 3,
+            "src_ecu": 0
+        },
+        "level": 0,
+        "offset": 0,
+        "period": 100,
+        "type": 0
+    }
+]

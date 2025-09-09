@@ -1,10 +1,13 @@
-#include "sa_algorithm.h"
+#include"../packing_scheme.h"
+#include"../debug_tool.h"
+#include"../priority_allocation.h"
+
 
 namespace cfd::packing::heuristics {
 
 	// fitness计算函数1
-	double calculate_fitness_a(PackingScheme& scheme) {
-		int schedualbility = cfd::schedual::paper1::assign_priority(scheme) == true ? 0 : 1;
+	double calculate_fitness_a(cfd::PackingScheme& scheme) {
+		int schedualbility = cfd::schedule::paper1::assign_priority(scheme.frame_map) == true ? 0 : 1;
 		return scheme.calc_bandwidth_utilization() + schedualbility;
 	}
 
@@ -39,11 +42,8 @@ namespace cfd::packing::heuristics {
 	 * @param frame_period 帧的周期
 	 * @param frame_id 要移除的帧 ID
 	 */
-	inline void index_remove_frame(FrameIndexMap& fmap,
-		const std::map<int, std::vector<int>>& valid_period_map,
-		const EcuPair& ecu,
-		int frame_period,
-		int frame_id) {
+	inline void index_remove_frame(FrameIndexMap& fmap, const std::map<int, std::vector<int>>& valid_period_map,
+		const EcuPair& ecu, int frame_period, int frame_id) {
 		auto vp_it = valid_period_map.find(frame_period);
 		if (vp_it == valid_period_map.end()) return;
 
@@ -68,11 +68,8 @@ namespace cfd::packing::heuristics {
 	 * @param frame_period 帧周期
 	 * @param frame_id 新增的帧 ID
 	 */
-	inline void index_add_frame(FrameIndexMap& fmap,
-		const std::map<int, std::vector<int>>& valid_period_map,
-		const EcuPair& ecu,
-		int frame_period,
-		int frame_id) {
+	inline void index_add_frame(FrameIndexMap& fmap,const std::map<int, std::vector<int>>& valid_period_map,
+		const EcuPair& ecu,int frame_period, int frame_id) {
 		auto vp_it = valid_period_map.find(frame_period);
 		if (vp_it == valid_period_map.end()) return;
 
@@ -100,7 +97,7 @@ namespace cfd::packing::heuristics {
 		std::uniform_real_distribution<>& dist) {
 
 		constexpr double PROBABILITY_NEW_FRAME = 0.01; // 移动到新帧的概率,但实际概率会比这个略高，因为尝试移动到已有帧不一定成功
-		
+
 
 		int ot_frm_index = msg.get_id_frame();
 
@@ -110,50 +107,47 @@ namespace cfd::packing::heuristics {
 			if (sol.frame_map.at(ot_frm_index).extract_message(msg)) {
 				// 如果原帧为空，则删除并更新索引
 				if (sol.frame_map.at(ot_frm_index).empty()) {
-					index_remove_frame(fmap, valid_period_map,
-						msg.get_ecu_pair(),
-						sol.frame_map.at(ot_frm_index).get_period(),
-						ot_frm_index);
+					index_remove_frame(fmap, valid_period_map, msg.get_ecu_pair(), sol.frame_map.at(ot_frm_index).get_period(), ot_frm_index);
 					sol.recover_id(ot_frm_index);
 					sol.frame_map.erase(ot_frm_index);
 				}
 
 				// 新增帧并更新索引
 				int new_frame_id = sol.add_frame(msg);
-				index_add_frame(fmap, valid_period_map,
-					msg.get_ecu_pair(),
-					msg.get_period(),
-					new_frame_id);
+				index_add_frame(fmap, valid_period_map, msg.get_ecu_pair(), msg.get_period(), new_frame_id);
 				return true;
 			}
 			return false; // 提取消息失败
 		}
+		else {
+			// --- 2. 尝试移动到已有帧 ---
+			auto& candidates = fmap[msg.get_ecu_pair()][msg.get_period()];
+			size_t RANDOM_RETRY_NUM = candidates.size() * 2;         // 移动到已有帧的最大尝试次数
 
-		// --- 2. 尝试移动到已有帧 ---
-		auto& candidates = fmap[msg.get_ecu_pair()][msg.get_period()];
-		size_t RANDOM_RETRY_NUM = candidates.size()*2;         // 移动到已有帧的最大尝试次数
+			if (candidates.empty()) return false; // 没有可用目标帧
 
-		if (candidates.empty()) return false; // 没有可用目标帧
+			std::uniform_int_distribution<> frm_dist(0, candidates.size() - 1);
+			for (int retry = 0; retry < RANDOM_RETRY_NUM; retry++) {
+				int in_frm_index = candidates[frm_dist(gen)];
+				if (in_frm_index == ot_frm_index) continue; // 跳过原帧
 
-		std::uniform_int_distribution<> frm_dist(0, candidates.size() - 1);
-		for (int retry = 0; retry < RANDOM_RETRY_NUM; retry++) {
-			int in_frm_index = candidates[frm_dist(gen)];
-			if (in_frm_index == ot_frm_index) continue; // 跳过原帧
-
-			// 尝试移动消息到目标帧
-			if (sol.frame_map.at(ot_frm_index).move_message(sol.frame_map.at(in_frm_index), msg)) {
-				if (sol.frame_map.at(ot_frm_index).empty()) {
-					// 原帧为空，更新索引并删除
-					index_remove_frame(fmap, valid_period_map,
-						msg.get_ecu_pair(),
-						sol.frame_map.at(ot_frm_index).get_period(),
-						ot_frm_index);
-					sol.recover_id(ot_frm_index);
-					sol.frame_map.erase(ot_frm_index);
+				// 尝试移动消息到目标帧
+				if (sol.frame_map.at(ot_frm_index).move_message(sol.frame_map.at(in_frm_index), msg)) {
+					if (sol.frame_map.at(ot_frm_index).empty()) {
+						// 原帧为空，更新索引并删除
+						index_remove_frame(fmap, valid_period_map,
+							msg.get_ecu_pair(),
+							sol.frame_map.at(ot_frm_index).get_period(),
+							ot_frm_index);
+						sol.recover_id(ot_frm_index);
+						sol.frame_map.erase(ot_frm_index);
+					}
+					return true;
 				}
-				return true;
 			}
 		}
+
+
 		return false;
 	}
 
@@ -233,7 +227,7 @@ namespace cfd::packing::heuristics {
 
 			new_cost = calculate_fitness_a(new_solution);
 
-			//----- 判断是否接受新解（Metropolis 准则）
+			//----- 判断是否接受新解
 			if (new_cost <= pre_cost) {
 				if (new_cost <= best_cost) {
 					best_solution = new_solution;

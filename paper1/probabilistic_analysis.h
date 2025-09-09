@@ -1,13 +1,14 @@
-#include"frame_packing.h"
-#include"sa_algorithm.h"
-#include"debug_tool.h"
-#include <cmath>
-#include<queue>
-#include<stack>
 #ifndef PROBABILISTIC_ANALYSIS_H
 #define PROBABILISTIC_ANALYSIS_H
 
-namespace cfd::schedual::paper2 {
+#include <cmath>
+#include<queue>
+#include<stack>
+
+#include"packing_scheme.h"
+#include"debug_tool.h"
+
+namespace cfd::schedule::paper2 {
 	/*
 	paper2 方法来自Probabilistic analysis of CAN with faults
 	可以对已经分配优先级的帧集合进行 基于概率的 可调度性分析，最终得到每个帧可能的多个 响应时间和对应概率

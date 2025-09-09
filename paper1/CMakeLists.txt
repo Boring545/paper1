@@ -4,7 +4,7 @@
 cmake_minimum_required (VERSION 3.8)
 
 # 将源代码添加到此项目的可执行文件。
-add_executable (paper1 "paper1.cpp"  "canfd_frame.h" "canfd_frame.cpp" "frame_packing.h" "frame_packing.cpp"    "priority_allocation.h" "priority_allocation.cpp" "debug_tool.h" "sa_algorithm.h" "sa_algorithm.cpp"   "probabilistic_analysis.cpp" "probabilistic_analysis.h")
+add_executable (paper1 "paper1.cpp"  "canfd_frame.h" "canfd_frame.cpp" "packing_scheme.h" "packing_scheme.cpp"    "priority_allocation.h" "priority_allocation.cpp" "debug_tool.h"     "probabilistic_analysis.cpp" "probabilistic_analysis.h"   "packing_algorithms/sa_algorithm.cpp" "packing_algorithms/sa_algorithm.h" "config.h")
 
 # 链接 nlohmann_json 库
 target_link_libraries(paper1 PRIVATE nlohmann_json::nlohmann_json)
