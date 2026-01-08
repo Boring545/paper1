@@ -2,7 +2,7 @@
 #include"priority_allocation.h"
 #include"packing_algorithms/sa_algorithm.h"
 namespace cfd {
-	//¼ÆËã´ø¿íÀûÓÃÂÊ
+	//è®¡ç®—å¸¦å®½åˆ©ç”¨ç‡
 
 
 
@@ -22,26 +22,26 @@ namespace cfd {
 	void PackingScheme::init_frames()
 	{
 		free_ids.clear();
-		EcuPeriodMessageMap period_msg_map; //message°´ÕÕECU¶Ô¡¢periodµÄ¶ş¼¶·Ö±í
+		EcuPeriodMessageMap period_msg_map; //messageæŒ‰ç…§ECUå¯¹ã€periodçš„äºŒçº§åˆ†è¡¨
 		for (size_t i = 0; i < message_set.size(); ++i) {
 			const auto& m = message_set[i];
 			period_msg_map[m.get_ecu_pair()][m.get_period()].emplace_back(i);
 		}
 
 		//frame_set.reserve(100);
-		//Ã¿´Î±éÀú´¦ÀíÒ»¶ÔecuµÄµ¥Ïò´«Êä
-			// ±éÀú ECU ¶Ô
+		//æ¯æ¬¡éå†å¤„ç†ä¸€å¯¹ecuçš„å•å‘ä¼ è¾“
+			// éå† ECU å¯¹
 		for (auto& ecu_map : period_msg_map) {
-			// ±éÀúÃ¿¸ö period
+			// éå†æ¯ä¸ª period
 			for (auto& period_map : ecu_map.second) {
 				auto& temp_set = period_map.second;
 
 				while (!temp_set.empty()) {
-					// Ëæ±ãÈ¡Ò»¸ö message ĞÂ½¨Ò»¸ö frame
+					// éšä¾¿å–ä¸€ä¸ª message æ–°å»ºä¸€ä¸ª frame
 					FrameId frame_index = add_frame(message_set[temp_set.back()]);
 					temp_set.pop_back();
 
-					// ³¢ÊÔ°ÑÊ£ÏÂµÄ message ÍùÕâ¸ö frame ÀïÈû
+					// å°è¯•æŠŠå‰©ä¸‹çš„ message å¾€è¿™ä¸ª frame é‡Œå¡
 					for (auto it = temp_set.begin(); it != temp_set.end();) {
 						if (frame_map[frame_index].add_message(message_set[*it])) {
 							it = temp_set.erase(it);
@@ -61,37 +61,37 @@ namespace cfd {
 #endif // OFFSET_TEST
 
 		for (auto& [id, frame] : frame_map) {
-			int period = frame.get_period(); // »ñÈ¡µ±Ç°Ö¡µÄÖÜÆÚ
+			int period = frame.get_period(); // è·å–å½“å‰å¸§çš„å‘¨æœŸ
 
 #ifdef OFFSET_TEST
-			// Ëæ»ú·ÖÅä [0, period-1) ·¶Î§ÄÚµÄ×ÔÈ»Êı
-			std::uniform_int_distribution<int> dist(0, period - 1); // ×ó±ÕÓÒ±Õ£¬·¶Î§ 0 µ½ period-1
+			// éšæœºåˆ†é… [0, period-1) èŒƒå›´å†…çš„è‡ªç„¶æ•°
+			std::uniform_int_distribution<int> dist(0, period - 1); // å·¦é—­å³é—­ï¼ŒèŒƒå›´ 0 åˆ° period-1
 			int offset = dist(gen);
 #else
 			int offset = 0;
 #endif // OFFSET_TEST
 			
 
-			frame.set_offset(offset); // ¼ÙÉè CanfdFrame ÓĞ set_offset ·½·¨
+			frame.set_offset(offset); // å‡è®¾ CanfdFrame æœ‰ set_offset æ–¹æ³•
 		}
 
 		if (calc_bandwidth_utilization() > 0.95) {
-			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "ĞÅºÅÀàĞÍÌ«¶à£¬µ¼ÖÂÖ¡¹ı¶à£¬´«ÊäÀ§ÄÑ", " U = ", calc_bandwidth_utilization());
+			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "ä¿¡å·ç±»å‹å¤ªå¤šï¼Œå¯¼è‡´å¸§è¿‡å¤šï¼Œä¼ è¾“å›°éš¾", " U = ", calc_bandwidth_utilization());
 		}
 
 		if (!cfd::schedule::paper1::assign_priority(this->frame_map)) {
-			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "³õÊ¼·½°¸ÎŞ·¨·ÖÅäÓÅÏÈ¼¶£¬ÎŞ·¨µ÷¶È");
+			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "åˆå§‹æ–¹æ¡ˆæ— æ³•åˆ†é…ä¼˜å…ˆçº§ï¼Œæ— æ³•è°ƒåº¦");
 		}
 	}
 	int PackingScheme::get_free_id()
 	{
 		int new_id = -1;
-		// ÓÅÏÈ´Ó³ØÖĞ»ñÈ¡¿É¸´ÓÃµÄ ID
+		// ä¼˜å…ˆä»æ± ä¸­è·å–å¯å¤ç”¨çš„ ID
 		if (!free_ids.empty()) {
 			new_id = *free_ids.begin();
 			free_ids.erase(free_ids.begin());
 		}
-		// ³ØÎª¿ÕÊ±£¬·ÖÅäĞÂ ID£¨µ±Ç° map µÄ size£©
+		// æ± ä¸ºç©ºæ—¶ï¼Œåˆ†é…æ–° IDï¼ˆå½“å‰ map çš„ sizeï¼‰
 		else {
 			new_id = this->frame_map.size();
 		}
@@ -107,7 +107,7 @@ namespace cfd {
 			throw std::out_of_range("Frame ID not found!");
 		}
 
-		free_ids.insert(id);  // »ØÊÕ ID
+		free_ids.insert(id);  // å›æ”¶ ID
 	}
 
 
@@ -126,4 +126,3 @@ double cfd::packing::frame_pack(PackingScheme& scheme, PACK_METHOD method) {
 
 	return utilization;
 }
-

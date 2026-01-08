@@ -3,14 +3,17 @@
 
 #include <iostream>
 #include <ostream>
-
+#include <chrono>
+#include <ctime>
+#include <sstream>
+#include <string>
 
 inline std::string get_time_stamp() {
-    // »ñÈ¡µ±Ç°Ê±¼ä´Á
+    // è·å–å½“å‰æ—¶é—´æˆ³
     auto now = std::chrono::system_clock::now();
     auto now_time_t = std::chrono::system_clock::to_time_t(now);
 
-    // ½«Ê±¼ä´Á×ª»¯Îª×Ö·û´®£¬¸ñÊ½Îª "yyyyMMdd_HHmmss"
+    // å°†æ—¶é—´æˆ³è½¬æ¢ä¸ºå­—ç¬¦ä¸²ï¼Œæ ¼å¼ä¸º "yyyyMMdd_HHmmss"
     std::tm tm = *std::localtime(&now_time_t);
     std::ostringstream timestamp;
     timestamp << (tm.tm_year + 1900) << (tm.tm_mon + 1) << tm.tm_mday << "_"
@@ -18,93 +21,94 @@ inline std::string get_time_stamp() {
     return timestamp.str();
 }
 
-
-
 /*
 ==========================================================
-Í¨¹ı¶¨Òå #define DEBUG_OUTPUT ¡¾DebugLevel¡¿ À´¿ØÖÆÊä³öµÈ¼¶
+é€šè¿‡å®šä¹‰ #define DEBUG_OUTPUT å’Œ DebugLevel æ¥æ§åˆ¶è¾“å‡ºç­‰çº§
 ==========================================================
 */
 #define DEBUG_OUTPUT DebugLevel::DEBUG1
 
-// µİ¹éÇé¿ö£º´òÓ¡µÚÒ»¸ö²ÎÊı£¬È»ºóµ÷ÓÃ×ÔÉí´òÓ¡Ê£Óà²ÎÊı
-template<typename T, typename... Args>
-inline void debug_print(std::ostream& os, T first, Args... args) {
-    os << first; // ´òÓ¡µÚÒ»¸ö²ÎÊı
-    debug_print(os, args...); // µİ¹éµ÷ÓÃ´òÓ¡Ê£Óà²ÎÊı
-}
-
-// ÖÕÖ¹µİ¹é£ºµ±Ã»ÓĞ²ÎÊıÊ±£¬Ê²Ã´Ò²²»×ö
-inline void debug_print(std::ostream& os) {}
-
-// ¶¨Òåµ÷ÊÔ¼¶±ğ
+// æšä¸¾å®šä¹‰
 enum class DebugLevel {
     INFO,
     DEBUG1,
     DEBUG2,
     DEBUG3,
-    DEBUG4, // ĞÂÔö DEBUG4
+    DEBUG4, // æœ€é«˜ DEBUG4
 };
 
-// Èç¹ûÃ»ÓĞ¶¨Òå DEBUG_OUTPUT£¬Ôò²»¶¨ÒåÈÎºÎÈÕÖ¾ºê
+// åŸºç¡€å‡½æ•°å£°æ˜ï¼ˆå¿…é¡»å…ˆå£°æ˜ï¼ï¼‰
+inline void debug_print(std::ostream& os) {
+    // ç©ºå®ç°ï¼Œç”¨äºç»ˆæ­¢é€’å½’
+    os << std::endl;
+}
+
+// æ¨¡æ¿å‡½æ•°
+template<typename T, typename... Args>
+inline void debug_print(std::ostream& os, T&& first, Args&&... args) {
+    os << std::forward<T>(first); // æ‰“å°ç¬¬ä¸€ä¸ªå‚æ•°
+    debug_print(os, std::forward<Args>(args)...); // é€’å½’è°ƒç”¨æ‰“å°å‰©ä½™å‚æ•°
+}
+
+// å¦‚æœç”¨æˆ·å®šä¹‰äº† DEBUG_OUTPUT
 #ifdef DEBUG_OUTPUT
 
-// ½« DEBUG_OUTPUT ×ª»»Îª DebugLevel Ã¶¾ÙÖµ
+// å°† DEBUG_OUTPUT è½¬æ¢ä¸º DebugLevel æšä¸¾å€¼
 constexpr DebugLevel CURRENT_DEBUG_LEVEL = \
 (DEBUG_OUTPUT == DebugLevel::INFO) ? DebugLevel::INFO : \
 (DEBUG_OUTPUT == DebugLevel::DEBUG1) ? DebugLevel::DEBUG1 : \
 (DEBUG_OUTPUT == DebugLevel::DEBUG2) ? DebugLevel::DEBUG2 : \
 (DEBUG_OUTPUT == DebugLevel::DEBUG3) ? DebugLevel::DEBUG3 : \
 (DEBUG_OUTPUT == DebugLevel::DEBUG4) ? DebugLevel::DEBUG4 : \
-DebugLevel::INFO; // Ä¬ÈÏÖµ
+DebugLevel::INFO; // é»˜è®¤å€¼
 
-// µ÷ÊÔÏûÏ¢ºê
+// ä¿¡æ¯çº§åˆ«
 #define DEBUG_MSG_INFO(os, ...) \
     do { \
         if (static_cast<int>(DebugLevel::INFO) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
+            os << "[INFO] "; \
             debug_print(os, __VA_ARGS__); \
-            os << "\n"; \
         } \
     } while (0)
 
+// è°ƒè¯•çº§åˆ«1
 #define DEBUG_MSG_DEBUG1(os, ...) \
     do { \
         if (static_cast<int>(DebugLevel::DEBUG1) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
             os << "[DEBUG1] "; \
             debug_print(os, __VA_ARGS__); \
-            os << "\n"; \
         } \
     } while (0)
 
+// è°ƒè¯•çº§åˆ«2
 #define DEBUG_MSG_DEBUG2(os, ...) \
     do { \
         if (static_cast<int>(DebugLevel::DEBUG2) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
             os << "[DEBUG2] "; \
             debug_print(os, __VA_ARGS__); \
-            os << "\n"; \
         } \
     } while (0)
 
+// è°ƒè¯•çº§åˆ«3
 #define DEBUG_MSG_DEBUG3(os, ...) \
     do { \
         if (static_cast<int>(DebugLevel::DEBUG3) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
             os << "[DEBUG3] "; \
             debug_print(os, __VA_ARGS__); \
-            os << "\n"; \
         } \
     } while (0)
 
+// è°ƒè¯•çº§åˆ«4
 #define DEBUG_MSG_DEBUG4(os, ...) \
     do { \
         if (static_cast<int>(DebugLevel::DEBUG4) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
             os << "[DEBUG4] "; \
             debug_print(os, __VA_ARGS__); \
-            os << "\n"; \
         } \
     } while (0)
 
 #else
-// Èç¹ûÎ´¶¨Òå DEBUG_OUTPUT£¬Ôò²»¶¨ÒåÈÎºÎÈÕÖ¾ºê
+// å¦‚æœæœªå®šä¹‰ DEBUG_OUTPUTï¼Œåˆ™ä¸å®šä¹‰ä»»ä½•æ—¥å¿—å®
 #define DEBUG_MSG_INFO(os, ...)
 #define DEBUG_MSG_DEBUG1(os, ...)
 #define DEBUG_MSG_DEBUG2(os, ...)
@@ -112,4 +116,4 @@ DebugLevel::INFO; // Ä¬ÈÏÖµ
 #define DEBUG_MSG_DEBUG4(os, ...)
 #endif
 
-#endif // !DEBUGTOOL_H
+#endif // DEBUGTOOL_H

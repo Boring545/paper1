@@ -1,20 +1,20 @@
 #include"canfd_frame.h"
 
 namespace cfd {
-	MessageInfoVec MESSAGE_INFO_VEC;//È«¾ÖÎ¬»¤Ò»¸ömessage info ±í
+	MessageInfoVec MESSAGE_INFO_VEC;//å…¨å±€ç»´æŠ¤ä¸€ä¸ªmessage info è¡¨
 
 	int CanfdFrame::payload_size_trans(int size)
 	{
-		int byte_size = (size + 7) / 8;  // ÏòÉÏÈ¡Õû
-		// Ê¹ÓÃ¶ş·Ö²éÕÒÑ°ÕÒºÏÊÊµÄ payload size
+		int byte_size = (size + 7) / 8;  // å‘ä¸Šå–æ•´
+		// ä½¿ç”¨äºŒåˆ†æŸ¥æ‰¾å¯»æ‰¾åˆé€‚çš„ payload size
 		auto it = std::lower_bound(OPTION_CANFD_PAYLOAD_SIZE, OPTION_CANFD_PAYLOAD_SIZE + NUM_CANFD_PAYLOAD_SIZE, byte_size);
 
-		// Èç¹ûÕÒµ½ÊÊµ±µÄÖµ£¬·µ»Ø
+		// å¦‚æœæ‰¾åˆ°é€‚å½“çš„å€¼ï¼Œè¿”å›
 		if (it != std::end(OPTION_CANFD_PAYLOAD_SIZE)) {
 			return *it;
 		}
 
-		// Èç¹ûÃ»ÓĞÕÒµ½ºÏÊÊµÄÖµ£¬·µ»Ø -1
+		// å¦‚æœæ²¡æœ‰æ‰¾åˆ°åˆé€‚çš„å€¼ï¼Œè¿”å› -1
 		return -1;
 	}
 
@@ -25,7 +25,7 @@ namespace cfd {
 		return wctt;
 	}
 
-	//¸ù¾İdata_size¸üĞÂdata_size¡¢payload_size,exec_time
+	//æ ¹æ®data_sizeæ›´æ–°data_sizeã€payload_size,exec_time
 
 	bool CanfdFrame::set_data_size(int v) {
 		if (v < 0 || v > SIZE_MAX_CANFD_DATA) {
@@ -39,7 +39,7 @@ namespace cfd {
 		}
 	}
 
-	// ĞòÁĞ»¯ CanfdFrame ¶ÔÏóÎª JSON
+	// åºåˆ—åŒ– CanfdFrame å¯¹è±¡ä¸º JSON
 	json CanfdFrame::to_json() const {
 		json j;
 		j["data_size"] = data_size;
@@ -52,10 +52,10 @@ namespace cfd {
 		j["id"] = id;
 		j["ecu_pair"] = ecu_pair.to_json();
 
-		// ĞòÁĞ»¯ msg_set
+		// åºåˆ—åŒ– msg_set
 		std::vector<json> msg_set_json;
 		for (const auto& msg : msg_set) {
-			msg_set_json.push_back(msg.to_json()); // ¼ÙÉè Message ÀàÓĞ to_json ·½·¨
+			msg_set_json.push_back(msg.to_json()); // å‡è®¾ Message ç±»æœ‰ to_json æ–¹æ³•
 		}
 		j["msg_set"] = msg_set_json;
 
@@ -63,7 +63,7 @@ namespace cfd {
 	}
 
 
-	// ´Ó JSON ·´ĞòÁĞ»¯Îª CanfdFrame ¶ÔÏó
+	// ä» JSON ååºåˆ—åŒ–ä¸º CanfdFrame å¯¹è±¡
 	CanfdFrame CanfdFrame::from_json(const json& j) {
 		
 		FrameId id = j.at("id").get<FrameId>();
@@ -78,9 +78,9 @@ namespace cfd {
 		frame.priority = j.at("priority").get<int>();
 		frame.trans_time = j.at("trans_time").get<double>();
 
-		// ·´ĞòÁĞ»¯ msg_set
+		// ååºåˆ—åŒ– msg_set
 		for (const auto& msg_json : j.at("msg_set")) {
-			Message msg = Message::from_json(msg_json); // ¼ÙÉè Message ÀàÓĞ from_json ·½·¨
+			Message msg = Message::from_json(msg_json); // å‡è®¾ Message ç±»æœ‰ from_json æ–¹æ³•
 			frame.msg_set.insert(msg);
 		}
 
@@ -92,7 +92,7 @@ namespace cfd {
 		return 0;
 
 
-		// Èç¹û loaded_msgs Îª¿Õ£¬Å×³öÒì³£
+		// å¦‚æœ loaded_msgs ä¸ºç©ºï¼ŒæŠ›å‡ºå¼‚å¸¸
 		if (msg_set.empty()) {
 			return 0;
 		}
@@ -105,10 +105,10 @@ namespace cfd {
 		return max_offset;
 	}
 
-	// TODO Ó¦¸ÃĞŞ¸Ä
+	// TODO åº”è¯¥ä¿®æ”¹
 	bool CanfdFrame::set_offset(int v) {
 		if (v == offset) {
-			return true;	// ÎŞ¸Ä±ä
+			return true;	// æ— æ”¹å˜
 		}
 		if (v < 0 || v >= period) {
 			return false;
@@ -131,35 +131,35 @@ namespace cfd {
 
 
 
-	//²»ÖªµÀÎªÊ²Ã´ÓĞÊ±ºò»áºÍextrect²»¶ÔÅ¼,¸ÕÒÆ³öÀ´µÄÏûÏ¢¿ÉÄÜ·Å²»½øÈ¥
+	//ä¸çŸ¥é“ä¸ºä»€ä¹ˆæœ‰æ—¶å€™ä¼šå’Œextrectä¸å¯¹å¶,åˆšç§»å‡ºæ¥çš„æ¶ˆæ¯å¯èƒ½æ”¾ä¸è¿›å»
 	bool CanfdFrame::add_message(Message& m)
 	{
-		// messageÒÑ·ÖÅä
+		// messageå·²åˆ†é…
 		if (m.get_id_frame() != -1) {
-			DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::messageÒÑ·ÖÅä");
-			std::cout << "ÒÑ·ÖÅä\n";
+			DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::messageå·²åˆ†é…");
+			std::cout << "å·²åˆ†é…\n";
 			return false;
 		}
-		//·ÅµÃÏÂ
+		//æ”¾å¾—ä¸‹
 		if (SIZE_MAX_CANFD_DATA - data_size < m.get_data_size()) {
-			DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frameÊ£Óà¿Õ¼ä²»×ã ");
+			DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frameå‰©ä½™ç©ºé—´ä¸è¶³ ");
 			return false;
 		}
-		//ÖÜÆÚºÏÊÊ,ĞÅºÅÖÜÆÚÎªCAN-FDÖ¡ÖÜÆÚ1~N±¶Ê±²Å¿É×°ÔØ
+		//å‘¨æœŸåˆé€‚,ä¿¡å·å‘¨æœŸä¸ºCAN-FDå¸§å‘¨æœŸ1~Nå€æ—¶æ‰å¯è£…è½½
 		if (m.get_period() % this->period != 0 || m.get_period() > this->period * FACTOR_M_F_PERIOD) {
-			DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frameºÍmessageÖÜÆÚ²»Æ¥Åä");
+			DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frameå’Œmessageå‘¨æœŸä¸åŒ¹é…");
 			return false;
 		}
-		//Ô´Ä¿ECUÒ»ÖÂ
+		//æºç›®ECUä¸€è‡´
 		if (!(m.get_ecu_pair() == this->ecu_pair)) {
-			DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frameºÍmessageµÄÔ´Ä¿ecu²»Æ¥Åä");
+			DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frameå’Œmessageçš„æºç›®ecuä¸åŒ¹é…");
 			return false;
 		}
 
-		// ²»ÔÊĞí´æ´¢¸´Êı¸öÍ¬codeµÄÏûÏ¢
+		// ä¸å…è®¸å­˜å‚¨å¤æ•°ä¸ªåŒcodeçš„æ¶ˆæ¯
 		for (auto& msg : this->msg_set) {
 			if (m.get_code() == msg.get_code()) {
-				DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frameÄÚÒÑ´æÔÚmessagecode");
+				DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frameå†…å·²å­˜åœ¨messagecode");
 				return false;
 			}
 		}
@@ -171,11 +171,11 @@ namespace cfd {
 				min_tolerance_time = td;
 			}
 		}
-		int tolerance_time = 0;		// Ö¸Ò»¸öÏûÏ¢ ÔÚoffset=vµÄÖ¡ µ½´ïºó »¹ÓĞ¶à¾Ã³¬Ê±
+		int tolerance_time = 0;		// æŒ‡ä¸€ä¸ªæ¶ˆæ¯ åœ¨offset=vçš„å¸§ åˆ°è¾¾å è¿˜æœ‰å¤šä¹…è¶…æ—¶
 
 
 		this->set_data_size(this->data_size + m.get_data_size());
-		this->set_offset(0);// TODO Ò²ĞíÓ¦¸ÃĞŞ¸Ä,ÕâÀïÖ¡Ä¬ÈÏoffsetÎª0
+		this->set_offset(0);// TODO ä¹Ÿè®¸åº”è¯¥ä¿®æ”¹,è¿™é‡Œå¸§é»˜è®¤offsetä¸º0
 		this->deadline = min_tolerance_time;
 
 		m.assign_frame(this->id);
@@ -191,33 +191,33 @@ namespace cfd {
 			std::cout << "9797\n";
 			return false;
 		}
-		// É¾³ımessage
+		// åˆ é™¤message
 		auto it = msg_set.find(m);
 		if (it == msg_set.end()) {
 			std::cout << "10\n";
-			return false;   // ²»´æÔÚÕâ¸öÏûÏ¢
+			return false;   // ä¸å­˜åœ¨è¿™ä¸ªæ¶ˆæ¯
 		}
 		else {
 			msg_set.erase(it);
 		}
-		DEBUG_MSG_DEBUG2(std::cout, "È¡³öÏûÏ¢ ", m.get_id_message(), " ´ÓÖ¡", this->id);
+		DEBUG_MSG_DEBUG2(std::cout, "å–å‡ºæ¶ˆæ¯ ", m.get_id_message(), " ä»å¸§", this->id);
 		m.clear_frame();
 
-		// ÓĞµÄÖ¡¿ÉÄÜÉ¶Ò²²»Ê££¬¿ÉÒÔÍ¨¹ıemptyÈ·¶¨¸ÃÖ¡ÊÇ·ñÎª¿Õ£¬×¢ÒâÖ´ĞĞclearÊ¹Æä¹éÁã 
+		// æœ‰çš„å¸§å¯èƒ½å•¥ä¹Ÿä¸å‰©ï¼Œå¯ä»¥é€šè¿‡emptyç¡®å®šè¯¥å¸§æ˜¯å¦ä¸ºç©ºï¼Œæ³¨æ„æ‰§è¡Œclearä½¿å…¶å½’é›¶ 
 		if (msg_set.empty()) {
 			this->clear();
 			return true;
 		}
 
 
-		// ÖØËãoffset¡¢deadline£¬wctt£¬datasize
+		// é‡ç®—offsetã€deadlineï¼Œwcttï¼Œdatasize
 		int frame_offset = get_max_offset();
 
 		int min_tolerance_time = INT_MAX;
-		int tolerance_time = 0;		// Ö¸Ò»¸öÏûÏ¢ ÔÚoffset=vµÄÖ¡ µ½´ïºó »¹ÓĞ¶à¾Ã³¬Ê±
+		int tolerance_time = 0;		// æŒ‡ä¸€ä¸ªæ¶ˆæ¯ åœ¨offset=vçš„å¸§ åˆ°è¾¾å è¿˜æœ‰å¤šä¹…è¶…æ—¶
 
 		for (auto& msg : msg_set) {
-			// tolerance_timeÊÇÒ»¸öÏûÏ¢ÔÚÖ¡µ½´ïºó£¬Ê£ÓàµÄ¿ÉµÈ´ıÊ±¼ä
+			// tolerance_timeæ˜¯ä¸€ä¸ªæ¶ˆæ¯åœ¨å¸§åˆ°è¾¾åï¼Œå‰©ä½™çš„å¯ç­‰å¾…æ—¶é—´
 			tolerance_time = msg.get_deadline() - (frame_offset - msg.get_offset());
 			if (tolerance_time < min_tolerance_time) {
 				min_tolerance_time = tolerance_time;
@@ -226,7 +226,7 @@ namespace cfd {
 
 		this->set_data_size(this->data_size - m.get_data_size());
 		this->set_offset(frame_offset);
-		this->deadline = min_tolerance_time;// Ö¡deadline¾ÍÊÇËùÓĞÏûÏ¢×îĞ¡µÄtolerance_time
+		this->deadline = min_tolerance_time;// å¸§deadlineå°±æ˜¯æ‰€æœ‰æ¶ˆæ¯æœ€å°çš„tolerance_time
 
 		return true;
 	}
@@ -241,9 +241,9 @@ namespace cfd {
 				return true;
 			}
 			else {
-				//*this = frame_temp;//»Ö¸´ 
+				//*this = frame_temp;//æ¢å¤ 
 				// m.assign_frame(this->id);
-				flag = this->add_message(m); //»Ö¸´ 
+				flag = this->add_message(m); //æ¢å¤ 
 				if (flag == false)
 					std::cout << 456;
 			}
@@ -252,7 +252,7 @@ namespace cfd {
 	}
 
 
-	// ½« Message ¶ÔÏó×ª»»Îª JSON ¶ÔÏó
+	// å°† Message å¯¹è±¡è½¬æ¢ä¸º JSON å¯¹è±¡
 
 	json Message::to_json() const {
 		json j;
@@ -261,7 +261,7 @@ namespace cfd {
 		return j;
 	}
 
-	// ´Ó JSON ¶ÔÏóÖĞ·´ĞòÁĞ»¯ Message ¶ÔÏó
+	// ä» JSON å¯¹è±¡ä¸­ååºåˆ—åŒ– Message å¯¹è±¡
 
 	Message Message::from_json(const json& j) {
 		size_t message_idx = j.value("message_index", SIZE_MAX);
@@ -272,7 +272,7 @@ namespace cfd {
 
 
 
-	// ĞòÁĞ»¯µ½ JSON
+	// åºåˆ—åŒ–åˆ° JSON
 
 	json EcuPair::to_json() const {
 		json j;
@@ -281,7 +281,7 @@ namespace cfd {
 		return j;
 	}
 
-	// ´Ó JSON ·´ĞòÁĞ»¯
+	// ä» JSON ååºåˆ—åŒ–
 
 	EcuPair EcuPair::from_json(const json& j) {
 		int src = j.at("src_ecu").get<int>();
@@ -359,7 +359,7 @@ namespace cfd::utils {
 	void write_msg_to_stream(std::ostream& os, const MessageInfo& msg, bool heading)
 	{
 		if (heading) {
-			// Êä³ö±íÍ·
+			// è¾“å‡ºè¡¨å¤´
 			write_msg_heading_to_stream(os);
 		}
 		os << std::left
@@ -404,7 +404,7 @@ namespace cfd::utils {
 	void write_frame_to_stream(std::ostream& os, const CanfdFrame& frame, bool heading)
 	{
 		if (heading) {
-			// Êä³öÖ¡±íÍ·
+			// è¾“å‡ºå¸§è¡¨å¤´
 			write_frame_heading_to_stream(os);
 		}
 		os << std::left
@@ -417,7 +417,7 @@ namespace cfd::utils {
 			<< std::setw(10) << frame.ecu_pair.dst_ecu
 			<< std::setw(10) << frame.get_offset()
 			<< std::endl;
-		// Êä³öÏûÏ¢±íÍ·
+		// è¾“å‡ºæ¶ˆæ¯è¡¨å¤´
 		write_msg_heading_to_stream(os);
 		for (const auto& msg : frame.msg_set) {
 			write_msg_to_stream(os, MESSAGE_INFO_VEC[msg.get_id_message()], false);
@@ -444,7 +444,7 @@ namespace cfd::utils {
 	}
 
 
-	// ½«¶à¸ö MessageInfo ¶ÔÏó×ª»»³É JSON Êı×éĞ´ÈëÁ÷
+	// å°†å¤šä¸ª MessageInfo å¯¹è±¡è½¬æ¢æˆ JSON æ•°ç»„å†™å…¥æµ
 	void write_msg_json_to_stream(std::ostream& os, const MessageInfoVec& mvec) {
 		json j;
 		for (size_t i = 0; i < mvec.size(); ++i) {
@@ -452,9 +452,9 @@ namespace cfd::utils {
 		}
 		os << j.dump(4);
 	}
-	// ½«¶à¸ö MessageInfo ¶ÔÏóÒÔ TAB ·Ö¸ô¸ñÊ½Ğ´ÈëÎÄ±¾ÎÄ¼ş
+	// å°†å¤šä¸ª MessageInfo å¯¹è±¡ä»¥ TAB åˆ†éš”æ ¼å¼å†™å…¥æ–‡æœ¬æ–‡ä»¶
 	void write_msg_txt_to_stream(std::ostream& os, const MessageInfoVec& mvec) {
-		// Ğ´±íÍ·
+		// å†™è¡¨å¤´
 		os << "code\tdata_size\tperiod\tdeadline\tsrc_ecu\tdst_ecu\toffset\tlevel\ttype\n";
 		for (const auto& msg : mvec) {
 			os << msg.code << '\t'
@@ -493,26 +493,26 @@ namespace cfd::utils {
 	{
 		std::ifstream ifs(file);
 		if (!ifs) {
-			throw std::ios_base::failure("ÎŞ·¨´ò¿ªÎÄ¼ş: " + file);
+			throw std::ios_base::failure("æ— æ³•æ‰“å¼€æ–‡ä»¶: " + file);
 		}
 
 		try {
-			// ¶ÁÈ¡Õû¸öÎÄ¼şÄÚÈİ
+			// è¯»å–æ•´ä¸ªæ–‡ä»¶å†…å®¹
 			json j;
 			ifs >> j;
 
 			int line_number = 0;
-			// ½« JSON ·´ĞòÁĞ»¯Îª MessageInfoVec
+			// å°† JSON ååºåˆ—åŒ–ä¸º MessageInfoVec
 			for (const auto& item : j) {
 				auto m = MessageInfo::from_json(item);
 
-				// ÊäÈëºÏ·¨ĞÔ¼ì²é
+				// è¾“å…¥åˆæ³•æ€§æ£€æŸ¥
 				if (m.data_size < 0 || m.period < 0 || m.deadline < 0 || m.offset < 0 || m.offset >= m.deadline || m.data_size > SIZE_MAX_CANFD_DATA) {
-					throw std::invalid_argument("Êı¾İ´óĞ¡¡¢ÖÜÆÚ¡¢Ê±ÏŞ»òÆ«ÒÆÎŞĞ§: " + std::to_string(m.code));
+					throw std::invalid_argument("æ•°æ®å¤§å°ã€å‘¨æœŸã€æ—¶é™æˆ–åç§»æ— æ•ˆ: " + std::to_string(m.code));
 				}
 
 				if (m.deadline > m.period || m.ecu_pair.src_ecu == m.ecu_pair.dst_ecu) {
-					throw std::invalid_argument("ÏûÏ¢ " + std::to_string(m.code) + " µÄ deadline Ó¦µÈÓÚ period£¬ÇÒ src_ecu ²»Ó¦µÈÓÚ dst_ecu");
+					throw std::invalid_argument("æ¶ˆæ¯ " + std::to_string(m.code) + " çš„ deadline åº”ç­‰äº periodï¼Œä¸” src_ecu ä¸åº”ç­‰äº dst_ecu");
 				}
 
 				mset.emplace_back(m);
@@ -520,20 +520,20 @@ namespace cfd::utils {
 			}
 		}
 		catch (const json::parse_error& e) {
-			throw std::runtime_error("JSON ½âÎöÊ§°Ü: " + std::string(e.what()));
+			throw std::runtime_error("JSON è§£æå¤±è´¥: " + std::string(e.what()));
 		}
 		catch (const std::invalid_argument& e) {
-			throw std::runtime_error("ÎŞĞ§µÄÊäÈë: " + std::string(e.what()));
+			throw std::runtime_error("æ— æ•ˆçš„è¾“å…¥: " + std::string(e.what()));
 		}
 		catch (const std::exception& e) {
-			std::cerr << "ÔËĞĞÊ±´íÎó: " << e.what() << std::endl;
-			throw std::runtime_error("·¢Éú´íÎó: " + std::string(e.what()));
+			std::cerr << "è¿è¡Œæ—¶é”™è¯¯: " << e.what() << std::endl;
+			throw std::runtime_error("å‘ç”Ÿé”™è¯¯: " + std::string(e.what()));
 		}
 	}
 
 
 
-	//Ïò Á÷os Ğ´Èë Ö¡¼¯ºÏfset£¬heading=true±íÊ¾Êä³ö±íÍ·
+	//å‘ æµos å†™å…¥ å¸§é›†åˆfsetï¼Œheading=trueè¡¨ç¤ºè¾“å‡ºè¡¨å¤´
 	void write_frame_json_to_stream(std::ostream& os, const CanfdFrameMap& fmap) {
 		json j;
 		for (const auto& [key, frame] : fmap) {
@@ -559,13 +559,13 @@ namespace cfd::utils {
 	{
 		std::ifstream ifs(file);
 		if (!ifs) {
-			throw std::ios_base::failure("ÎŞ·¨´ò¿ªÎÄ¼ş: " + file);
+			throw std::ios_base::failure("æ— æ³•æ‰“å¼€æ–‡ä»¶: " + file);
 		}
 
 		try {
 			json j;
 			ifs >> j;
-			fmap.clear();// Çå¿ÕÏÖÓĞµÄ fmap
+			fmap.clear();// æ¸…ç©ºç°æœ‰çš„ fmap
 
 			for (const auto& item : j) {
 				auto frame = CanfdFrame::from_json(item);
@@ -573,53 +573,53 @@ namespace cfd::utils {
 			}
 		}
 		catch (const json::parse_error& e) {
-			throw std::runtime_error("JSON ½âÎöÊ§°Ü: " + std::string(e.what()));
+			throw std::runtime_error("JSON è§£æå¤±è´¥: " + std::string(e.what()));
 		}
 		catch (const std::exception& e) {
-			throw std::runtime_error("¶ÁÈ¡ÎÄ¼şÊ±·¢Éú´íÎó: " + std::string(e.what()));
+			throw std::runtime_error("è¯»å–æ–‡ä»¶æ—¶å‘ç”Ÿé”™è¯¯: " + std::string(e.what()));
 		}
 	}
 
 	std::string  store_frm_msg(MessageInfoVec& mset, CanfdFrameMap& fmap, const std::string& folder_path)
 	{
-		// »ñÈ¡µ±Ç°Ê±¼ä´Á
+		// è·å–å½“å‰æ—¶é—´æˆ³
 		std::string timestamp = get_time_stamp();
 
-		// ¹¹ÔìÎÄ¼şÃû
+		// æ„é€ æ–‡ä»¶å
 		std::string message_filename = folder_path + "/msg_" + timestamp + ".txt";
 		std::string frame_filename = folder_path + "/frm_" + timestamp + ".txt";
 
-		// Ğ´ÈëÏûÏ¢ÎÄ¼ş
+		// å†™å…¥æ¶ˆæ¯æ–‡ä»¶
 		write_message(mset, message_filename, false);
 
-		// Ğ´ÈëÖ¡ÎÄ¼ş
+		// å†™å…¥å¸§æ–‡ä»¶
 		write_frame(fmap, frame_filename, false);
 
 		return timestamp;
 	}
 	std::string store_msg(const std::string& folder_path, MessageInfoVec& mset){
 
-		// »ñÈ¡µ±Ç°Ê±¼ä´Á
+		// è·å–å½“å‰æ—¶é—´æˆ³
 		std::string timestamp=get_time_stamp();
 
-		// ¹¹ÔìÎÄ¼şÃû
+		// æ„é€ æ–‡ä»¶å
 		std::string message_filename = folder_path + "/msg_" + timestamp;
 
-		// Ğ´ÈëÏûÏ¢ÎÄ¼ş
+		// å†™å…¥æ¶ˆæ¯æ–‡ä»¶
 		write_message(mset, message_filename, false);
 
 		return timestamp;
 	}
 	std::string store_frm(CanfdFrameMap& fmap, const std::string& folder_path) {
 
-		// »ñÈ¡µ±Ç°Ê±¼ä´Á
+		// è·å–å½“å‰æ—¶é—´æˆ³
 		std::string timestamp = get_time_stamp();
 
-		// ¹¹ÔìÎÄ¼şÃû
+		// æ„é€ æ–‡ä»¶å
 		std::string frame_filename = folder_path + "/frm_" + timestamp + ".txt";
 
 
-		// Ğ´ÈëÖ¡ÎÄ¼ş
+		// å†™å…¥å¸§æ–‡ä»¶
 		write_frame(fmap, frame_filename, false);
 
 		return timestamp;
@@ -634,7 +634,7 @@ namespace cfd::utils {
 		mset.clear();
 		mset.reserve(num);
 
-		// Éú³ÉËæ»úµÄ period¡¢ data_size¡¢Ô´ECU¡¢Ä¿ECU ·Ö²¼¡¢offset¡¢level
+		// ç”Ÿæˆéšæœºçš„ periodã€ data_sizeã€æºECUã€ç›®ECU åˆ†å¸ƒã€offsetã€level
 
 		std::discrete_distribution<> dist_size(PROBABILITY_MESSAGE_SIZE, PROBABILITY_MESSAGE_SIZE + NUM_MESSAGE_SIZE);
 
@@ -652,7 +652,7 @@ namespace cfd::utils {
 
 		int size = 0, period = 0, deadline = 0, src = 0, dst = 0, offset = 0, level = 0,type=0;
 
-		// »ñÈ¡Ò»¸öecuÊı×éµÄ±¸·İ
+		// è·å–ä¸€ä¸ªecuæ•°ç»„çš„å¤‡ä»½
 		std::array<int, NUM_ECU> option_ecu_copy;
 		for (size_t i = 0; i < NUM_ECU; ++i) {
 			option_ecu_copy[i] = OPTION_ECU[i];
@@ -672,7 +672,7 @@ namespace cfd::utils {
 			dst = option_ecu_copy[dist_ecu2(gen)];
 
 			// offset = dist_offset(gen) * period;
-			offset = 0;	// ĞÅºÅ²»Éèoffset
+			offset = 0;	// ä¿¡å·ä¸è®¾offset
 
 
 			level = OPTION_MESSAGE_LEVEL[dist_level(gen)];
@@ -680,13 +680,13 @@ namespace cfd::utils {
 			type = OPTION_MESSAGE_TYPE[dist_type(gen)];
 
 			auto timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-			// Æ´½ÓËùÓĞ×Ö¶Î£¨°üÀ¨Ê±¼ä´Á£©
+			// æ‹¼æ¥æ‰€æœ‰å­—æ®µï¼ˆåŒ…æ‹¬æ—¶é—´æˆ³ï¼‰
 			std::string code_str = std::to_string(size) + "-" + std::to_string(period) + "-" +
 				std::to_string(deadline) + "-" + std::to_string(src) + "-" +
 				std::to_string(dst) + "-" + std::to_string(offset) + "-" +
 				std::to_string(level) + "-" + std::to_string(timestamp);
 
-			// Ê¹ÓÃ¹şÏ£Éú³ÉÎ¨Ò»µÄcode
+			// ä½¿ç”¨å“ˆå¸Œç”Ÿæˆå”¯ä¸€çš„code
 			MessageCode code = hash_fn(code_str);
 
 			mset.emplace_back(code, size, period, deadline, src, dst, offset, level, type);
@@ -695,4 +695,3 @@ namespace cfd::utils {
 		return;
 	}
 }
-

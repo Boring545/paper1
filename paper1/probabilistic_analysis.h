@@ -2,70 +2,82 @@
 #define PROBABILISTIC_ANALYSIS_H
 
 #include <cmath>
-#include<queue>
-#include<stack>
+#include <queue>
+#include <stack>
 
-#include"packing_scheme.h"
-#include"debug_tool.h"
+#include "packing_scheme.h"
+#include "debug_tool.h"
 
-namespace cfd::schedule::paper2 {
+#define NORETRY 
+namespace cfd::schedule::paper2
+{
 	/*
-	paper2 ·½·¨À´×ÔProbabilistic analysis of CAN with faults
-	¿ÉÒÔ¶ÔÒÑ¾­·ÖÅäÓÅÏÈ¼¶µÄÖ¡¼¯ºÏ½øĞĞ »ùÓÚ¸ÅÂÊµÄ ¿Éµ÷¶ÈĞÔ·ÖÎö£¬×îÖÕµÃµ½Ã¿¸öÖ¡¿ÉÄÜµÄ¶à¸ö ÏìÓ¦Ê±¼äºÍ¶ÔÓ¦¸ÅÂÊ
+	paper2 æ–¹æ³•æ¥è‡ªProbabilistic analysis of CAN with faults
+	å¯ä»¥å¯¹å·²ç»åˆ†é…ä¼˜å…ˆçº§çš„å¸§é›†åˆè¿›è¡Œ åŸºäºæ¦‚ç‡çš„ å¯è°ƒåº¦æ€§åˆ†æï¼Œæœ€ç»ˆå¾—åˆ°æ¯ä¸ªå¸§å¯èƒ½çš„å¤šä¸ª å“åº”æ—¶é—´å’Œå¯¹åº”æ¦‚ç‡
 	*/
 
-
 	/*
-		LAMBDAÎªÃ¿Ãë·¢Éú´íÎóµÄ´ÎÊı£¬Õâ¸ö¹ÊÕÏÂÊ·´Ó³µÄÊÇÏµÍ³ÔÚÒ»¸ö¹ÊÕÏ¶à·¢µÄ»·¾³ÏÂµÄÊµ¼Ê±íÏÖ£¬ÓÃÀ´ÆÀ¹ÀÏµÍ³ÔÚ¶ñÁÓÌõ¼şÏÂµÄÈİ´íÄÜÁ¦¡£
-		probabilistic_analysisÖĞµÄepsilonÊ¹ÓÃµÄÁíÒ»¸ö¸ÅÂÊÒªÇó£¨max_fault_rate[i]£©ÔòÊÇÔÚ¿É¿¿ĞÔ±ê×¼ÉÏÌá³öµÄ£¬
-		Ò²¾ÍÊÇÏµÍ³ÔÚ³¤ÆÚÔËĞĞÖĞµÄÈİÈÌ¶È£¬Í¨³£ÓÃÓÚ¶¨ÒåÏµÍ³Ó¦µ±´ïµ½µÄ¡°¿É¿¿ĞÔË®Æ½
+		LAMBDAä¸ºæ¯ç§’å‘ç”Ÿé”™è¯¯çš„æ¬¡æ•°ï¼Œè¿™ä¸ªæ•…éšœç‡åæ˜ çš„æ˜¯ç³»ç»Ÿåœ¨ä¸€ä¸ªæ•…éšœå¤šå‘çš„ç¯å¢ƒä¸‹çš„å®é™…è¡¨ç°ï¼Œç”¨æ¥è¯„ä¼°ç³»ç»Ÿåœ¨æ¶åŠ£æ¡ä»¶ä¸‹çš„å®¹é”™èƒ½åŠ›ã€‚
+		probabilistic_analysisä¸­çš„epsilonä½¿ç”¨çš„å¦ä¸€ä¸ªæ¦‚ç‡è¦æ±‚ï¼ˆmax_fault_rate[i]ï¼‰åˆ™æ˜¯åœ¨å¯é æ€§æ ‡å‡†ä¸Šæå‡ºçš„ï¼Œ
+		ä¹Ÿå°±æ˜¯ç³»ç»Ÿåœ¨é•¿æœŸè¿è¡Œä¸­çš„å®¹å¿åº¦ï¼Œé€šå¸¸ç”¨äºå®šä¹‰ç³»ç»Ÿåº”å½“è¾¾åˆ°çš„â€œå¯é æ€§æ°´å¹³
 	*/
-	constexpr double LAMBDA = 0.03;	// Ã¿Ãë30´Î£¬Ê±¼äµ¥Î»»»ËãÎªºÁÃë
+	extern double LAMBDA; // 0.03è¡¨ç¤ºæ¯ç§’30æ¬¡ ï¼Œæ—¶é—´å•ä½æ¢ç®—ä¸ºæ¯«ç§’
 
-	// Ã¿¸öCANFDÖ¡¶ÔÓ¦Ò»¸ö¸ÅÂÊ·ÖÎö½á¹û
-	struct ProbResult {
-		double e_response_time;   // ÏìÓ¦Ê±¼äÆÚÍû
-		double p_timeout;   // ³¬Ê±¸ÅÂÊ
-		ProbResult(double expected_response_time = 0, double prob_timeout = 0) :e_response_time(expected_response_time), p_timeout(prob_timeout) {}
+	// ç”µç£å…¼å®¹æ€§ï¼ˆEMCï¼‰æµ‹è¯•æ ‡å‡†å¦‚IEC 61000-4ç³»åˆ—å¯¹ä¸åŒç±»å‹çš„ç”µç£å¹²æ‰°è§„å®šäº†ç›¸åº”çš„æµ‹è¯•è„‰å†²å®½åº¦,è¿™é‡Œå…ˆè®¾ä¸º0ms
+	extern double EI_LEN;
+
+	// state_transition_matrix
+	extern double STM[2][2];
+
+	extern double pi_0; // å¤„äºå¸¸æ€çš„æ¦‚ç‡
+	extern double pi_1; // å¤„äºæ•…éšœæ€çš„æ¦‚ç‡
+
+	
+
+
+							// æ¯ä¸ªCANFDå¸§å¯¹åº”ä¸€ä¸ªæ¦‚ç‡åˆ†æç»“æœ
+							struct ProbResult
+	{
+		double e_response_time; // å“åº”æ—¶é—´æœŸæœ›
+		double p_timeout;		// è¶…æ—¶æ¦‚ç‡
+		ProbResult(double expected_response_time = 0, double prob_timeout = 0) : e_response_time(expected_response_time), p_timeout(prob_timeout) {}
 	};
-	struct ProbData {
+	struct ProbData
+	{
 		MessageID id;
 		int period;
 		int level;
 		int type;
-		double p_threshold = 0.0;    // °²È«µÈ¼¶ÒªÇóµÄ×î´óÈİÈÌ¹ÊÕÏ¸ÅÂÊ
-		double p_timeout = 1.0;      // Ìí¼Ó±¸·İµÄÊµ¼Ê×Ü¹ÊÕÏ¸ÅÂÊ£¬³õÊ¼»¯Îª1.0
+		double p_threshold = 0.0; // å®‰å…¨ç­‰çº§è¦æ±‚çš„æœ€å¤§å®¹å¿æ•…éšœæ¦‚ç‡
+		double p_timeout = 1.0;	  // æ·»åŠ å¤‡ä»½çš„å®é™…æ€»æ•…éšœæ¦‚ç‡ï¼Œåˆå§‹åŒ–ä¸º1.0
 	};
 
-	// ¼ÆËãÊ±¼ä¶ÎtÄÚ£¬ÖØ´«num´ÎµÄ¸ÅÂÊ
-	double calc_probability_fault(double t, int num);
-	// ¼ÆËãÊ±¼ä¶ÎtÄÚ£¬¸ßÓÅÏÈ¼¶Ö¡¶Ôµ±Ç°Ö¡µÄ¸ÉÉæ×ÛºÏ
+	// è®¡ç®—æ—¶é—´æ®µtå†…ï¼Œé‡ä¼ numæ¬¡çš„æ¦‚ç‡
+	double calc_probability_fault(double t, int num,double lambda =LAMBDA);
+	// åœ¨ç”µç£å¹²æ‰°çš„å¹²æ¶‰çª—å£å†…ï¼Œè‡³å°‘å‘ç”Ÿä¸€æ¬¡æ•…éšœçš„æ¦‚ç‡
+	double calc_probability_fault(double interference_win);
+	// è®¡ç®—æ—¶é—´æ®µtå†…ï¼Œé«˜ä¼˜å…ˆçº§å¸§å¯¹å½“å‰å¸§çš„å¹²æ¶‰ç»¼åˆ
 	double calc_interference();
 
-	// ¼ÆËã²¢·µ»ØÖ¸¶¨Ö¡µÄ¸ÅÂÊ·ÖÎö½á¹û
-	ProbResult analyze_frame_probability(const CanfdFrame& frame,const std::vector<CanfdFrame>& sorted_frames,
-		const std::unordered_map<FrameId, double>& max_fault_rate,
-		int frame_index,double COST_MAX_ERROR_FRAME
-	);
-	#define BACKUP_OFF   -1  // ²»±¸·İ£¬Ö»·ÖÎö
-	#define BACKUP_DIRECT  0  // Ö±½Ó±¸·İ
-	#define BACKUP_REPACK  1  // ÖØ´ò°ü
-	// ¶ÔÕû¸ö·½°¸½øĞĞ¸ÅÂÊ·ÖÎö£¬·µ»ØÃ¿¸öÖ¡¶ÔÓ¦µÄ½á¹û enable_backup -1 ²»±¸·İÖ»·ÖÎö =0 Ö±½Ó±¸·İ =1 ÖØ´ò°ü
-	std::unordered_map<MessageCode, ProbData> probabilistic_analysis(PackingScheme& scheme, int enable_backup = BACKUP_OFF, std::string timestamp= get_time_stamp());
+	// è®¡ç®—å¹¶è¿”å›æŒ‡å®šå¸§çš„æ¦‚ç‡åˆ†æç»“æœ
+	ProbResult analyze_frame_probability(const CanfdFrame &frame, const std::vector<CanfdFrame> &sorted_frames,
+										 const std::unordered_map<FrameId, double> &max_fault_rate,
+										 int frame_index, double COST_MAX_ERROR_FRAME);
+#define BACKUP_OFF -1	// ä¸å¤‡ä»½ï¼Œåªåˆ†æ
+#define BACKUP_DIRECT 0 // ç›´æ¥å¤‡ä»½
+#define BACKUP_REPACK 1 // é‡æ‰“åŒ…
+	// å¯¹æ•´ä¸ªæ–¹æ¡ˆè¿›è¡Œæ¦‚ç‡åˆ†æï¼Œè¿”å›æ¯ä¸ªå¸§å¯¹åº”çš„ç»“æœ enable_backup -1 ä¸å¤‡ä»½åªåˆ†æ =0 ç›´æ¥å¤‡ä»½ =1 é‡æ‰“åŒ…
+	std::unordered_map<MessageCode, ProbData> probabilistic_analysis(PackingScheme &scheme, int enable_backup = BACKUP_OFF, std::string timestamp = get_time_stamp());
 
 	void compare_prob_result(
-		const std::string& filename,
-		const std::unordered_map<MessageCode, ProbData>& origin_res,
-		const std::unordered_map<MessageCode, ProbData>& repack_res,
-		const PackingScheme& scheme_origin,
-		const PackingScheme& scheme_repack);
+		const std::string &filename,
+		const std::unordered_map<MessageCode, ProbData> &origin_res,
+		const std::unordered_map<MessageCode, ProbData> &repack_res,
+		const PackingScheme &scheme_origin,
+		const PackingScheme &scheme_repack);
 
-	// ¸ù¾İ¸ÅÂÊ·ÖÎöµÄ½á¹û£¬ÒÀÕÕASILµÈ¼¶Ìí¼Ó±¸·İ
-	// ASIL A¡¢B¡¢C¡¢D·Ö±ğ¶ÔÓ¦µÄ¹ÊÕÏÂÊÉÏÏŞÎª1/10^6 ¡¢1/10^7 ¡¢1/10^7 ¡¢1/10^8 
-
-
-
-
+	// æ ¹æ®æ¦‚ç‡åˆ†æçš„ç»“æœï¼Œä¾ç…§ASILç­‰çº§æ·»åŠ å¤‡ä»½
+	// ASIL Aã€Bã€Cã€Dåˆ†åˆ«å¯¹åº”çš„æ•…éšœç‡ä¸Šé™ä¸º1/10^6 ã€1/10^7 ã€1/10^7 ã€1/10^8
 
 }
 

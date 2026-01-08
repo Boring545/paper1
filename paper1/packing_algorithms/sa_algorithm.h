@@ -10,9 +10,9 @@ namespace cfd {
 
 namespace cfd::packing::heuristics {
 
-	// ·½·¨A£º¼ÆËãfitness=fitness=U+¿Éµ÷¶ÈĞÔ£¨0¿Éµ÷¶È£¬1²»¿Éµ÷¶È£©
+	// æ–¹æ³•Aï¼šè®¡ç®—fitness=fitness=U+å¯è°ƒåº¦æ€§ï¼ˆ0å¯è°ƒåº¦ï¼Œ1ä¸å¯è°ƒåº¦ï¼‰
 	double calculate_fitness_a(cfd::PackingScheme& solution);
-	//SA Ä£ÄâÍË»ğËã·¨ ÒÔschemeÖĞµÄ´ò°ü·½°¸Îª³õÊ¼½â£¬µü´ú¼ÆËã½üËÆ×îÓÅµÄ´ò°ü·½°¸£¬·µ»Ø´ø¿íÀûÓÃÂÊ
+	//SA æ¨¡æ‹Ÿé€€ç«ç®—æ³• ä»¥schemeä¸­çš„æ‰“åŒ…æ–¹æ¡ˆä¸ºåˆå§‹è§£ï¼Œè¿­ä»£è®¡ç®—è¿‘ä¼¼æœ€ä¼˜çš„æ‰“åŒ…æ–¹æ¡ˆï¼Œè¿”å›å¸¦å®½åˆ©ç”¨ç‡
 	double simulated_annealing(cfd::PackingScheme& scheme);
 
 }

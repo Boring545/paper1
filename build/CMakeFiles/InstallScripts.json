@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/user/code/paper1/build/cmake_install.cmake",
+		"/Users/user/code/paper1/build/paper1/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

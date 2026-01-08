@@ -24,20 +24,20 @@
 
 namespace cfd {
 	/*
-		È«¾ÖÎ¬»¤Ò»¸öÏûÏ¢INFO¼¯ºÏmessage_info_vec£¬ÔÚ³õÊ¼»¯ºó²»Ó¦¶ÔÆä½øĞĞĞŞ¸Ä
-		MessageÎªÒ»¸öÉí·İÁîÅÆ£¬Æämessage_indexÊôĞÔ£¬¶ÔÓ¦message_info_vecÖĞµÄÏÂ±êÖ¸Ê¾µÄÔªËØ£»
-		MessageµÄframe_indexÊôĞÔ¶ÔÓ¦CanfdFrameµÄID
-		CanfdFrame´æ´¢µÄÊÇMessageÁîÅÆ£¬¶ø·ÇMessageInfo¡£
+		å…¨å±€ç»´æŠ¤ä¸€ä¸ªæ¶ˆæ¯INFOé›†åˆmessage_info_vecï¼Œåœ¨åˆå§‹åŒ–åä¸åº”å¯¹å…¶è¿›è¡Œä¿®æ”¹
+		Messageä¸ºä¸€ä¸ªèº«ä»½ä»¤ç‰Œï¼Œå…¶message_indexå±æ€§ï¼Œå¯¹åº”message_info_vecä¸­çš„ä¸‹æ ‡æŒ‡ç¤ºçš„å…ƒç´ ï¼›
+		Messageçš„frame_indexå±æ€§å¯¹åº”CanfdFrameçš„ID
+		CanfdFrameå­˜å‚¨çš„æ˜¯Messageä»¤ç‰Œï¼Œè€ŒéMessageInfoã€‚
 	*/
-	constexpr int SIZE_MAX_CANFD_DATA = 64 * 8;			// CANFDÖ¡ ×î´óÊı¾İ¸ºÔØ£¬µ¥Î»Îªb
-	constexpr int SIZE_LIMIT_CANFD_DATA = 64 * 8;			// CANFDÖ¡ ×î´óÊı¾İ¸ºÔØÏŞÖÆ£¬µ¥Î»Îªb
-	constexpr int SIZE_IDENTIFIER = 11;					// CANFDÖ¡ ±êÊ¶·û³¤¶È£¬±ê×¼Ö¡µÄ11Î»±êÊ¶·û£¬À©Õ¹Ö¡¿ÉÒÔÓĞ29Î»
-	constexpr int NUM_MAX_FRAME = 2 << 11;				// Ö¡×î´óÊıÊıÁ¿
+	constexpr int SIZE_MAX_CANFD_DATA = 64 * 8;			// CANFDå¸§ æœ€å¤§æ•°æ®è´Ÿè½½ï¼Œå•ä½ä¸ºb
+	constexpr int SIZE_LIMIT_CANFD_DATA = 64 * 8;			// CANFDå¸§ æœ€å¤§æ•°æ®è´Ÿè½½é™åˆ¶ï¼Œå•ä½ä¸ºb
+	constexpr int SIZE_IDENTIFIER = 11;					// CANFDå¸§ æ ‡è¯†ç¬¦é•¿åº¦ï¼Œæ ‡å‡†å¸§çš„11ä½æ ‡è¯†ç¬¦ï¼Œæ‰©å±•å¸§å¯ä»¥æœ‰29ä½
+	constexpr int NUM_MAX_FRAME = 2 << 11;				// å¸§æœ€å¤§æ•°æ•°é‡
 
-	constexpr double TIME_BIT_ARBITRATION = 0.001;			// ÖÙ²Ã¶Î´«ÊäÒ»¸öbitËùÓÃÊ±¼ä£¬µ¥Î»ÎªºÁÃë(ms)£¨1Mbps£©
-	constexpr double TIME_BIT_TRANSMISSION = 0.0002;		// Êı¾İ¶Î´«ÊäÒ»¸öbitËùÓÃÊ±¼ä£¬µ¥Î»ÎªºÁÃë(ms)£¨5Mbps£©
+	constexpr double TIME_BIT_ARBITRATION = 0.001;			// ä»²è£æ®µä¼ è¾“ä¸€ä¸ªbitæ‰€ç”¨æ—¶é—´ï¼Œå•ä½ä¸ºæ¯«ç§’(ms)ï¼ˆ1Mbpsï¼‰
+	constexpr double TIME_BIT_TRANSMISSION = 0.0002;		// æ•°æ®æ®µä¼ è¾“ä¸€ä¸ªbitæ‰€ç”¨æ—¶é—´ï¼Œå•ä½ä¸ºæ¯«ç§’(ms)ï¼ˆ5Mbpsï¼‰
 
-	constexpr int OPTION_CANFD_PAYLOAD_SIZE[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64 }; // CANFDÖ¡payload¿ÉÑ¡³¤¶È£¬µ¥Î»Îªbyte
+	constexpr int OPTION_CANFD_PAYLOAD_SIZE[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64 }; // CANFDå¸§payloadå¯é€‰é•¿åº¦ï¼Œå•ä½ä¸ºbyte
 	constexpr int NUM_CANFD_PAYLOAD_SIZE = std::size(OPTION_CANFD_PAYLOAD_SIZE);
 
 
@@ -48,8 +48,8 @@ namespace cfd {
 
 	class EcuPair {
 	public:
-		EcuId src_ecu = 0;        // Ô´ECU
-		EcuId dst_ecu = 0;        // Ä¿ECU
+		EcuId src_ecu = 0;        // æºECU
+		EcuId dst_ecu = 0;        // ç›®ECU
 		EcuPair(int src = 0, int dst = 0)
 			: src_ecu(src), dst_ecu(dst) {}
 		bool  operator==(const EcuPair& other) const {
@@ -59,10 +59,10 @@ namespace cfd {
 			src_ecu = other.src_ecu;
 			dst_ecu = other.dst_ecu;
 		}
-		// ĞòÁĞ»¯µ½ JSON
+		// åºåˆ—åŒ–åˆ° JSON
 		json to_json() const;
 
-		// ´Ó JSON ·´ĞòÁĞ»¯
+		// ä» JSON ååºåˆ—åŒ–
 		static EcuPair from_json(const json& j);
 
 	};
@@ -73,17 +73,17 @@ namespace cfd {
 	};
 
 
-	//´æ´¢Ò»¸öÏûÏ¢µÄ»ù±¾ĞÅÏ¢
+	//å­˜å‚¨ä¸€ä¸ªæ¶ˆæ¯çš„åŸºæœ¬ä¿¡æ¯
 	class MessageInfo {
 	public:
-		MessageCode code = 0;	//ÏûÏ¢µÄÉí·İÂë
-		int data_size = 0;		// Êı¾İ³¤¶È£¬Ä¬ÈÏÎª¿Õ,µ¥Î»Îªb£¬È¡ÖµÎª[0, 512]
-		int period = -1;        // ÖÜÆÚ£¬µ¥Î»ÎªÎ¢Ãë(¦Ìs)
-		int deadline = -1;      // Ê±ÏŞ£¬Í¬ÖÜÆÚ
-		EcuPair ecu_pair;		// Ô´¡¢Ä¿ECU¶Ô
-		int offset = 0;         // Æ«ÒÆ£¬µ¥Î»ÎªÎ¢Ãë(¦Ìs)£¬
-		int level = 0;			// µÈ¼¶£¬±ÈÈç°²È«ÓÅÏÈ¼¶¡¾LEVEL == 1 ±íÊ¾R2±¸·İÏûÏ¢¡¿
-		int type = 0;			// ÈßÓàÀàĞÍ£¬0 ÎŞĞèÒìÔ´±¸·İ£»1 ĞèÒªÒìÔ´±¸·İ
+		MessageCode code = 0;	//æ¶ˆæ¯çš„èº«ä»½ç 
+		int data_size = 0;		// æ•°æ®é•¿åº¦ï¼Œé»˜è®¤ä¸ºç©º,å•ä½ä¸ºbï¼Œå–å€¼ä¸º[0, 512]
+		int period = -1;        // å‘¨æœŸï¼Œå•ä½ä¸ºå¾®ç§’(Î¼s)
+		int deadline = -1;      // æ—¶é™ï¼ŒåŒå‘¨æœŸ
+		EcuPair ecu_pair;		// æºã€ç›®ECUå¯¹
+		int offset = 0;         // åç§»ï¼Œå•ä½ä¸ºå¾®ç§’(Î¼s)ï¼Œ
+		int level = 0;			// ç­‰çº§ï¼Œæ¯”å¦‚å®‰å…¨ä¼˜å…ˆçº§ã€LEVEL == 1 è¡¨ç¤ºR2å¤‡ä»½æ¶ˆæ¯ã€‘
+		int type = 0;			// å†—ä½™ç±»å‹ï¼Œ0 æ— éœ€å¼‚æºå¤‡ä»½ï¼›1 éœ€è¦å¼‚æºå¤‡ä»½
 
 		MessageInfo(MessageCode _code, int _data_size, int _period, int _deadline, int _src_ecu, int _dst_ecu, int _offset = 0, int _level = 0, int _type = 0)
 			:code(_code), data_size(_data_size), period(_period), deadline(_deadline), ecu_pair(_src_ecu, _dst_ecu), offset(_offset), level(_level), type(_type){}
@@ -94,33 +94,33 @@ namespace cfd {
 
 
 		~MessageInfo() {}
-		// ĞòÁĞ»¯µ½ JSON
+		// åºåˆ—åŒ–åˆ° JSON
 		json to_json() const;
 
-		// ´Ó JSON ·´ĞòÁĞ»¯
+		// ä» JSON ååºåˆ—åŒ–
 		static MessageInfo from_json(const json& j);
 	};
 	using MessageInfoVec = std::vector<MessageInfo>;
 
-	extern MessageInfoVec MESSAGE_INFO_VEC;//È«¾ÖÎ¬»¤Ò»¸ömessage info ±í 
+	extern MessageInfoVec MESSAGE_INFO_VEC;//å…¨å±€ç»´æŠ¤ä¸€ä¸ªmessage info è¡¨ 
 
 
 
 	class CanfdFrame;
 
 	using MessageID = size_t;
-	//ÏûÏ¢ÊµÌåÀà
+	//æ¶ˆæ¯å®ä½“ç±»
 	class Message {
 		friend CanfdFrame;
 	private:
-		MessageID message_index = -1;		//	Ö¸Ïò¶ÔÓ¦µÄMessageInfo£¬¿ÉÒÔÖØ¸´
-		FrameId frame_index = -1;	//	Ö¸Ïò¶ÔÓ¦µÄFrameid
+		MessageID message_index = -1;		//	æŒ‡å‘å¯¹åº”çš„MessageInfoï¼Œå¯ä»¥é‡å¤
+		FrameId frame_index = -1;	//	æŒ‡å‘å¯¹åº”çš„Frameid
 
 
 	public:
-		// ½« Message ¶ÔÏó×ª»»Îª JSON ¶ÔÏó
+		// å°† Message å¯¹è±¡è½¬æ¢ä¸º JSON å¯¹è±¡
 		json to_json() const;
-		// ´Ó JSON ¶ÔÏóÖĞ·´ĞòÁĞ»¯ Message ¶ÔÏó
+		// ä» JSON å¯¹è±¡ä¸­ååºåˆ—åŒ– Message å¯¹è±¡
 		static Message from_json(const json& j);
 
 		void assign_frame(FrameId fid) {
@@ -191,51 +191,51 @@ namespace cfd {
 	class CanfdFrame {
 
 	private:
-		int data_size = 0;      // ×°ÔØµÄÊı¾İ³¤¶È£¬Ä¬ÈÏÎª¿Õ,µ¥Î»Îªb£¬È¡ÖµÎª[0, 512]
-		int payload_size = 0;   // payload³ß´çºÍÊı¾İ³ß´ç²»ÍêÈ«Ò»Ñù£¬È¡ÖµÓĞ0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48 or 64 bytes
-		int priority = -1;      // ÓÅÏÈ¼¶£¬È¡ÖµÎª[0,2047],Êı×ÖÔ½Ğ¡ÓÅÏÈ¼¶Ô½¸ß¡£¡¾½ö¿¼ÂÇ±ê×¼Ö¡µÄ11Î»±êÊ¶·û£¬À©Õ¹Ö¡¿ÉÒÔÓĞ29Î»¡¿
-		int period = -1;        // ÖÜÆÚ£¬µ¥Î»ÎªºÁÃë(ms)
-		int deadline = -1;      // Ê±ÏŞ£¬µ¥Î»ÎªºÁÃë(ms)
-		int offset = 0;         // Æ«ÒÆ£¬µ¥Î»ÎªºÁÃë(ms)£¬¿ÉÒÔÊ¹ÓÃassign_offset·½·¨·ÖÅäframe¼¯ºÏÖĞËùÓĞÈÎÎñµÄºÏÊÊoffset
-		double trans_time = 0;   // Êı¾İÖ¡ÔÚÏµÍ³ÄÚµÄ´«ÊäÊ±¼ä£¬µ¥Î»ÎªºÁÃë(ms)
+		int data_size = 0;      // è£…è½½çš„æ•°æ®é•¿åº¦ï¼Œé»˜è®¤ä¸ºç©º,å•ä½ä¸ºbï¼Œå–å€¼ä¸º[0, 512]
+		int payload_size = 0;   // payloadå°ºå¯¸å’Œæ•°æ®å°ºå¯¸ä¸å®Œå…¨ä¸€æ ·ï¼Œå–å€¼æœ‰0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48 or 64 bytes
+		int priority = -1;      // ä¼˜å…ˆçº§ï¼Œå–å€¼ä¸º[0,2047],æ•°å­—è¶Šå°ä¼˜å…ˆçº§è¶Šé«˜ã€‚ã€ä»…è€ƒè™‘æ ‡å‡†å¸§çš„11ä½æ ‡è¯†ç¬¦ï¼Œæ‰©å±•å¸§å¯ä»¥æœ‰29ä½ã€‘
+		int period = -1;        // å‘¨æœŸï¼Œå•ä½ä¸ºæ¯«ç§’(ms)
+		int deadline = -1;      // æ—¶é™ï¼Œå•ä½ä¸ºæ¯«ç§’(ms)
+		int offset = 0;         // åç§»ï¼Œå•ä½ä¸ºæ¯«ç§’(ms)ï¼Œå¯ä»¥ä½¿ç”¨assign_offsetæ–¹æ³•åˆ†é…frameé›†åˆä¸­æ‰€æœ‰ä»»åŠ¡çš„åˆé€‚offset
+		double trans_time = 0;   // æ•°æ®å¸§åœ¨ç³»ç»Ÿå†…çš„ä¼ è¾“æ—¶é—´ï¼Œå•ä½ä¸ºæ¯«ç§’(ms)
 	public:
-		FrameId id = 0;//idÓÉÉú³ÉÊ±Ë³Ğò¸ø³ö 
+		FrameId id = 0;//idç”±ç”Ÿæˆæ—¶é¡ºåºç»™å‡º 
 		EcuPair ecu_pair;
-		std::multiset<Message, ComparatorMsg> msg_set;//CANFDÖ¡×°ÔØµÄÏûÏ¢ µÄË÷Òı£¬ °´ offset ÉıĞòÅÅÁĞ
+		std::multiset<Message, ComparatorMsg> msg_set;//CANFDå¸§è£…è½½çš„æ¶ˆæ¯ çš„ç´¢å¼•ï¼Œ æŒ‰ offset å‡åºæ’åˆ—
 
 
 	private:
-		// ½«Êı¾İ³ß´ç£¨µ¥Î»b£©×ª»»ÎªºÏÊÊµÄpayload³ß´ç£¨µ¥Î»byte£©£¬payloadÈ¡ÖµÓĞ0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48 or 64 bytes
+		// å°†æ•°æ®å°ºå¯¸ï¼ˆå•ä½bï¼‰è½¬æ¢ä¸ºåˆé€‚çš„payloadå°ºå¯¸ï¼ˆå•ä½byteï¼‰ï¼Œpayloadå–å€¼æœ‰0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48 or 64 bytes
 		int payload_size_trans(int size);
 
 
-		//¸ù¾İdata_size¸üĞÂdata_size¡¢payload_size,exec_time
+		//æ ¹æ®data_sizeæ›´æ–°data_sizeã€payload_size,exec_time
 		bool set_data_size(int v);
 
 	public:
 
-		// ÒòÎªpayload¿ÉÄÜÈ¡Õû£¬freesize¼´¿ÉÀûÓÃµÄ¿Õ¼ä¡£
+		// å› ä¸ºpayloadå¯èƒ½å–æ•´ï¼Œfreesizeå³å¯åˆ©ç”¨çš„ç©ºé—´ã€‚
 		int get_free_size() {
 			return payload_size * 8 - data_size;
 		}
 
-		// ¸ù¾İpaylaod_size¼ÆËã×î»µ´«ÊäÊ±¼ä,paylaod_sizeµ¥Î»ÊÇbit£¬ ·µ»ØÖµÊÇºÁÃë
+		// æ ¹æ®paylaod_sizeè®¡ç®—æœ€åä¼ è¾“æ—¶é—´,paylaod_sizeå•ä½æ˜¯bitï¼Œ è¿”å›å€¼æ˜¯æ¯«ç§’
 		static double calc_wctt(int paylaod_size);
-		// ĞòÁĞ»¯ CanfdFrame ¶ÔÏóÎª JSON
+		// åºåˆ—åŒ– CanfdFrame å¯¹è±¡ä¸º JSON
 		json to_json() const;
 
-		// ´Ó JSON ·´ĞòÁĞ»¯Îª CanfdFrame ¶ÔÏó
+		// ä» JSON ååºåˆ—åŒ–ä¸º CanfdFrame å¯¹è±¡
 		static CanfdFrame from_json(const json& j);
 
-		//»ñÈ¡Ëù×°ÔØÏûÏ¢ÖĞ×î´óµÄµÈ¼Ûoffset
+		//è·å–æ‰€è£…è½½æ¶ˆæ¯ä¸­æœ€å¤§çš„ç­‰ä»·offset
 		int get_max_offset();
 
-		//±éÀúCanfdFrameVecÊ±£¬±ØĞëÅĞ¶ÏÖ¡ÊÇ·ñÎª¿Õ
+		//éå†CanfdFrameVecæ—¶ï¼Œå¿…é¡»åˆ¤æ–­å¸§æ˜¯å¦ä¸ºç©º
 		bool empty() const {
 			return this->msg_set.empty();
 		}
 
-		// ½öÓÃÓÚ²»¸Ä±äÏûÏ¢¼¯ºÏ£¬ÏëÒª¸ü¸ÄÖ¡offsetÊ±Ê¹ÓÃ,Õâ»áÍ¬²½¸Ä±ädeadline
+		// ä»…ç”¨äºä¸æ”¹å˜æ¶ˆæ¯é›†åˆï¼Œæƒ³è¦æ›´æ”¹å¸§offsetæ—¶ä½¿ç”¨,è¿™ä¼šåŒæ­¥æ”¹å˜deadline
 		bool set_offset(int v);
 
 		bool set_priority(int v);
@@ -266,13 +266,13 @@ namespace cfd {
 			return this->offset;
 		}
 
-		//Ïò CANFDÖ¡ Ìí¼Ó µ¥¸öÏûÏ¢m£¬Í¬²½¸üĞÂdata_size¡¢payload_size£¬deadline£¬offset£¬¸üĞÂmessageµÄframeID
+		//å‘ CANFDå¸§ æ·»åŠ  å•ä¸ªæ¶ˆæ¯mï¼ŒåŒæ­¥æ›´æ–°data_sizeã€payload_sizeï¼Œdeadlineï¼Œoffsetï¼Œæ›´æ–°messageçš„frameID
 		bool add_message(Message& m);
 
-		//´Ó CANFDÖ¡ È¡³ö ÏûÏ¢¼¯ºÏmset£¬Í¬²½¸üĞÂdata_size¡¢payload_size£¬deadline£¬offset£¬¸üĞÂmessageµÄframeID
+		//ä» CANFDå¸§ å–å‡º æ¶ˆæ¯é›†åˆmsetï¼ŒåŒæ­¥æ›´æ–°data_sizeã€payload_sizeï¼Œdeadlineï¼Œoffsetï¼Œæ›´æ–°messageçš„frameID
 		bool extract_message(Message& m);
 
-		//´Óµ±Ç°Ö¡ÖĞÒÆ¶¯ÏûÏ¢µ½other
+		//ä»å½“å‰å¸§ä¸­ç§»åŠ¨æ¶ˆæ¯åˆ°other
 		bool move_message(CanfdFrame& other, Message& m);
 
 		CanfdFrame(FrameId _id, int _period, int _deadline,
@@ -298,7 +298,7 @@ namespace cfd {
 #ifdef OFFSET_TEST
 			std::random_device rd;
 			std::mt19937 gen(rd());
-			std::uniform_int_distribution<int> dist(0, period - 1); // ×ó±ÕÓÒ±Õ£¬·¶Î§ 0 µ½ period-1
+			std::uniform_int_distribution<int> dist(0, period - 1); // å·¦é—­å³é—­ï¼ŒèŒƒå›´ 0 åˆ° period-1
 			int offset_t= dist(gen);
 #else
 			int offset_t = 0;
@@ -369,72 +369,71 @@ namespace cfd {
 			data_size = 0;
 			payload_size = 0;
 			deadline = period;
-			period = period;		//²»±ä
+			//period = period;		//ä¸å˜
 			priority = -1;
 			trans_time = -1;
-			id = id;				//²»±ä
-			ecu_pair = ecu_pair;	//²»±ä
+			//id = id;				//ä¸å˜
+			//ecu_pair = ecu_pair;	//ä¸å˜
 			offset = 0;
 		}
 		~CanfdFrame() {
 		}
 	};
 	using CanfdFrameVec = std::vector<CanfdFrame>;
-	using CanfdFrameMap = std::unordered_map<FrameId, CanfdFrame>;	// keyÎªFRAME ID 
+	using CanfdFrameMap = std::unordered_map<FrameId, CanfdFrame>;	// keyä¸ºFRAME ID 
 
 
 }
 namespace cfd::utils {
 
 
-	// ÏòÁ÷osĞ´ÈëÏûÏ¢ÁĞÃû
+	// å‘æµoså†™å…¥æ¶ˆæ¯åˆ—å
 	void write_msg_heading_to_stream(std::ostream& os);
-	// ÏòÁ÷osĞ´ÈëÖ¡ÁĞÃû
+	// å‘æµoså†™å…¥å¸§åˆ—å
 	void write_frame_heading_to_stream(std::ostream& os);
 
-	// ÏòÁ÷os´òÓ¡·½±ãÔÄ¶ÁµÄÏûÏ¢ÄÚÈİ
+	// å‘æµosæ‰“å°æ–¹ä¾¿é˜…è¯»çš„æ¶ˆæ¯å†…å®¹
 	void write_msg_to_stream(std::ostream& os, const MessageInfo& msg, bool heading);
 
-	// »ñÈ¡string¸ñÊ½µÄmsgÄÚÈİ
+	// è·å–stringæ ¼å¼çš„msgå†…å®¹
 	std::string get_msg_string(const MessageInfo& msg, bool append = true);
 	std::string get_msg_string(const Message& msg, bool append = true);
 
-	// Ïòcout´òÓ¡·½±ãÔÄ¶ÁµÄÏûÏ¢ÄÚÈİ
+	// å‘coutæ‰“å°æ–¹ä¾¿é˜…è¯»çš„æ¶ˆæ¯å†…å®¹
 	void print_message(const MessageInfo& msg, bool append = true);
 	void print_message(const Message& msg, bool append = true);
 	void print_message(const MessageInfoVec& mset, bool append = true);
 
-	// ÏòÁ÷os´òÓ¡·½±ãÔÄ¶ÁµÄÖ¡ÄÚÈİ
+	// å‘æµosæ‰“å°æ–¹ä¾¿é˜…è¯»çš„å¸§å†…å®¹
 	void write_frame_to_stream(std::ostream& os, const CanfdFrame& frame, bool heading);
 
-	// »ñÈ¡string¸ñÊ½µÄÖ¡ÄÚÈİ
+	// è·å–stringæ ¼å¼çš„å¸§å†…å®¹
 	std::string get_frame_string(const CanfdFrame& frame, bool append = true);
 
-	// Ïòcout´òÓ¡·½±ãÔÄ¶ÁµÄÖ¡ÄÚÈİ
+	// å‘coutæ‰“å°æ–¹ä¾¿é˜…è¯»çš„å¸§å†…å®¹
 	void print_frame(const CanfdFrame& frame, bool append = true);
 	void print_frame(const CanfdFrameMap& fmap, bool append = true);
 
 	void write_msg_json_to_stream(std::ostream& os, const MessageInfoVec& mvec);
-	// ÏòfileÎÄ¼şĞ´ÈëÏûÏ¢¼¯ºÏ£¬Ä¬ÈÏappendÎª²»×·¼ÓĞ´Èë
+	// å‘fileæ–‡ä»¶å†™å…¥æ¶ˆæ¯é›†åˆï¼Œé»˜è®¤appendä¸ºä¸è¿½åŠ å†™å…¥
 	void write_message(MessageInfoVec& mvec, const std::string& filename, bool append = false);
-	// ´Ófile¶ÁÈ¡ÏûÏ¢¼¯ºÏ
+	// ä»fileè¯»å–æ¶ˆæ¯é›†åˆ
 	void read_message(const std::string& file, MessageInfoVec& mset = MESSAGE_INFO_VEC);
 
 
 	void write_frame_json_to_stream(std::ostream& os, const CanfdFrameMap& fmap);
-	// ÏòfileÎÄ¼şĞ´ÈëÖ¡¼¯ºÏ£¬Ä¬ÈÏappendÎª²»×·¼ÓĞ´Èë
+	// å‘fileæ–‡ä»¶å†™å…¥å¸§é›†åˆï¼Œé»˜è®¤appendä¸ºä¸è¿½åŠ å†™å…¥
 	void write_frame(CanfdFrameMap& fmap, const std::string& file, bool append = false);
-	// ´Ófile¶ÁÈ¡Ö¡¼¯ºÏ
+	// ä»fileè¯»å–å¸§é›†åˆ
 	void read_frame(CanfdFrameMap& fmap, const std::string& file);
 
-	// ÔÚfolder_pathÏÂ´æ´¢Ò»¶Ô½ôÃÜÏà¹ØµÄÖ¡ºÍÏûÏ¢¼¯ºÏ£¬Ö¡¼¯ºÏ£ºfrm_Ê±¼ä´Á.txt ¡¢ÏûÏ¢¼¯ºÏ£ºmsg_Ê±¼ä´Á.txt
+	// åœ¨folder_pathä¸‹å­˜å‚¨ä¸€å¯¹ç´§å¯†ç›¸å…³çš„å¸§å’Œæ¶ˆæ¯é›†åˆï¼Œå¸§é›†åˆï¼šfrm_æ—¶é—´æˆ³.txt ã€æ¶ˆæ¯é›†åˆï¼šmsg_æ—¶é—´æˆ³.txt
 	std::string store_frm_msg(MessageInfoVec& mset, CanfdFrameMap& fmap, const std::string& folder_path);
 	std::string store_msg(const std::string& folder_path, MessageInfoVec& mset = MESSAGE_INFO_VEC);
 	std::string store_frm(CanfdFrameMap& fmap, const std::string& folder_path);
 
-	// Ëæ»úÉú³ÉÒ»×éÏûÏ¢
+	// éšæœºç”Ÿæˆä¸€ç»„æ¶ˆæ¯
 	void generate_msg_info_set(MessageInfoVec& mset = MESSAGE_INFO_VEC, size_t num = SIZE_ORIGINAL_MESSAGE);
 
 }
 #endif // CANFDFRAME_H
-

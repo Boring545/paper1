@@ -10,37 +10,37 @@ namespace cfd {
 
 namespace cfd::schedule::paper1{
     /*
-        paper1 ·½·¨À´×ÔOPTIMAL PRIORITY ASSIGNMENT AND FEASIBILITY OF STATIC PRIORITY TASKS WITH ARBITRARY START TIMES
-        ¿ÉÒÔÎªÎŞ¹Ø¼üÆÚµÄÖ¡¼¯ºÏ·ÖÅäÀíÂÛ×îÓÅµÄÓÅÏÈ¼¶£¬¸Ã·½·¨½«ÓÅÏÈ¼¶·ÖÅäÓë¿Éµ÷¶ÈĞÔ·ÖÎöºÏ¶şÎªÒ»
-        ¿É·ÖÅäÓÅÏÈ¼¶µÄÖ¡¼¯ºÏ¼´´ú±í¿Éµ÷¶È£¬²»ÄÜ·ÖÅäÔò²»¿Éµ÷¶È
-        Ö÷Òª·½·¨Îªassign_priority
-        ×¢Ã÷£ºcalc_remain_interf·½·¨ºÍÂÛÎÄ²»Ò»ÖÂ£¬ÂÛÎÄÌá¹©µÄÎ±´úÂë²»ÄÜ¼ÆËã³öÂÛÎÄÀı×ÓÍ¬ÑùµÄ½á¹û£¬ĞŞ¸ÄÎªÎÒµÄĞ´·¨Ôò¿ÉÒÔ¡£
+        paper1 æ–¹æ³•æ¥è‡ªOPTIMAL PRIORITY ASSIGNMENT AND FEASIBILITY OF STATIC PRIORITY TASKS WITH ARBITRARY START TIMES
+        å¯ä»¥ä¸ºæ— å…³é”®æœŸçš„å¸§é›†åˆåˆ†é…ç†è®ºæœ€ä¼˜çš„ä¼˜å…ˆçº§ï¼Œè¯¥æ–¹æ³•å°†ä¼˜å…ˆçº§åˆ†é…ä¸å¯è°ƒåº¦æ€§åˆ†æåˆäºŒä¸ºä¸€
+        å¯åˆ†é…ä¼˜å…ˆçº§çš„å¸§é›†åˆå³ä»£è¡¨å¯è°ƒåº¦ï¼Œä¸èƒ½åˆ†é…åˆ™ä¸å¯è°ƒåº¦
+        ä¸»è¦æ–¹æ³•ä¸ºassign_priority
+        æ³¨æ˜ï¼šcalc_remain_interfæ–¹æ³•å’Œè®ºæ–‡ä¸ä¸€è‡´ï¼Œè®ºæ–‡æä¾›çš„ä¼ªä»£ç ä¸èƒ½è®¡ç®—å‡ºè®ºæ–‡ä¾‹å­åŒæ ·çš„ç»“æœï¼Œä¿®æ”¹ä¸ºæˆ‘çš„å†™æ³•åˆ™å¯ä»¥ã€‚
     */
 
 
     int offset_trans(int target, int basis, int T);
-    //È·¶¨Ã¿¸öÈÎÎñµÄ·ÖÎöÉÏ½çºÍÏÂ½ç
+    //ç¡®å®šæ¯ä¸ªä»»åŠ¡çš„åˆ†æä¸Šç•Œå’Œä¸‹ç•Œ
     bool find_interval(const std::vector<CanfdFrame*>& frame_set, std::vector<int>& lower_bound, std::vector<int>& upper_bound);
     class betaset {
     public:
-        double C;   //Ö´ĞĞÊ±¼ä
-        int tr;  //releaseÊ±¼ä
+        double C;   //æ‰§è¡Œæ—¶é—´
+        int tr;  //releaseæ—¶é—´
         betaset(double C, int tr) :C(C), tr(tr) {}
     };
-    //Éú³É¦Â¼¯ºÏ
+    //ç”ŸæˆÎ²é›†åˆ
     bool create_beta(const std::vector<CanfdFrame*>& frame_set, const CanfdFrame& frame, int lower_bound, std::vector<betaset>& beta);
-    //¼ÆËãÊ£Óà¸ÉÉæR_t_i£ºÔÚÊ±¿ÌupperÊ± releaseµÄÓÅÏÈ¼¶ i ÈÎÎñËùÃæ¶ÔµÄÖ®Ç°¸ßÓÅÏÈ¼¶ÈÎÎñÎ´Íê³ÉµÄÊ£ÓàÖ´ĞĞÊ±¼ä,lower=upper-T_i+D_i
+    //è®¡ç®—å‰©ä½™å¹²æ¶‰R_t_iï¼šåœ¨æ—¶åˆ»upperæ—¶ releaseçš„ä¼˜å…ˆçº§ i ä»»åŠ¡æ‰€é¢å¯¹çš„ä¹‹å‰é«˜ä¼˜å…ˆçº§ä»»åŠ¡æœªå®Œæˆçš„å‰©ä½™æ‰§è¡Œæ—¶é—´,lower=upper-T_i+D_i
     double calc_remain_interf(const CanfdFrame& frame, int t, std::vector<betaset>& beta);
-    //Éú³É¦Ç¼¯ºÏ
+    //ç”ŸæˆÎ·é›†åˆ
     bool  create_eta(const std::vector<CanfdFrame*>& frame_set, const CanfdFrame& frame, int t, double response_time, std::vector<betaset>& eta);
-    //¼ÆËãÔÚtÊ±¿ÌÓÅÏÈ¼¶i ÈÎÎñreleaseºóreleaseµÄĞÂÈÎÎñ²úÉúµÄÓ°ÏìÊ±¼ä
+    //è®¡ç®—åœ¨tæ—¶åˆ»ä¼˜å…ˆçº§i ä»»åŠ¡releaseåreleaseçš„æ–°ä»»åŠ¡äº§ç”Ÿçš„å½±å“æ—¶é—´
     double calc_create_interf(const CanfdFrame& frame, const int t, const int response_time, const std::vector<betaset>& eta);
 
 
-    // ¼ì²âÊı¾İÖ¡¼¯ºÏµÄ¿ÉĞĞĞÔ£¬¿ÉĞĞ·µ»Øtrue
+    // æ£€æµ‹æ•°æ®å¸§é›†åˆçš„å¯è¡Œæ€§ï¼Œå¯è¡Œè¿”å›true
     bool feasibility_check(std::vector<CanfdFrame*>& frame_set, int taski, int pri, const std::vector<int>& lower, const std::vector<int>& upper);
 
-    //ÎªÎŞ¹Ø¼üÆÚÖ¡¼¯ºÏ·ÖÅäÓÅÏÈ¼¶£¬³É¹¦·ÖÅäÒ²±íÊ¾¿Éµ÷¶È£¬·µ»Øtrue
+    //ä¸ºæ— å…³é”®æœŸå¸§é›†åˆåˆ†é…ä¼˜å…ˆçº§ï¼ŒæˆåŠŸåˆ†é…ä¹Ÿè¡¨ç¤ºå¯è°ƒåº¦ï¼Œè¿”å›true
     bool assign_priority(CanfdFrameMap& frame_map);
     bool assign_priority(cfd::PackingScheme& scheme);
 

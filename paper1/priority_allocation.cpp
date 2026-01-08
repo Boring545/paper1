@@ -12,9 +12,9 @@ namespace cfd::schedule::paper1 {
 
     bool find_interval(const std::vector<CanfdFrame*>& frame_set, std::vector<int>& lower_bound, std::vector<int>& upper_bound) {
         if (frame_set.empty()) return false;
-        std::vector<int> omax(frame_set.size(), 0); //omaxÎªframe_setÖĞ£¬³ıÁË×Ô¼ºindex¶ÔÓ¦µÄframeÍâ×î´óµÄoffset
+        std::vector<int> omax(frame_set.size(), 0); //omaxä¸ºframe_setä¸­ï¼Œé™¤äº†è‡ªå·±indexå¯¹åº”çš„frameå¤–æœ€å¤§çš„offset
 
-        int temp_p = frame_set[0]->get_period(); //temp_pÎªframe_setÖĞËùÓĞÖÜÆÚµÄ×îĞ¡¹«±¶Êı
+        int temp_p = frame_set[0]->get_period(); //temp_pä¸ºframe_setä¸­æ‰€æœ‰å‘¨æœŸçš„æœ€å°å…¬å€æ•°
         for (size_t j = 0; j < frame_set.size(); j++) {
             for (size_t i = 0; i < frame_set.size(); i++) {
                 if (i == j) {
@@ -42,8 +42,8 @@ namespace cfd::schedule::paper1 {
         int upper = lower_bound;
         int lower = upper - frame.get_period() + frame.get_deadline();
 
-        // Ô¤·ÖÅäbetaÈİÁ¿£¬¼õÉÙÄÚ´æÖØĞÂ·ÖÅä
-        beta.reserve(frame_set.size() * 10); // ¼ÙÉèÃ¿¸öframe»áÉú³É10¸öbeta
+        // é¢„åˆ†é…betaå®¹é‡ï¼Œå‡å°‘å†…å­˜é‡æ–°åˆ†é…
+        beta.reserve(frame_set.size() * 10); // å‡è®¾æ¯ä¸ªframeä¼šç”Ÿæˆ10ä¸ªbeta
 
         for (size_t i = 0; i < frame_set.size(); i++) {
             if (frame_set[i] == &frame) continue;
@@ -66,19 +66,19 @@ namespace cfd::schedule::paper1 {
     {
         double response_time = 0;
         int time = t - frame.get_period() + frame.get_deadline();
-        time = 0;   // ºÍÎ±´úÂë²»Ò»Ñù£¬µ«ÕâÑùÄÜÅÜÍ¨
+        time = 0;   // å’Œä¼ªä»£ç ä¸ä¸€æ ·ï¼Œä½†è¿™æ ·èƒ½è·‘é€š
         for (const betaset& b : beta) {
-            //timeÎªÖ®Ç°Ò»´ÎÈÎÎñmµÄ×îÍí½áÊøÊ±¼ä
-            //RÎªÒÑ¾­¿¼ÂÇµÄÈÎÎñµÄÖ´ĞĞµÄÊ±¼äºÍ£¬R+time<tr±íÊ¾Ö®Ç°µÄÈÎÎñ×Ô´Óreleaseºó£¬
-            //ÆäÒ»¶¨Ö´ĞĞÍê±Ï£¬ÏÂÒ»¸öÈÎÎñ²»ĞèÒªÔÙ¿¼ÂÇÒÔÇ°µÄÈÎÎñÁË¡£
+            //timeä¸ºä¹‹å‰ä¸€æ¬¡ä»»åŠ¡mçš„æœ€æ™šç»“æŸæ—¶é—´
+            //Rä¸ºå·²ç»è€ƒè™‘çš„ä»»åŠ¡çš„æ‰§è¡Œçš„æ—¶é—´å’Œï¼ŒR+time<trè¡¨ç¤ºä¹‹å‰çš„ä»»åŠ¡è‡ªä»releaseåï¼Œ
+            //å…¶ä¸€å®šæ‰§è¡Œå®Œæ¯•ï¼Œä¸‹ä¸€ä¸ªä»»åŠ¡ä¸éœ€è¦å†è€ƒè™‘ä»¥å‰çš„ä»»åŠ¡äº†ã€‚
             if (b.tr >= time + response_time) {
                 response_time = 0;
-                time = b.tr;    // ºÍÎ±´úÂë²»Ò»Ñù£¬µ«ÕâÑùÄÜÅÜÍ¨
+                time = b.tr;    // å’Œä¼ªä»£ç ä¸ä¸€æ ·ï¼Œä½†è¿™æ ·èƒ½è·‘é€š
             }
 
             response_time = response_time + b.C;
         }
-        //»ıÀÛµÄÈÎÎñÔÚR+timeÊ±ºò²ÅÄÜ³¹µ×Íê³É£¬ response_time + time - t±íÊ¾ÔÚµ±Ç°¿¼ÂÇµÄÈÎÎñreleaseºó£¬»¹ĞèµÈ´ıÖ®Ç°µÄÈÎÎñ¶à¾Ã
+        //ç§¯ç´¯çš„ä»»åŠ¡åœ¨R+timeæ—¶å€™æ‰èƒ½å½»åº•å®Œæˆï¼Œ response_time + time - tè¡¨ç¤ºåœ¨å½“å‰è€ƒè™‘çš„ä»»åŠ¡releaseåï¼Œè¿˜éœ€ç­‰å¾…ä¹‹å‰çš„ä»»åŠ¡å¤šä¹…
         response_time = response_time - (t - time);
         if (response_time < 0) {
             response_time = 0;
@@ -93,7 +93,7 @@ namespace cfd::schedule::paper1 {
         for (size_t i = 0; i < frame_set.size(); i++) {
             if (frame_set[i] == &frame) continue;
             int offset = offset_trans(frame_set[i]->get_offset(), frame.get_offset(), frame_set[i]->get_period());
-            //tr=O+m*T,Ñ°ÕÒ¡¾lower£¬upper¡¿ÄÚËùÓĞ¿ÉÄÜµÄtrÈ¡Öµ£¬o¾ÍÊÇframe_set[i].offset£¬TÊÇframe_set[i].period£¬mÎª³£Êı
+            //tr=O+m*T,å¯»æ‰¾ã€lowerï¼Œupperã€‘å†…æ‰€æœ‰å¯èƒ½çš„trå–å€¼ï¼Œoå°±æ˜¯frame_set[i].offsetï¼ŒTæ˜¯frame_set[i].periodï¼Œmä¸ºå¸¸æ•°
             int m = ceil(((double)lower - offset) / (double)frame_set[i]->get_period());
             if (m * frame_set[i]->get_period() + offset < upper) {
                 for (int j = 0; (m + j) * frame_set[i]->get_period() + offset < upper; j++) {
@@ -134,11 +134,11 @@ namespace cfd::schedule::paper1 {
             K = std::max(0.0, calc_create_interf(*frame_set[taski], lower[taski], response_time, eta));
 
             if (frame_set[taski]->get_trans_time() + response_time + K > frame_set[taski]->get_deadline()) {
-                //ÈÎÎñiÓÀÔ¶²»ÄÜ¿ÉĞĞ£¬ÕâÊ¹µÃÈÎÎñ¼¯Ò²²»¿ÉĞĞ
+                //ä»»åŠ¡iæ°¸è¿œä¸èƒ½å¯è¡Œï¼Œè¿™ä½¿å¾—ä»»åŠ¡é›†ä¹Ÿä¸å¯è¡Œ
                 beta.clear();
                 eta.clear();
                 DEBUG_MSG_DEBUG2(std::cout, "exec:", frame_set[taski]->get_trans_time(), "+ R:", response_time, " + K:", K, " > D:", frame_set[taski]->get_deadline());
-                DEBUG_MSG_DEBUG2(std::cout, "ÈÎÎñ", frame_set[taski]->get_id(), "  ·ÖÅäÓÅÏÈ¼¶", pri, "Ê§°Ü");
+                DEBUG_MSG_DEBUG2(std::cout, "ä»»åŠ¡", frame_set[taski]->get_id(), "  åˆ†é…ä¼˜å…ˆçº§", pri, "å¤±è´¥");
                 return false;
             }
             DEBUG_MSG_DEBUG2(std::cout, "exec:", frame_set[taski]->get_trans_time(), "+ R:", response_time, " + K:", K, " <= D:", frame_set[taski]->get_deadline());
@@ -159,34 +159,34 @@ namespace cfd::schedule::paper1 {
             }
             frame_set_copy.push_back(&frame);
         }
-        // deadline½µĞòÅÅÁĞ£¬ÕâÊ¹µÃºóÃæ·ÖÅäÓÅÏÈ¼¶Ê±£¬½«deadlineĞ¡µÄÖ¡·ÖÅä¸ß(´ó)µÄÓÅÏÈ¼¶
+        // deadlineé™åºæ’åˆ—ï¼Œè¿™ä½¿å¾—åé¢åˆ†é…ä¼˜å…ˆçº§æ—¶ï¼Œå°†deadlineå°çš„å¸§åˆ†é…é«˜(å¤§)çš„ä¼˜å…ˆçº§
         std::sort(frame_set_copy.begin(), frame_set_copy.end(), [](CanfdFrame* f1, CanfdFrame* f2) {return f1->get_deadline() > f2->get_deadline(); });
 
-        int frame_num = frame_set_copy.size();//Êµ¼ÊĞèÒª·ÖÅäÓÅÏÈ¼¶µÄÖ¡ÊıÁ¿
+        int frame_num = frame_set_copy.size();//å®é™…éœ€è¦åˆ†é…ä¼˜å…ˆçº§çš„å¸§æ•°é‡
         std::vector<int> lower, upper;
 
 
         bool unassigned = true;
 
-        //Ã¿´ÎÑ­»·£¬´Ó´óµ½0·ÖÅäÒ»¸öÓÅÏÈ¼¶
+        //æ¯æ¬¡å¾ªç¯ï¼Œä»å¤§åˆ°0åˆ†é…ä¸€ä¸ªä¼˜å…ˆçº§
         for (int pri = frame_num - 1; pri >= 0; pri--) {
             unassigned = true;
             find_interval(frame_set_copy, lower, upper);
-            //Ìî³ä¿ÉÑ¡ÈÎÎñ¼¯ºÏ
+            //å¡«å……å¯é€‰ä»»åŠ¡é›†åˆ
             for (size_t index = 0; index < frame_set_copy.size(); index++) {
                 if (feasibility_check(frame_set_copy, index, pri, lower, upper)) {
                     frame_set_copy[index]->set_priority(pri);
-                    DEBUG_MSG_DEBUG2(std::cout, "ÈÎÎñ", frame_set_copy[index]->get_id(), "  ·ÖÅäÓÅÏÈ¼¶", pri, "³É¹¦£¡£¡£¡£¡£¡£¡£¡£¡£¡");
-                    frame_set_copy.erase(frame_set_copy.begin() + index);  //´ÓÎ´·ÖÅä¼¯ºÏÖĞ£¬É¾³ı·ÖÅä³É¹¦µÄfrmae£¬È»ºó³¢ÊÔ·ÖÅäÏÂÒ»¸öÓÅÏÈ¼¶
+                    DEBUG_MSG_DEBUG2(std::cout, "ä»»åŠ¡", frame_set_copy[index]->get_id(), "  åˆ†é…ä¼˜å…ˆçº§", pri, "æˆåŠŸï¼ï¼ï¼ï¼ï¼ï¼ï¼ï¼ï¼");
+                    frame_set_copy.erase(frame_set_copy.begin() + index);  //ä»æœªåˆ†é…é›†åˆä¸­ï¼Œåˆ é™¤åˆ†é…æˆåŠŸçš„frmaeï¼Œç„¶åå°è¯•åˆ†é…ä¸‹ä¸€ä¸ªä¼˜å…ˆçº§
                     unassigned = false;
                     break;
                 }
             }
 
-            //ÕÒ²»µ½Ò»¸öºÏÊÊµÄÖ¡À´·ÖÅäÓÅÏÈ¼¶pri
+            //æ‰¾ä¸åˆ°ä¸€ä¸ªåˆé€‚çš„å¸§æ¥åˆ†é…ä¼˜å…ˆçº§pri
             if (unassigned) {
                 DEBUG_MSG_DEBUG1(std::cout, "=============================== ");
-                DEBUG_MSG_DEBUG1(std::cout, "ÓÅÏÈ¼¶·ÖÅäÊ§°Ü¡£¡£¡£ ");
+                DEBUG_MSG_DEBUG1(std::cout, "ä¼˜å…ˆçº§åˆ†é…å¤±è´¥ã€‚ã€‚ã€‚ ");
                 DEBUG_MSG_DEBUG1(std::cout, "=============================== ");
                 return false;
 
@@ -196,10 +196,10 @@ namespace cfd::schedule::paper1 {
         }
 
         DEBUG_MSG_DEBUG2(std::cout, "=============================== ");
-        DEBUG_MSG_DEBUG2(std::cout, "ÓÅÏÈ¼¶·ÖÅä³É¹¦£¡£¡£¡ ");
+        DEBUG_MSG_DEBUG2(std::cout, "ä¼˜å…ˆçº§åˆ†é…æˆåŠŸï¼ï¼ï¼ ");
         for (auto& fp : frame_map) {
             auto& frame = fp.second;
-            DEBUG_MSG_DEBUG2(std::cout, "ÈÎÎñ: ", frame.get_id(), "  ÓÅÏÈ¼¶£º ", frame.get_priority());
+            DEBUG_MSG_DEBUG2(std::cout, "ä»»åŠ¡: ", frame.get_id(), "  ä¼˜å…ˆçº§ï¼š ", frame.get_priority());
         }
         DEBUG_MSG_DEBUG2(std::cout, "=============================== ");
         return true;
@@ -208,6 +208,3 @@ namespace cfd::schedule::paper1 {
         return assign_priority(scheme.frame_map);
     }
 }
-
-
-

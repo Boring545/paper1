@@ -5,7 +5,7 @@
 
 namespace cfd::packing::heuristics {
 
-	// fitness¼ÆËãº¯Êı1
+	// fitnessè®¡ç®—å‡½æ•°1
 	double calculate_fitness_a(cfd::PackingScheme& scheme) {
 		int schedualbility = cfd::schedule::paper1::assign_priority(scheme.frame_map) == true ? 0 : 1;
 		return scheme.calc_bandwidth_utilization() + schedualbility;
@@ -15,9 +15,9 @@ namespace cfd::packing::heuristics {
 
 	using FrameIndexMap = std::unordered_map<EcuPair, std::unordered_map<int, std::vector<int>>, EcuPairHash>;
 
-	//--------------------------------- ¹¤¾ßº¯Êı ---------------------------------
+	//--------------------------------- å·¥å…·å‡½æ•° ---------------------------------
 	// 
-	// ÖÜÆÚÎªxµÄÖ¡¿ÉÒÔ´æ·ÅÖÜÆÚÎªvalid_period_map[x]µÄÏûÏ¢,ÓÃÓÚ¿ìËÙ»ñÖª Ò»¸öÖ¡ ¿ÉÒÔ´æ·ÅÄÄĞ©ÖÜÆÚµÄÏûÏ¢
+	// å‘¨æœŸä¸ºxçš„å¸§å¯ä»¥å­˜æ”¾å‘¨æœŸä¸ºvalid_period_map[x]çš„æ¶ˆæ¯,ç”¨äºå¿«é€Ÿè·çŸ¥ ä¸€ä¸ªå¸§ å¯ä»¥å­˜æ”¾å“ªäº›å‘¨æœŸçš„æ¶ˆæ¯
 	std::map<int, std::vector<int>> build_valid_period_map() {
 		std::map<int, std::vector<int>> valid_period_map;
 		for (int i = 0; i < NUM_MESSAGE_PERIOD; i++) {
@@ -35,12 +35,12 @@ namespace cfd::packing::heuristics {
 	}
 
 	/**
-	 * @brief ´ÓË÷ÒıÀïÒÆ³ıÄ³¸ö frame_id£¨ÊÊÓÃÓÚ¸Ã frame ±»Çå¿Õ»òÉ¾³ı£©
-	 * @param fmap Î¬»¤Ö¡Ë÷ÒıµÄ map
-	 * @param valid_period_map ÖÜÆÚÓ³Éä±í£ºframe_period -> ¿É·ÅÈëµÄÏûÏ¢ÖÜÆÚÁĞ±í
-	 * @param ecu ECU ¶Ô
-	 * @param frame_period Ö¡µÄÖÜÆÚ
-	 * @param frame_id ÒªÒÆ³ıµÄÖ¡ ID
+	 * @brief ä»ç´¢å¼•é‡Œç§»é™¤æŸä¸ª frame_idï¼ˆé€‚ç”¨äºè¯¥ frame è¢«æ¸…ç©ºæˆ–åˆ é™¤ï¼‰
+	 * @param fmap ç»´æŠ¤å¸§ç´¢å¼•çš„ map
+	 * @param valid_period_map å‘¨æœŸæ˜ å°„è¡¨ï¼šframe_period -> å¯æ”¾å…¥çš„æ¶ˆæ¯å‘¨æœŸåˆ—è¡¨
+	 * @param ecu ECU å¯¹
+	 * @param frame_period å¸§çš„å‘¨æœŸ
+	 * @param frame_id è¦ç§»é™¤çš„å¸§ ID
 	 */
 	inline void index_remove_frame(FrameIndexMap& fmap, const std::map<int, std::vector<int>>& valid_period_map,
 		const EcuPair& ecu, int frame_period, int frame_id) {
@@ -55,18 +55,18 @@ namespace cfd::packing::heuristics {
 			auto vec_it = by_period.find(p);
 			if (vec_it == by_period.end()) continue;
 			auto& vec = vec_it->second;
-			// É¾³ı frame_id
+			// åˆ é™¤ frame_id
 			vec.erase(std::remove(vec.begin(), vec.end(), frame_id), vec.end());
 		}
 	}
 
 	/**
-	 * @brief ĞÂÔöÒ»¸ö frame µ½Ë÷Òı£¨ÊÊÓÃÓÚ add_frame Ö®ºó£©
-	 * @param fmap Ö¡Ë÷Òı map
-	 * @param valid_period_map ÖÜÆÚÓ³Éä±í
-	 * @param ecu ECU ¶Ô
-	 * @param frame_period Ö¡ÖÜÆÚ
-	 * @param frame_id ĞÂÔöµÄÖ¡ ID
+	 * @brief æ–°å¢ä¸€ä¸ª frame åˆ°ç´¢å¼•ï¼ˆé€‚ç”¨äº add_frame ä¹‹åï¼‰
+	 * @param fmap å¸§ç´¢å¼• map
+	 * @param valid_period_map å‘¨æœŸæ˜ å°„è¡¨
+	 * @param ecu ECU å¯¹
+	 * @param frame_period å¸§å‘¨æœŸ
+	 * @param frame_id æ–°å¢çš„å¸§ ID
 	 */
 	inline void index_add_frame(FrameIndexMap& fmap,const std::map<int, std::vector<int>>& valid_period_map,
 		const EcuPair& ecu,int frame_period, int frame_id) {
@@ -74,20 +74,20 @@ namespace cfd::packing::heuristics {
 		if (vp_it == valid_period_map.end()) return;
 
 		for (int p : vp_it->second) {
-			// ÏòË÷ÒıÖĞÔö¼ÓÖ¡ ID£¬ÔÊĞí´´½¨²»´æÔÚµÄ¼ü
+			// å‘ç´¢å¼•ä¸­å¢åŠ å¸§ IDï¼Œå…è®¸åˆ›å»ºä¸å­˜åœ¨çš„é”®
 			fmap[ecu][p].push_back(frame_id);
 		}
 	}
 
 	/**
-	 * @brief ³¢ÊÔÒÆ¶¯ÏûÏ¢ msg µ½ĞÂÖ¡»òÒÑÓĞÖ¡
-	 * @param sol µ±Ç°´ò°ü·½°¸
-	 * @param fmap Ö¡Ë÷Òı map
-	 * @param valid_period_map ÖÜÆÚÓ³Éä±í
-	 * @param msg ´ıÒÆ¶¯µÄÏûÏ¢
-	 * @param gen Ëæ»úÊıÉú³ÉÆ÷
-	 * @param dist Ëæ»ú·Ö²¼ [0,1)
-	 * @return ÊÇ·ñ³É¹¦ÒÆ¶¯
+	 * @brief å°è¯•ç§»åŠ¨æ¶ˆæ¯ msg åˆ°æ–°å¸§æˆ–å·²æœ‰å¸§
+	 * @param sol å½“å‰æ‰“åŒ…æ–¹æ¡ˆ
+	 * @param fmap å¸§ç´¢å¼• map
+	 * @param valid_period_map å‘¨æœŸæ˜ å°„è¡¨
+	 * @param msg å¾…ç§»åŠ¨çš„æ¶ˆæ¯
+	 * @param gen éšæœºæ•°ç”Ÿæˆå™¨
+	 * @param dist éšæœºåˆ†å¸ƒ [0,1)
+	 * @return æ˜¯å¦æˆåŠŸç§»åŠ¨
 	 */
 	inline bool try_move_message(PackingScheme& sol,
 		FrameIndexMap& fmap,
@@ -96,45 +96,45 @@ namespace cfd::packing::heuristics {
 		std::mt19937& gen,
 		std::uniform_real_distribution<>& dist) {
 
-		constexpr double PROBABILITY_NEW_FRAME = 0.01; // ÒÆ¶¯µ½ĞÂÖ¡µÄ¸ÅÂÊ,µ«Êµ¼Ê¸ÅÂÊ»á±ÈÕâ¸öÂÔ¸ß£¬ÒòÎª³¢ÊÔÒÆ¶¯µ½ÒÑÓĞÖ¡²»Ò»¶¨³É¹¦
+		constexpr double PROBABILITY_NEW_FRAME = 0.01; // ç§»åŠ¨åˆ°æ–°å¸§çš„æ¦‚ç‡,ä½†å®é™…æ¦‚ç‡ä¼šæ¯”è¿™ä¸ªç•¥é«˜ï¼Œå› ä¸ºå°è¯•ç§»åŠ¨åˆ°å·²æœ‰å¸§ä¸ä¸€å®šæˆåŠŸ
 
 
 		int ot_frm_index = msg.get_id_frame();
 
-		// --- 1. Ëæ»ú³¢ÊÔÒÆ¶¯µ½ĞÂÖ¡ ---
+		// --- 1. éšæœºå°è¯•ç§»åŠ¨åˆ°æ–°å¸§ ---
 		if (dist(gen) < PROBABILITY_NEW_FRAME) {
-			// ´ÓÔ­Ö¡ÖĞÒÆ³ıÏûÏ¢
+			// ä»åŸå¸§ä¸­ç§»é™¤æ¶ˆæ¯
 			if (sol.frame_map.at(ot_frm_index).extract_message(msg)) {
-				// Èç¹ûÔ­Ö¡Îª¿Õ£¬ÔòÉ¾³ı²¢¸üĞÂË÷Òı
+				// å¦‚æœåŸå¸§ä¸ºç©ºï¼Œåˆ™åˆ é™¤å¹¶æ›´æ–°ç´¢å¼•
 				if (sol.frame_map.at(ot_frm_index).empty()) {
 					index_remove_frame(fmap, valid_period_map, msg.get_ecu_pair(), sol.frame_map.at(ot_frm_index).get_period(), ot_frm_index);
 					sol.recover_id(ot_frm_index);
 					sol.frame_map.erase(ot_frm_index);
 				}
 
-				// ĞÂÔöÖ¡²¢¸üĞÂË÷Òı
+				// æ–°å¢å¸§å¹¶æ›´æ–°ç´¢å¼•
 				int new_frame_id = sol.add_frame(msg);
 				index_add_frame(fmap, valid_period_map, msg.get_ecu_pair(), msg.get_period(), new_frame_id);
 				return true;
 			}
-			return false; // ÌáÈ¡ÏûÏ¢Ê§°Ü
+			return false; // æå–æ¶ˆæ¯å¤±è´¥
 		}
 		else {
-			// --- 2. ³¢ÊÔÒÆ¶¯µ½ÒÑÓĞÖ¡ ---
+			// --- 2. å°è¯•ç§»åŠ¨åˆ°å·²æœ‰å¸§ ---
 			auto& candidates = fmap[msg.get_ecu_pair()][msg.get_period()];
-			size_t RANDOM_RETRY_NUM = candidates.size() * 2;         // ÒÆ¶¯µ½ÒÑÓĞÖ¡µÄ×î´ó³¢ÊÔ´ÎÊı
+			size_t RANDOM_RETRY_NUM = candidates.size() * 2;         // ç§»åŠ¨åˆ°å·²æœ‰å¸§çš„æœ€å¤§å°è¯•æ¬¡æ•°
 
-			if (candidates.empty()) return false; // Ã»ÓĞ¿ÉÓÃÄ¿±êÖ¡
+			if (candidates.empty()) return false; // æ²¡æœ‰å¯ç”¨ç›®æ ‡å¸§
 
 			std::uniform_int_distribution<> frm_dist(0, candidates.size() - 1);
 			for (int retry = 0; retry < RANDOM_RETRY_NUM; retry++) {
 				int in_frm_index = candidates[frm_dist(gen)];
-				if (in_frm_index == ot_frm_index) continue; // Ìø¹ıÔ­Ö¡
+				if (in_frm_index == ot_frm_index) continue; // è·³è¿‡åŸå¸§
 
-				// ³¢ÊÔÒÆ¶¯ÏûÏ¢µ½Ä¿±êÖ¡
+				// å°è¯•ç§»åŠ¨æ¶ˆæ¯åˆ°ç›®æ ‡å¸§
 				if (sol.frame_map.at(ot_frm_index).move_message(sol.frame_map.at(in_frm_index), msg)) {
 					if (sol.frame_map.at(ot_frm_index).empty()) {
-						// Ô­Ö¡Îª¿Õ£¬¸üĞÂË÷Òı²¢É¾³ı
+						// åŸå¸§ä¸ºç©ºï¼Œæ›´æ–°ç´¢å¼•å¹¶åˆ é™¤
 						index_remove_frame(fmap, valid_period_map,
 							msg.get_ecu_pair(),
 							sol.frame_map.at(ot_frm_index).get_period(),
@@ -151,42 +151,42 @@ namespace cfd::packing::heuristics {
 		return false;
 	}
 
-	//--------------------------------- SA Ä£ÄâÍË»ğËã·¨ ---------------------------------
+	//--------------------------------- SA æ¨¡æ‹Ÿé€€ç«ç®—æ³• ---------------------------------
 
 	/**
-	 * @brief Ê¹ÓÃÄ£ÄâÍË»ğËã·¨ÓÅ»¯´ò°ü·½°¸
-	 * @param scheme ³õÊ¼´ò°ü·½°¸£¬º¯Êı·µ»Ø×îÓÅ·½°¸
+	 * @brief ä½¿ç”¨æ¨¡æ‹Ÿé€€ç«ç®—æ³•ä¼˜åŒ–æ‰“åŒ…æ–¹æ¡ˆ
+	 * @param scheme åˆå§‹æ‰“åŒ…æ–¹æ¡ˆï¼Œå‡½æ•°è¿”å›æœ€ä¼˜æ–¹æ¡ˆ
 	 *
-	 * Ëã·¨Á÷³Ì£º
-	 * 1. ¹¹½¨ valid_period_map£ºÖÜÆÚÎª x µÄÖ¡¿ÉÒÔ·ÅÈëÄÄĞ©ÖÜÆÚµÄÏûÏ¢
-	 * 2. ³õÊ¼»¯Ëæ»úÊıÉú³ÉÆ÷
-	 * 3. ³õÊ¼»¯ SA ²ÎÊı£º³õÊ¼ÎÂ¶È¡¢ÖÕÖ¹ÎÂ¶È¡¢ÎÂ¶ÈË¥¼õÒò×Ó¡¢×îĞ¡ÒÆ¶¯ÏûÏ¢Êı¡¢³É±¾Ëõ·ÅÒò×Ó
-	 * 4. µü´ú£º
-	 *    a) ¸ù¾İµ±Ç°ÎÂ¶È£¬Ëæ»úÑ¡ÔñÒ»¶¨ÊıÁ¿µÄÏûÏ¢½øĞĞÒÆ¶¯
-	 *    b) ¶ÔÃ¿ÌõÏûÏ¢£¬³¢ÊÔÒÆ¶¯µ½ĞÂÖ¡»òÒÑÓĞÖ¡£¨µ÷ÓÃ try_move_message£©
-	 *    c) ¼ÆËãĞÂ·½°¸µÄ cost
-	 *    d) ¸ù¾İ Metropolis ×¼Ôò¾ö¶¨ÊÇ·ñ½ÓÊÜĞÂ·½°¸
-	 *    e) ÇåÀí¿ÕÖ¡
-	 *    f) ÎÂ¶ÈË¥¼õ
-	 * 5. ·µ»Ø×îÓÅ½â£¬·µ»Ø´ø¿íÀûÓÃÂÊ
+	 * ç®—æ³•æµç¨‹ï¼š
+	 * 1. æ„å»º valid_period_mapï¼šå‘¨æœŸä¸º x çš„å¸§å¯ä»¥æ”¾å…¥å“ªäº›å‘¨æœŸçš„æ¶ˆæ¯
+	 * 2. åˆå§‹åŒ–éšæœºæ•°ç”Ÿæˆå™¨
+	 * 3. åˆå§‹åŒ– SA å‚æ•°ï¼šåˆå§‹æ¸©åº¦ã€ç»ˆæ­¢æ¸©åº¦ã€æ¸©åº¦è¡°å‡å› å­ã€æœ€å°ç§»åŠ¨æ¶ˆæ¯æ•°ã€æˆæœ¬ç¼©æ”¾å› å­
+	 * 4. è¿­ä»£ï¼š
+	 *    a) æ ¹æ®å½“å‰æ¸©åº¦ï¼Œéšæœºé€‰æ‹©ä¸€å®šæ•°é‡çš„æ¶ˆæ¯è¿›è¡Œç§»åŠ¨
+	 *    b) å¯¹æ¯æ¡æ¶ˆæ¯ï¼Œå°è¯•ç§»åŠ¨åˆ°æ–°å¸§æˆ–å·²æœ‰å¸§ï¼ˆè°ƒç”¨ try_move_messageï¼‰
+	 *    c) è®¡ç®—æ–°æ–¹æ¡ˆçš„ cost
+	 *    d) æ ¹æ® Metropolis å‡†åˆ™å†³å®šæ˜¯å¦æ¥å—æ–°æ–¹æ¡ˆ
+	 *    e) æ¸…ç†ç©ºå¸§
+	 *    f) æ¸©åº¦è¡°å‡
+	 * 5. è¿”å›æœ€ä¼˜è§£ï¼Œè¿”å›å¸¦å®½åˆ©ç”¨ç‡
 	 */
 	double simulated_annealing(PackingScheme& scheme) {
-		DEBUG_MSG_DEBUG1(std::cout, "sa ÓÅ»¯ ´ò°ü·½°¸");
+		DEBUG_MSG_DEBUG1(std::cout, "sa ä¼˜åŒ– æ‰“åŒ…æ–¹æ¡ˆ");
 
-		//----- ¹¹½¨ valid_period_map
+		//----- æ„å»º valid_period_map
 		std::map<int, std::vector<int>> valid_period_map = build_valid_period_map();
 
-		//----- Ëæ»úÊı³õÊ¼»¯
+		//----- éšæœºæ•°åˆå§‹åŒ–
 		std::random_device rd;
 		std::mt19937 gen(rd());
 		std::uniform_real_distribution<> dist(0.0, 1.0);
 
-		//----- SA²ÎÊı³õÊ¼»¯
-		constexpr double INITIAL_TEMPERATURE = 10;  // ³õÊ¼ÎÂ¶È
-		constexpr double FINAL_TEMPERATURE = 0.01;  // ÊÕÁ²ÖÕÖ¹ÎÂ¶È
-		constexpr double ALPHA = 0.995;             // ÎÂ¶ÈË¥¼õÒò×Ó
-		constexpr int NUM_MIN_MOVE = 1;             // Ã¿´ÎÖÁÉÙÒÆ¶¯ÏûÏ¢Êı
-		constexpr double FACTOR_COST_SCALE = 1000.0;// ³É±¾²îÖµ·Å´óÏµÊı£¬ÖµÔ½´óÊÕÁ²Ô½¿ì£¬Ì½Ë÷³Ì¶ÈÔ½µÍ£»ÖµÔ½Ğ¡£¬ÊÕÁ²Ô½Âı£¬ËÑË÷¸üÉî
+		//----- SAå‚æ•°åˆå§‹åŒ–
+		constexpr double INITIAL_TEMPERATURE = 10;  // åˆå§‹æ¸©åº¦
+		constexpr double FINAL_TEMPERATURE = 0.01;  // æ”¶æ•›ç»ˆæ­¢æ¸©åº¦
+		constexpr double ALPHA = 0.995;             // æ¸©åº¦è¡°å‡å› å­
+		constexpr int NUM_MIN_MOVE = 1;             // æ¯æ¬¡è‡³å°‘ç§»åŠ¨æ¶ˆæ¯æ•°
+		constexpr double FACTOR_COST_SCALE = 1000.0;// æˆæœ¬å·®å€¼æ”¾å¤§ç³»æ•°ï¼Œå€¼è¶Šå¤§æ”¶æ•›è¶Šå¿«ï¼Œæ¢ç´¢ç¨‹åº¦è¶Šä½ï¼›å€¼è¶Šå°ï¼Œæ”¶æ•›è¶Šæ…¢ï¼Œæœç´¢æ›´æ·±
 
 		double current_temperature = INITIAL_TEMPERATURE;
 
@@ -197,11 +197,11 @@ namespace cfd::packing::heuristics {
 		double new_cost = pre_cost;
 		double best_cost = pre_cost;
 
-		//----- SA¹ı³Ì
+		//----- SAè¿‡ç¨‹
 		while (current_temperature > FINAL_TEMPERATURE) {
 			PackingScheme new_solution = pre_solution;
 
-			// ¹¹½¨ frame_index_map£¬ÓÃÓÚ¿ìËÙÕÒµ½Í¬ ECU ¶ÔÏÂ¿ÉÓÃÖ¡
+			// æ„å»º frame_index_mapï¼Œç”¨äºå¿«é€Ÿæ‰¾åˆ°åŒ ECU å¯¹ä¸‹å¯ç”¨å¸§
 			FrameIndexMap frame_index_map;
 			for (auto& [fid, frame] : new_solution.frame_map) {
 				if (frame.empty()) continue;
@@ -210,7 +210,7 @@ namespace cfd::packing::heuristics {
 				}
 			}
 
-			// ¸ù¾İÎÂ¶È¾ö¶¨ÒÆ¶¯ÏûÏ¢ÊıÁ¿£¬¸ßÎÂÒÆ¶¯¶à£¬µÍÎÂÒÆ¶¯ÉÙ
+			// æ ¹æ®æ¸©åº¦å†³å®šç§»åŠ¨æ¶ˆæ¯æ•°é‡ï¼Œé«˜æ¸©ç§»åŠ¨å¤šï¼Œä½æ¸©ç§»åŠ¨å°‘
 			double num_probability = current_temperature / INITIAL_TEMPERATURE;
 			int max_select_num = new_solution.message_set.size() / 10;
 			int select_num = static_cast<int>(max_select_num * num_probability);
@@ -218,7 +218,7 @@ namespace cfd::packing::heuristics {
 
 			std::uniform_int_distribution<> msg_dist(0, new_solution.message_set.size() - 1);
 
-			//----- Ëæ»ú³¢ÊÔÒÆ¶¯ select_num ¸öÏûÏ¢
+			//----- éšæœºå°è¯•ç§»åŠ¨ select_num ä¸ªæ¶ˆæ¯
 			for (int i = 0; i < select_num; i++) {
 				int mid = msg_dist(gen);
 				auto& msg = new_solution.message_set[mid];
@@ -227,7 +227,7 @@ namespace cfd::packing::heuristics {
 
 			new_cost = calculate_fitness_a(new_solution);
 
-			//----- ÅĞ¶ÏÊÇ·ñ½ÓÊÜĞÂ½â
+			//----- åˆ¤æ–­æ˜¯å¦æ¥å—æ–°è§£
 			if (new_cost <= pre_cost) {
 				if (new_cost <= best_cost) {
 					best_solution = new_solution;
@@ -245,7 +245,7 @@ namespace cfd::packing::heuristics {
 				}
 			}
 
-			//----- ÇåÀí¿ÕÖ¡£¬»ØÊÕ ID
+			//----- æ¸…ç†ç©ºå¸§ï¼Œå›æ”¶ ID
 			std::vector<int> to_remove;
 			for (const auto& [key, frame] : pre_solution.frame_map) {
 				if (frame.empty()) {
@@ -257,20 +257,20 @@ namespace cfd::packing::heuristics {
 				pre_solution.frame_map.erase(i);
 			}
 
-			//----- ´òÓ¡µ÷ÊÔĞÅÏ¢
+			//----- æ‰“å°è°ƒè¯•ä¿¡æ¯
 			DEBUG_MSG_DEBUG2(std::cout, "Fitness = ", pre_cost);
 			DEBUG_MSG_DEBUG2(std::cout, "Utilization = ", pre_solution.calc_bandwidth_utilization());
 			DEBUG_MSG_DEBUG2(std::cout, "Temperature = ", current_temperature, "\n");
 
-			// ÎÂ¶ÈË¥¼õ
+			// æ¸©åº¦è¡°å‡
 			current_temperature *= ALPHA;
 		}
 
-		// ·µ»Ø×îÓÅ½â
+		// è¿”å›æœ€ä¼˜è§£
 		scheme = std::move(best_solution);
 		double utilization = scheme.calc_bandwidth_utilization();
 		DEBUG_MSG_DEBUG1(std::cout, "Utilization = ", utilization);
-		DEBUG_MSG_DEBUG1(std::cout, "sa ÓÅ»¯ ´ò°ü·½°¸ Íê±Ï");
+		DEBUG_MSG_DEBUG1(std::cout, "sa ä¼˜åŒ– æ‰“åŒ…æ–¹æ¡ˆ å®Œæ¯•");
 		return utilization;
 	}
 
@@ -278,5 +278,3 @@ namespace cfd::packing::heuristics {
 
 
 }
-
-

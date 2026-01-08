@@ -6,25 +6,25 @@
 
 
 namespace cfd {
-	constexpr double LIMIT_BANDWIDTH = 0.9;	// ´ø¿íÀûÓÃÂÊÉÏÏŞ
+	constexpr double LIMIT_BANDWIDTH = 0.9;	// å¸¦å®½åˆ©ç”¨ç‡ä¸Šé™
 	class PackingScheme;
 
 
 
 
-	//Ò»¸ö´ò°ü·½°¸£¬°üº¬Ò»×é×°ÔØÁËÈ«²¿ÏûÏ¢µÄCANFDÖ¡
+	//ä¸€ä¸ªæ‰“åŒ…æ–¹æ¡ˆï¼ŒåŒ…å«ä¸€ç»„è£…è½½äº†å…¨éƒ¨æ¶ˆæ¯çš„CANFDå¸§
 	class PackingScheme {
 	private:
 
-		using PeriodFrameeMap = std::map<int, std::vector<int>>;		// ÏàÍ¬ECUpairÏÂ£¬²»Í¬ÖÜÆÚ¶ÔÓ¦µÄframeË÷Òı·Ö±í,Í¨¹ıframe_set[Ë÷Òı]Ñ¡È¡frame
-		using EcuToFrameMap = std::unordered_map<EcuPair, PeriodFrameeMap, EcuPairHash>;	// ¸ù¾İ¡¾ECUpair£¬period¡¿Ñ¡ÔñPeriodFrameeMap·Ö±í
+		using PeriodFrameeMap = std::map<int, std::vector<int>>;		// ç›¸åŒECUpairä¸‹ï¼Œä¸åŒå‘¨æœŸå¯¹åº”çš„frameç´¢å¼•åˆ†è¡¨,é€šè¿‡frame_set[ç´¢å¼•]é€‰å–frame
+		using EcuToFrameMap = std::unordered_map<EcuPair, PeriodFrameeMap, EcuPairHash>;	// æ ¹æ®ã€ECUpairï¼Œperiodã€‘é€‰æ‹©PeriodFrameeMapåˆ†è¡¨
 
-		using PeriodMessageMap = std::map<int, std::vector<size_t>>;		// ÏàÍ¬ECUpairÏÂ£¬²»Í¬ÖÜÆÚ¶ÔÓ¦µÄmessageË÷Òı·Ö±í,Í¨¹ımessage_set[Ë÷Òı]Ñ¡È¡message
-		using EcuPeriodMessageMap = std::unordered_map<EcuPair, PeriodMessageMap, EcuPairHash>;	// ¸ù¾İ¡¾ECUpair£¬period¡¿Ñ¡ÔñPeriodMessageMap·Ö±í
+		using PeriodMessageMap = std::map<int, std::vector<size_t>>;		// ç›¸åŒECUpairä¸‹ï¼Œä¸åŒå‘¨æœŸå¯¹åº”çš„messageç´¢å¼•åˆ†è¡¨,é€šè¿‡message_set[ç´¢å¼•]é€‰å–message
+		using EcuPeriodMessageMap = std::unordered_map<EcuPair, PeriodMessageMap, EcuPairHash>;	// æ ¹æ®ã€ECUpairï¼Œperiodã€‘é€‰æ‹©PeriodMessageMapåˆ†è¡¨
 
-		std::unordered_set<int> free_ids;  // ¿É¸´ÓÃµÄID³Ø,¸øÖ¡±êºÅÓÃ,¼ÓÈëĞÂÖ¡Ê±´Ó³ØÀïÑ¡Ôñid£¬Ö¡Çå¿ÕÊ±id·µ»Ø³Ø£¬³ØÎª¿ÕÔò·ÖÅäframe_map.size()×÷Îªid
+		std::unordered_set<int> free_ids;  // å¯å¤ç”¨çš„IDæ± ,ç»™å¸§æ ‡å·ç”¨,åŠ å…¥æ–°å¸§æ—¶ä»æ± é‡Œé€‰æ‹©idï¼Œå¸§æ¸…ç©ºæ—¶idè¿”å›æ± ï¼Œæ± ä¸ºç©ºåˆ™åˆ†é…frame_map.size()ä½œä¸ºid
 
-		// ¸ù¾İÏûÏ¢¼¯ºÏÉú³É³õÊ¼»¯µÄÖ¡¼¯ºÏ£¬×÷ÎªÉú³É³õÊ¼´ò°ü·½°¸
+		// æ ¹æ®æ¶ˆæ¯é›†åˆç”Ÿæˆåˆå§‹åŒ–çš„å¸§é›†åˆï¼Œä½œä¸ºç”Ÿæˆåˆå§‹æ‰“åŒ…æ–¹æ¡ˆ
 		void init_frames();
 
 
@@ -34,16 +34,16 @@ namespace cfd {
 
 	public:
 
-		MessageVec message_set;  // ĞÅºÅ¼¯ºÏ
+		MessageVec message_set;  // ä¿¡å·é›†åˆ
 
-		CanfdFrameMap frame_map;	// keyÎª frameµÄid£¬idÓ¦¸ÃÎ¨Ò»£¬·ÖÅäidÊ±×¢ÒâÊ¹ÓÃget_free_id()»ñÈ¡Î¨Ò»µÄid
+		CanfdFrameMap frame_map;	// keyä¸º frameçš„idï¼Œidåº”è¯¥å”¯ä¸€ï¼Œåˆ†é…idæ—¶æ³¨æ„ä½¿ç”¨get_free_id()è·å–å”¯ä¸€çš„id
 
-		//»ñÈ¡Ò»¸ö¿ÉÓÃÖ¡id,È¡±ØÓÃ£¡
+		//è·å–ä¸€ä¸ªå¯ç”¨å¸§id,å–å¿…ç”¨ï¼
 		int get_free_id();
-		//»ØÊÕÖ¡µÄid
+		//å›æ”¶å¸§çš„id
 		void recover_id(int id);
 
-		// ÖØĞÂ³õÊ¼»¯£¬Éú³É³õÊ¼´ò°ü·½°¸
+		// é‡æ–°åˆå§‹åŒ–ï¼Œç”Ÿæˆåˆå§‹æ‰“åŒ…æ–¹æ¡ˆ
 		inline void re_init_frames() {
 			for (auto& m : message_set) {
 				m.clear_frame();
@@ -53,7 +53,7 @@ namespace cfd {
 		}
 
 
-		// Ôö¼ÓÒ»¸öĞÂÖ¡£¬ÆäÖ»°üº¬Ò»¸ö»ù×¼msg£¬·µ»ØĞÂÖ¡id
+		// å¢åŠ ä¸€ä¸ªæ–°å¸§ï¼Œå…¶åªåŒ…å«ä¸€ä¸ªåŸºå‡†msgï¼Œè¿”å›æ–°å¸§id
 		inline int add_frame(Message& msg) {
 			FrameId  id = get_free_id();
 			if (id == -1) {
@@ -64,7 +64,7 @@ namespace cfd {
 			
 			std::random_device rd;
 			std::mt19937 gen(rd());
-			std::uniform_int_distribution<int> dist(0, msg.get_period() - 1); // ×ó±ÕÓÒ±Õ£¬·¶Î§ 0 µ½ period-1
+			std::uniform_int_distribution<int> dist(0, msg.get_period() - 1); // å·¦é—­å³é—­ï¼ŒèŒƒå›´ 0 åˆ° period-1
 			int offset = dist(gen);
 #else
 			int offset = 0;
@@ -81,7 +81,7 @@ namespace cfd {
 			}
 		}
 
-		// Ôö¼ÓÒ»¸öĞÂÖ¡£¬ÆäÖ»°üº¬Ò»¸ö»ù×¼msg£¬·µ»ØĞÂÖ¡id
+		// å¢åŠ ä¸€ä¸ªæ–°å¸§ï¼Œå…¶åªåŒ…å«ä¸€ä¸ªåŸºå‡†msgï¼Œè¿”å›æ–°å¸§id
 		inline int add_frame(int _period, int _deadline, const EcuPair& _ecu_pair, int _offset) {
 			FrameId  id = get_free_id();
 			if (id == -1) {
@@ -98,7 +98,7 @@ namespace cfd {
 
 
 
-		//¼ÆËã´ø¿íÀûÓÃÂÊ
+		//è®¡ç®—å¸¦å®½åˆ©ç”¨ç‡
 		double calc_bandwidth_utilization()const;
 		void print_frame() {
 			cfd::utils::print_frame(this->frame_map);
@@ -106,35 +106,35 @@ namespace cfd {
 
 		PackingScheme(bool backup=true, MessageInfoVec& vec = cfd::MESSAGE_INFO_VEC) {
 			int original_size = vec.size();
-			// Ìí¼ÓÒìÔ´±¸·İ
-			if (NUM_ECU >= 3 && backup == true) {
+			// æ·»åŠ å¼‚æºå¤‡ä»½
+			// if (NUM_ECU >= 3 && backup == true) {
 				
-				for (int i = 0; i < original_size; i++) {
-					if (vec[i].type == 1) {
-						//TODO Ôö¼ÓÁ½¸öÒìÔ´¸±±¾µ½MESSAGE_INFO_VEC
-						int origin_src_ecu = vec[i].ecu_pair.src_ecu;
+			// 	for (int i = 0; i < original_size; i++) {
+			// 		if (vec[i].type == 1) {
+			// 			//TODO å¢åŠ ä¸¤ä¸ªå¼‚æºå‰¯æœ¬åˆ°MESSAGE_INFO_VEC
+			// 			int origin_src_ecu = vec[i].ecu_pair.src_ecu;
 
-						// Ë³ĞòÌôÑ¡Á½¸ö²»Í¬µÄ ECU
-						int new_ecu1 = -1, new_ecu2 = -1;
-						for (int e : OPTION_ECU) {
-							if (e != origin_src_ecu) {
-								if (new_ecu1 == -1)
-									new_ecu1 = e;
-								else if (new_ecu2 == -1) {
-									new_ecu2 = e;
-									break; // ÒÑ¾­ÕÒµ½Á½¸ö£¬ÍË³ö
-								}
-							}
-						}
+			// 			// é¡ºåºæŒ‘é€‰ä¸¤ä¸ªä¸åŒçš„ ECU
+			// 			int new_ecu1 = -1, new_ecu2 = -1;
+			// 			for (int e : OPTION_ECU) {
+			// 				if (e != origin_src_ecu) {
+			// 					if (new_ecu1 == -1)
+			// 						new_ecu1 = e;
+			// 					else if (new_ecu2 == -1) {
+			// 						new_ecu2 = e;
+			// 						break; // å·²ç»æ‰¾åˆ°ä¸¤ä¸ªï¼Œé€€å‡º
+			// 					}
+			// 				}
+			// 			}
 
-						MessageInfo backup1(vec[i], new_ecu1);
-						MessageInfo backup2(vec[i], new_ecu2);
-						vec.push_back(backup1);
-						vec.push_back(backup2);
-					}
-				}
-				DEBUG_MSG_DEBUG1(std::cout, "×Ü¼ÆĞÂÔö ", vec.size() - original_size, " ¸öÒìÔ´ĞÅºÅ¸±±¾");
-			}
+			// 			MessageInfo backup1(vec[i], new_ecu1);
+			// 			MessageInfo backup2(vec[i], new_ecu2);
+			// 			vec.push_back(backup1);
+			// 			vec.push_back(backup2);
+			// 		}
+			// 	}
+			// 	DEBUG_MSG_DEBUG1(std::cout, "æ€»è®¡æ–°å¢ ", vec.size() - original_size, " ä¸ªå¼‚æºä¿¡å·å‰¯æœ¬");
+			// }
 
 			
 			
@@ -146,7 +146,7 @@ namespace cfd {
 
 		}
 
-		// ÓÃÓÚ´Ófmap±íÊ¾µÄ´ò°ü·½°¸³õÊ¼»¯Ò»¸öPackingSchemeÀà
+		// ç”¨äºä»fmapè¡¨ç¤ºçš„æ‰“åŒ…æ–¹æ¡ˆåˆå§‹åŒ–ä¸€ä¸ªPackingSchemeç±»
 		PackingScheme(const CanfdFrameMap& fmap) {
 			frame_map = fmap;
 
@@ -172,7 +172,7 @@ namespace cfd {
 
 			for (int i = 0; i <= max_id; ++i) {
 				if (used_ids.count(i) == 0) {
-					free_ids.insert(i);  // i ÊÇ¿ÕÏĞ ID
+					free_ids.insert(i);  // i æ˜¯ç©ºé—² ID
 				}
 			}
 
@@ -198,9 +198,9 @@ namespace cfd {
 
 namespace cfd::packing {
 	enum class PACK_METHOD {
-		SIMULATED_ANNEALING=0, // SA ´ò°ü
+		SIMULATED_ANNEALING=0, // SA æ‰“åŒ…
 	};
-	// ¶Ô³õÊ¼»¯ºóµÄscheme½øĞĞ´ò°ü
+	// å¯¹åˆå§‹åŒ–åçš„schemeè¿›è¡Œæ‰“åŒ…
 	double frame_pack(PackingScheme& scheme, PACK_METHOD method);
 }
 
