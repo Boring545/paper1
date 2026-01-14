@@ -19,7 +19,7 @@ namespace cfd {
 
 
 
-	void PackingScheme::init_frames()
+	bool PackingScheme::init_frames()
 	{
 		free_ids.clear();
 		EcuPeriodMessageMap period_msg_map; //message按照ECU对、period的二级分表
@@ -53,35 +53,33 @@ namespace cfd {
 				}
 			}
 		}
+
 #ifdef OFFSET_TEST
 		std::random_device rd;
 		std::mt19937 gen(rd());
-#else
-
-#endif // OFFSET_TEST
 
 		for (auto& [id, frame] : frame_map) {
 			int period = frame.get_period(); // 获取当前帧的周期
-
-#ifdef OFFSET_TEST
 			// 随机分配 [0, period-1) 范围内的自然数
-			std::uniform_int_distribution<int> dist(0, period - 1); // 左闭右闭，范围 0 到 period-1
-			int offset = dist(gen);
-#else
-			int offset = 0;
-#endif // OFFSET_TEST
-			
-
-			frame.set_offset(offset); // 假设 CanfdFrame 有 set_offset 方法
+			std::uniform_int_distribution<int> offset_dist(0, period - 1); // 左闭右闭，范围 0 到 period-1
+			int offset = offset_dist(gen);
+			frame.set_offset(offset);
 		}
+#endif // OFFSET_TEST
+
+
 
 		if (calc_bandwidth_utilization() > 0.95) {
 			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "信号类型太多，导致帧过多，传输困难", " U = ", calc_bandwidth_utilization());
+			return false;
 		}
 
 		if (!cfd::schedule::paper1::assign_priority(this->frame_map)) {
 			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "初始方案无法分配优先级，无法调度");
+			return false;
 		}
+
+		return true;
 	}
 	int PackingScheme::get_free_id()
 	{

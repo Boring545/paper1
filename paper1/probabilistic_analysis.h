@@ -32,15 +32,21 @@ namespace cfd::schedule::paper2
 	extern double pi_0; // 处于常态的概率
 	extern double pi_1; // 处于故障态的概率
 
-	
+	extern double bcnt_global;
 
 
-							// 每个CANFD帧对应一个概率分析结果
-							struct ProbResult
+
+
+	// 每个CANFD帧对应一个概率分析结果
+	struct ProbResult
 	{
-		double e_response_time; // 响应时间期望
-		double p_timeout;		// 超时概率
-		ProbResult(double expected_response_time = 0, double prob_timeout = 0) : e_response_time(expected_response_time), p_timeout(prob_timeout) {}
+		double e_response_time = 0; // 响应时间期望
+		double p_timeout = 0;		// 超时概率
+		double e_retry = 0;
+		double e_u = 0;
+		ProbResult(double expected_response_time = 0, double prob_timeout = 0, double retry = 0, double u = 0) 
+			: e_response_time(expected_response_time), p_timeout(prob_timeout), e_retry(retry),e_u(u)
+		{}
 	};
 	struct ProbData
 	{
@@ -53,28 +59,28 @@ namespace cfd::schedule::paper2
 	};
 
 	// 计算时间段t内，重传num次的概率
-	double calc_probability_fault(double t, int num,double lambda =LAMBDA);
+	double calc_probability_fault(double t, int num, double lambda = LAMBDA);
 	// 在电磁干扰的干涉窗口内，至少发生一次故障的概率
 	double calc_probability_fault(double interference_win);
 	// 计算时间段t内，高优先级帧对当前帧的干涉综合
 	double calc_interference();
 
 	// 计算并返回指定帧的概率分析结果
-	ProbResult analyze_frame_probability(const CanfdFrame &frame, const std::vector<CanfdFrame> &sorted_frames,
-										 const std::unordered_map<FrameId, double> &max_fault_rate,
-										 int frame_index, double COST_MAX_ERROR_FRAME);
+	ProbResult analyze_frame_probability(const CanfdFrame& frame, const std::vector<CanfdFrame>& sorted_frames,
+		const std::unordered_map<FrameId, double>& max_fault_rate,
+		int frame_index, double COST_MAX_ERROR_FRAME);
 #define BACKUP_OFF -1	// 不备份，只分析
 #define BACKUP_DIRECT 0 // 直接备份
 #define BACKUP_REPACK 1 // 重打包
 	// 对整个方案进行概率分析，返回每个帧对应的结果 enable_backup -1 不备份只分析 =0 直接备份 =1 重打包
-	std::unordered_map<MessageCode, ProbData> probabilistic_analysis(PackingScheme &scheme, int enable_backup = BACKUP_OFF, std::string timestamp = get_time_stamp());
+	std::unordered_map<MessageCode, ProbData> probabilistic_analysis(PackingScheme& scheme, int enable_backup = BACKUP_OFF, std::string timestamp = get_time_stamp());
 
 	void compare_prob_result(
-		const std::string &filename,
-		const std::unordered_map<MessageCode, ProbData> &origin_res,
-		const std::unordered_map<MessageCode, ProbData> &repack_res,
-		const PackingScheme &scheme_origin,
-		const PackingScheme &scheme_repack);
+		const std::string& filename,
+		const std::unordered_map<MessageCode, ProbData>& origin_res,
+		const std::unordered_map<MessageCode, ProbData>& repack_res,
+		const PackingScheme& scheme_origin,
+		const PackingScheme& scheme_repack);
 
 	// 根据概率分析的结果，依照ASIL等级添加备份
 	// ASIL A、B、C、D分别对应的故障率上限为1/10^6 、1/10^7 、1/10^7 、1/10^8

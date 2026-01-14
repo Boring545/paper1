@@ -6,7 +6,7 @@
 #define V0 1
 #define V1 0
 #define V2 0
-#define OFFSET_TEST0  // 注释掉此行则关闭所有OFFSET_TEST相关逻辑
+#define OFFSET_TEST  // 注释掉此行则关闭所有OFFSET_TEST相关逻辑
 
 namespace cfd {
 	constexpr int FACTOR_M_F_PERIOD = 2;				// 被打包到一个帧中的消息，消息周期必须为帧周期的[1,factor]倍
@@ -19,7 +19,7 @@ namespace cfd {
 	constexpr int OPTION_MESSAGE_LEVEL[] = { 0, 1, 2, 3 };								// 安全等级选项,对应A\B\C\D
 	constexpr int NUM_MESSAGE_LEVEL = std::size(OPTION_MESSAGE_LEVEL);
 	constexpr double PROBABILITY_MESSAGE_LEVEL[] = { 0.75,0.1,0.1,0.05 };				// 选择概率
-	constexpr double THRESHOLD_RELIABILITY[] = { 1e-6,1e-7,1e-7,1e-8 };					// 安全等级对应的帧传输时的故障率上限
+	constexpr double THRESHOLD_RELIABILITY[] = { 1e-3,1e-7,1e-7,1e-8 };					// 安全等级对应的帧传输时的故障率上限
 
 #if V0
 	constexpr int SIZE_ORIGINAL_MESSAGE = 100;											// 初始信号数量

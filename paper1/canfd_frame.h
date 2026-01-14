@@ -37,6 +37,9 @@ namespace cfd {
 	constexpr double TIME_BIT_ARBITRATION = 0.001;			// 仲裁段传输一个bit所用时间，单位为毫秒(ms)（1Mbps）
 	constexpr double TIME_BIT_TRANSMISSION = 0.0002;		// 数据段传输一个bit所用时间，单位为毫秒(ms)（5Mbps）
 
+	constexpr double TIME_INTERMISSION = 3.0 * TIME_BIT_ARBITRATION; // 帧间隔
+
+
 	constexpr int OPTION_CANFD_PAYLOAD_SIZE[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64 }; // CANFD帧payload可选长度，单位为byte
 	constexpr int NUM_CANFD_PAYLOAD_SIZE = std::size(OPTION_CANFD_PAYLOAD_SIZE);
 
@@ -295,14 +298,14 @@ namespace cfd {
 
 			//this->offset = msg.get_offset();
 
-#ifdef OFFSET_TEST
+#ifdef OFFSET_RANDOM_CREATE
 			std::random_device rd;
 			std::mt19937 gen(rd());
 			std::uniform_int_distribution<int> dist(0, period - 1); // 左闭右闭，范围 0 到 period-1
 			int offset_t= dist(gen);
 #else
 			int offset_t = 0;
-#endif // OFFSET_TEST
+#endif // OFFSET_RANDOM_CREATE
 
 			this->set_offset(offset_t);
 			 

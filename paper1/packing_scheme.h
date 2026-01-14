@@ -25,7 +25,7 @@ namespace cfd {
 		std::unordered_set<int> free_ids;  // 可复用的ID池,给帧标号用,加入新帧时从池里选择id，帧清空时id返回池，池为空则分配frame_map.size()作为id
 
 		// 根据消息集合生成初始化的帧集合，作为生成初始打包方案
-		void init_frames();
+		bool init_frames();
 
 
 
@@ -44,12 +44,12 @@ namespace cfd {
 		void recover_id(int id);
 
 		// 重新初始化，生成初始打包方案
-		inline void re_init_frames() {
+		inline bool re_init_frames() {
 			for (auto& m : message_set) {
 				m.clear_frame();
 			}
 			frame_map.clear();
-			init_frames();
+			return init_frames();
 		}
 
 
