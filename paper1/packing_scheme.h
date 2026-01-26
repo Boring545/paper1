@@ -44,7 +44,7 @@ namespace cfd {
 		void recover_id(int id);
 
 		// 重新初始化，生成初始打包方案
-		inline bool re_init_frames() {
+		bool re_init_frames() {
 			for (auto& m : message_set) {
 				m.clear_frame();
 			}
@@ -54,21 +54,13 @@ namespace cfd {
 
 
 		// 增加一个新帧，其只包含一个基准msg，返回新帧id
-		inline int add_frame(Message& msg) {
+		int add_frame(Message& msg) {
 			FrameId  id = get_free_id();
 			if (id == -1) {
 				std::cout << "id error\n";
 			}
 			auto result = this->frame_map.try_emplace(id, id, msg);
-#ifdef OFFSET_TEST
-			
-			std::random_device rd;
-			std::mt19937 gen(rd());
-			std::uniform_int_distribution<int> dist(0, msg.get_period() - 1); // 左闭右闭，范围 0 到 period-1
-			int offset = dist(gen);
-#else
 			int offset = 0;
-#endif // OFFSET_TEST
 
 			this->frame_map[id].set_offset(offset);
 
@@ -82,7 +74,7 @@ namespace cfd {
 		}
 
 		// 增加一个新帧，其只包含一个基准msg，返回新帧id
-		inline int add_frame(int _period, int _deadline, const EcuPair& _ecu_pair, int _offset) {
+		int add_frame(int _period, int _deadline, const EcuPair& _ecu_pair, int _offset) {
 			FrameId  id = get_free_id();
 			if (id == -1) {
 				std::cout << "id error\n";

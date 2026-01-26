@@ -10,7 +10,7 @@ add_executable (paper1
     packing_scheme.cpp 
     priority_allocation.cpp 
     probabilistic_analysis.cpp 
-    packing_algorithms/sa_algorithm.cpp)
+    packing_algorithms/sa_algorithm.cpp "offset_allocation.h")
 
 include_directories(${PROJECT_SOURCE_DIR}/paper1)
 

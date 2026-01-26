@@ -55,6 +55,7 @@ namespace cfd {
 		}
 
 #ifdef OFFSET_TEST
+		// 随机分配
 		std::random_device rd;
 		std::mt19937 gen(rd());
 
@@ -65,6 +66,11 @@ namespace cfd {
 			int offset = offset_dist(gen);
 			frame.set_offset(offset);
 		}
+
+		//TODO 本文方法分配
+
+
+
 #endif // OFFSET_TEST
 
 
