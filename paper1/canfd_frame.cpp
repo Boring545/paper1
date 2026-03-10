@@ -87,26 +87,7 @@ namespace cfd {
 		return frame;
 	}
 
-	int CanfdFrame::get_max_offset()
-	{
-		return 0;
-
-
-		// 如果 loaded_msgs 为空，抛出异常
-		if (msg_set.empty()) {
-			return 0;
-		}
-		int max_offset = 0;
-		for (auto msg : msg_set) {
-			if (max_offset < msg.get_offset() % this->period) {
-				max_offset = msg.get_offset() % this->period;
-			}
-		}
-		return max_offset;
-	}
-
-	// TODO 应该修改
-	bool CanfdFrame::set_offset(int v) {
+	bool CanfdFrame::set_offset(double v) {
 		if (v == offset) {
 			return true;	// 无改变
 		}
@@ -131,7 +112,6 @@ namespace cfd {
 
 
 
-	//不知道为什么有时候会和extrect不对偶,刚移出来的消息可能放不进去
 	bool CanfdFrame::add_message(Message& m)
 	{
 		// message已分配
@@ -175,7 +155,7 @@ namespace cfd {
 
 
 		this->set_data_size(this->data_size + m.get_data_size());
-		this->set_offset(0);// TODO 也许应该修改,这里帧默认offset为0
+		this->set_offset(0);
 		this->deadline = min_tolerance_time;
 
 		m.assign_frame(this->id);
@@ -211,22 +191,20 @@ namespace cfd {
 
 
 		// 重算offset、deadline，wctt，datasize
-		int frame_offset = get_max_offset();
+		double frame_offset = 0;
 
-		int min_tolerance_time = INT_MAX;
-		int tolerance_time = 0;		// 指一个消息 在offset=v的帧 到达后 还有多久超时
+		int min_deadline = INT_MAX;
 
 		for (auto& msg : msg_set) {
-			// tolerance_time是一个消息在帧到达后，剩余的可等待时间
-			tolerance_time = msg.get_deadline() - (frame_offset - msg.get_offset());
-			if (tolerance_time < min_tolerance_time) {
-				min_tolerance_time = tolerance_time;
+
+			if (msg.get_deadline() < min_deadline) {
+				min_deadline = msg.get_deadline();
 			}
 		}
 
 		this->set_data_size(this->data_size - m.get_data_size());
 		this->set_offset(frame_offset);
-		this->deadline = min_tolerance_time;// 帧deadline就是所有消息最小的tolerance_time
+		this->deadline = min_deadline;// 帧deadline就是所有消息最小的tolerance_time
 
 		return true;
 	}

@@ -7,8 +7,8 @@ namespace cfd {
     class PackingScheme;
 }
 
-
-namespace cfd::schedule::paper1{
+#ifdef PAPER1_SCHEDUAL
+namespace cfd::schedule::paper1 {
     /*
         paper1 方法来自OPTIMAL PRIORITY ASSIGNMENT AND FEASIBILITY OF STATIC PRIORITY TASKS WITH ARBITRARY START TIMES
         可以为无关键期的帧集合分配理论最优的优先级，该方法将优先级分配与可调度性分析合二为一
@@ -44,6 +44,15 @@ namespace cfd::schedule::paper1{
     bool assign_priority(CanfdFrameMap& frame_map);
     bool assign_priority(cfd::PackingScheme& scheme);
 
+}
+#endif
+
+namespace cfd::schedule {
+    // 按周期大小分配报文优先级，简单方法
+    bool assign_priority_by_period(CanfdFrameMap& frame_map);
+
+    // wcrt 可行性检查：通过wcrt迭代公式从高优先级到低优先级计算每个报文是否满足R<D
+    bool feasibility_check(CanfdFrameMap& frame_map);
 
 }
 

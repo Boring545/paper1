@@ -1,4 +1,4 @@
-#include"../packing_scheme.h"
+#include"../scheme.h"
 #include"../debug_tool.h"
 #include"../priority_allocation.h"
 
@@ -7,7 +7,7 @@ namespace cfd::packing::heuristics {
 
 	// fitness计算函数1
 	double calculate_fitness_a(cfd::PackingScheme& scheme) {
-		int schedualbility = cfd::schedule::paper1::assign_priority(scheme.frame_map) == true ? 0 : 1;
+		int schedualbility = cfd::schedule::feasibility_check(scheme.frame_map) == true ? 0 : 1;
 		return scheme.calc_bandwidth_utilization() + schedualbility;
 	}
 
@@ -61,7 +61,7 @@ namespace cfd::packing::heuristics {
 	}
 
 	/**
-	 * @brief 新增一个 frame 到索引（适用于 add_frame 之后）
+	 * @brief 新增一个 frame 到索引（适用于 new_frame 之后）
 	 * @param fmap 帧索引 map
 	 * @param valid_period_map 周期映射表
 	 * @param ecu ECU 对
@@ -113,7 +113,7 @@ namespace cfd::packing::heuristics {
 				}
 
 				// 新增帧并更新索引
-				int new_frame_id = sol.add_frame(msg);
+				int new_frame_id = sol.new_frame(msg);
 				index_add_frame(fmap, valid_period_map, msg.get_ecu_pair(), msg.get_period(), new_frame_id);
 				return true;
 			}

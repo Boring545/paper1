@@ -1,4 +1,5 @@
 // config.h
+#include <xutility>
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -9,6 +10,8 @@
 #define OFFSET_TEST  // 注释掉此行则关闭所有OFFSET_TEST相关逻辑
 
 namespace cfd {
+	constexpr int LAMBDA_CONFERENCE = 0.03;  // 干扰强度
+
 	constexpr int FACTOR_M_F_PERIOD = 2;				// 被打包到一个帧中的消息，消息周期必须为帧周期的[1,factor]倍
 
 	constexpr int OPTION_MESSAGE_SIZE[] = { 1, 2, 4, 8, 16, 32, 64 };									// 信号尺寸选项,单位为b
@@ -22,7 +25,7 @@ namespace cfd {
 	constexpr double THRESHOLD_RELIABILITY[] = { 1e-3,1e-7,1e-7,1e-8 };					// 安全等级对应的帧传输时的故障率上限
 
 #if V0
-	constexpr int SIZE_ORIGINAL_MESSAGE = 100;											// 初始信号数量
+	constexpr int SIZE_ORIGINAL_MESSAGE = 50;											// 初始信号数量
 	constexpr int OPTION_MESSAGE_PERIOD[] = { 1, 2, 5, 10, 20, 50, 100 };								// 周期大小选项,单位为ms
 	constexpr int NUM_MESSAGE_PERIOD = std::size(OPTION_MESSAGE_PERIOD);
 	constexpr double PROBABILITY_MESSAGE_PERIOD[] = { 0.03, 0.02, 0.02, 0.25, 0.25, 0.03, 0.2 };		// 选择概率

@@ -199,12 +199,12 @@ namespace cfd {
 		int priority = -1;      // 优先级，取值为[0,2047],数字越小优先级越高。【仅考虑标准帧的11位标识符，扩展帧可以有29位】
 		int period = -1;        // 周期，单位为毫秒(ms)
 		int deadline = -1;      // 时限，单位为毫秒(ms)
-		int offset = 0;         // 偏移，单位为毫秒(ms)，可以使用assign_offset方法分配frame集合中所有任务的合适offset
+		double offset = 0;         // 偏移，单位为毫秒(ms)，可以使用assign_offset方法分配frame集合中所有任务的合适offset
 		double trans_time = 0;   // 数据帧在系统内的传输时间，单位为毫秒(ms)
 	public:
 		FrameId id = 0;//id由生成时顺序给出 
 		EcuPair ecu_pair;
-		std::multiset<Message, ComparatorMsg> msg_set;//CANFD帧装载的消息 的索引， 按 offset 升序排列
+		std::multiset<Message, ComparatorMsg> msg_set;//CANFD帧装载的消息 的索引
 
 
 	private:
@@ -230,16 +230,13 @@ namespace cfd {
 		// 从 JSON 反序列化为 CanfdFrame 对象
 		static CanfdFrame from_json(const json& j);
 
-		//获取所装载消息中最大的等价offset
-		int get_max_offset();
-
 		//遍历CanfdFrameVec时，必须判断帧是否为空
 		bool empty() const {
 			return this->msg_set.empty();
 		}
 
 		// 仅用于不改变消息集合，想要更改帧offset时使用,这会同步改变deadline
-		bool set_offset(int v);
+		bool set_offset(double v);
 
 		bool set_priority(int v);
 
@@ -265,7 +262,7 @@ namespace cfd {
 			return this->ecu_pair;
 		}
 
-		int get_offset() const {
+		double get_offset() const {
 			return this->offset;
 		}
 
@@ -279,7 +276,7 @@ namespace cfd {
 		bool move_message(CanfdFrame& other, Message& m);
 
 		CanfdFrame(FrameId _id, int _period, int _deadline,
-			const EcuPair& _ecu_pair, int _offset) {
+			const EcuPair& _ecu_pair, double _offset) {
 			this->id = _id;
 			this->period = _period;
 			this->deadline = _deadline;
@@ -295,19 +292,7 @@ namespace cfd {
 			this->period = msg.get_period();
 			this->deadline = msg.get_deadline();
 			this->ecu_pair = msg.get_ecu_pair();
-
-			//this->offset = msg.get_offset();
-
-#ifdef OFFSET_RANDOM_CREATE
-			std::random_device rd;
-			std::mt19937 gen(rd());
-			std::uniform_int_distribution<int> dist(0, period - 1); // 左闭右闭，范围 0 到 period-1
-			int offset_t= dist(gen);
-#else
-			int offset_t = 0;
-#endif // OFFSET_RANDOM_CREATE
-
-			this->set_offset(offset_t);
+			this->set_offset(0);
 			 
 			this->set_data_size(msg.get_data_size());
 

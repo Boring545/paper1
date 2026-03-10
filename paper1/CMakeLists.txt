@@ -7,10 +7,10 @@ cmake_minimum_required (VERSION 3.8...4.3)
 add_executable (paper1 
     paper1.cpp 
     canfd_frame.cpp 
-    packing_scheme.cpp 
+    "scheme.cpp" 
     priority_allocation.cpp 
-    probabilistic_analysis.cpp 
-    packing_algorithms/sa_algorithm.cpp "offset_allocation.h")
+     
+    packing_algorithms/sa_algorithm.cpp  "probabilistic_analysis/paper2.h" "probabilistic_analysis/paper2.cpp" "probabilistic_analysis/normal.h" "probabilistic_analysis/normal.cpp"  "signal_backup/backup.h" "signal_backup/backup.cpp")
 
 include_directories(${PROJECT_SOURCE_DIR}/paper1)
 

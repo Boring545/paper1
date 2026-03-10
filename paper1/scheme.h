@@ -44,49 +44,14 @@ namespace cfd {
 		void recover_id(int id);
 
 		// 重新初始化，生成初始打包方案
-		bool re_init_frames() {
-			for (auto& m : message_set) {
-				m.clear_frame();
-			}
-			frame_map.clear();
-			return init_frames();
-		}
+		bool re_init_frames();
 
 
 		// 增加一个新帧，其只包含一个基准msg，返回新帧id
-		int add_frame(Message& msg) {
-			FrameId  id = get_free_id();
-			if (id == -1) {
-				std::cout << "id error\n";
-			}
-			auto result = this->frame_map.try_emplace(id, id, msg);
-			int offset = 0;
-
-			this->frame_map[id].set_offset(offset);
-
-			if (result.second) {
-				msg.assign_frame(id);
-				return id;
-			}
-			else {
-				return -1;
-			}
-		}
+		int new_frame(Message& msg);
 
 		// 增加一个新帧，其只包含一个基准msg，返回新帧id
-		int add_frame(int _period, int _deadline, const EcuPair& _ecu_pair, int _offset) {
-			FrameId  id = get_free_id();
-			if (id == -1) {
-				std::cout << "id error\n";
-			}
-			auto result = this->frame_map.try_emplace(id, id, _period, _deadline, _ecu_pair, _offset);
-			if (result.second) {
-				return id;
-			}
-			else {
-				return -1;
-			}
-		}
+		int new_frame(int _period, int _deadline, const EcuPair& _ecu_pair, int _offset);
 
 
 
@@ -129,8 +94,6 @@ namespace cfd {
 			// }
 
 			
-			
-
 			for (size_t i = 0; i < vec.size(); i++) {
 				message_set.emplace_back(i);
 			}
@@ -139,46 +102,10 @@ namespace cfd {
 		}
 
 		// 用于从fmap表示的打包方案初始化一个PackingScheme类
-		PackingScheme(const CanfdFrameMap& fmap) {
-			frame_map = fmap;
+		PackingScheme(const CanfdFrameMap& fmap);
+		PackingScheme(const PackingScheme& other);
+		PackingScheme(PackingScheme&& other)noexcept;
 
-			int size = MESSAGE_INFO_VEC.size();
-			message_set.reserve(size);
-			for (int i = 0; i < size; i++) {
-				message_set.emplace_back();
-			}
-
-			FrameId max_id = 0;
-			free_ids.clear();
-			std::unordered_set<int> used_ids;
-
-			for (auto& [key, frame] : fmap) {
-				used_ids.insert(key);
-				if (key > max_id) {
-					max_id = key;
-				}
-				for (auto& msg : frame.msg_set) {
-					message_set[msg.get_id_message()] = msg;
-				}
-			}
-
-			for (int i = 0; i <= max_id; ++i) {
-				if (used_ids.count(i) == 0) {
-					free_ids.insert(i);  // i 是空闲 ID
-				}
-			}
-
-		}
-		PackingScheme(const PackingScheme& other) {
-			this->message_set = other.message_set;
-			this->frame_map = other.frame_map;
-			this->free_ids = other.free_ids;
-		}
-		PackingScheme(PackingScheme&& other)noexcept {
-			this->message_set = std::move(other.message_set);
-			this->frame_map = std::move(other.frame_map);
-			this->free_ids = std::move(other.free_ids);
-		}
 		PackingScheme& operator=(const PackingScheme& other) {
 			this->message_set = other.message_set;
 			this->frame_map = other.frame_map;

@@ -1,5 +1,5 @@
-﻿#include "probabilistic_analysis.h"
-namespace cfd::schedule::paper2
+﻿#include "probabilistic_analysis/paper2.h"
+namespace cfd::analysis::paper2
 {
 	double LAMBDA = 0.001; // 0.03表示每秒30次 ，时间单位换算为毫秒
 
@@ -34,7 +34,7 @@ namespace cfd::schedule::paper2
 		}
 		if (m > 20)
 		{
-			throw std::invalid_argument("M 大于20会导致越界");
+			throw std::invalid_argument("M>20");
 		}
 		long long int result = 1;
 		while (m > 0)
@@ -246,7 +246,7 @@ namespace cfd::schedule::paper2
 		}
 		// markov + 泊松分布故障率 收到干扰一定失败
 		/*double prob_single_fault = calc_probability_fault(EI_LEN + trans_time) * pi_1;*/
-		double prob_single_fault = calc_probability_fault(EI_LEN + trans_time) ;
+		double prob_single_fault = calc_probability_fault(EI_LEN + trans_time);
 		double jitter = 0.005; // 暂不考虑抖动
 		double E_R = trans_time;
 		double E_R_PRE = 0;
@@ -416,8 +416,44 @@ namespace cfd::schedule::paper2
 		return dp[FULL]; // 所有副本都被击中
 	}
 
+	void new_analysis(PackingScheme& scheme, int enable_backup, std::string timestamp)
+	{
+
+		// 1. 提取并排序所有帧
+		CanfdFrameVec sorted_frames;
+		for (auto& [id, frame] : scheme.frame_map)
+		{
+			sorted_frames.push_back(frame);
+		}
 
 
+
+		// 1) 先按 offset 排序,offset 相同：按优先级
+		std::sort(sorted_frames.begin(), sorted_frames.end(),
+			[](const CanfdFrame& f1, const CanfdFrame& f2) {
+				if (f1.get_offset() != f2.get_offset())
+					return f1.get_offset() < f2.get_offset();
+				return f1.get_priority() < f2.get_priority();
+			});
+
+		std::unordered_map<MessageCode, double> code_prob_map;
+
+		for (auto& frame : sorted_frames) {
+			double p = calc_probability_fault(frame.get_trans_time());
+			for (auto& msg : frame.msg_set) {
+				if (code_prob_map.find(msg.get_code()) != code_prob_map.end()) {
+					code_prob_map[msg.get_code()] = p;
+				}
+				else {
+					code_prob_map[msg.get_code()] *= p;
+				}
+
+
+			}
+		}
+
+
+	}
 
 	std::unordered_map<MessageCode, ProbData> probabilistic_analysis(PackingScheme& scheme, int enable_backup, std::string timestamp)
 	{
@@ -446,8 +482,8 @@ namespace cfd::schedule::paper2
 
 		size_t i = 0;
 		while (i < sorted_frames.size()) {
-			const int off_ms = sorted_frames[i].get_offset();
-			double cursor_ms = static_cast<double>(off_ms);
+			const double off_ms = sorted_frames[i].get_offset();
+			double cursor_ms = off_ms;
 
 			// [i, j) 同 offset 的一组
 			// TODO 这里考虑的比较简单，只考虑offset相同的排序
@@ -572,7 +608,7 @@ namespace cfd::schedule::paper2
 					it->second.p_timeout *= prob_res.p_timeout;
 				}
 			}
-			
+
 		}
 		DEBUG_MSG_DEBUG1(std::cout, "有重传时的平均带宽利用率: ", u_e_retry);
 #endif
@@ -702,9 +738,9 @@ namespace cfd::schedule::paper2
 		ofs << std::fixed << std::setprecision(10);
 		ofs << "U 未添加副本:\t" << scheme_origin.calc_bandwidth_utilization() << "\n";
 		ofs << "U 添加副本:\t" << scheme_repack.calc_bandwidth_utilization() << "\n";
-		ofs << "添加副本数量:\t" << cfd::schedule::paper2::bcnt_global << "\n";
+		ofs << "添加副本数量:\t" << bcnt_global << "\n";
 
-		cfd::schedule::paper2::bcnt_global = 0;
+		bcnt_global = 0;
 	}
 
 }

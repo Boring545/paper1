@@ -1,6 +1,6 @@
-#include"packing_scheme.h"
 #include"priority_allocation.h"
 #include"packing_algorithms/sa_algorithm.h"
+#include "scheme.h"
 namespace cfd {
 	//计算带宽利用率
 
@@ -8,13 +8,59 @@ namespace cfd {
 
 	double PackingScheme::calc_bandwidth_utilization()const {
 		double U = 0;
-		for (const auto& [key,frame] : frame_map) {
+		for (const auto& [key, frame] : frame_map) {
 			if (!frame.empty()) {
 				U += frame.get_trans_time() / frame.get_period();
 			}
 
 		}
 		return U;
+	}
+
+
+	// 用于从fmap表示的打包方案初始化一个PackingScheme类
+
+	PackingScheme::PackingScheme(const CanfdFrameMap& fmap) {
+		frame_map = fmap;
+
+		int size = MESSAGE_INFO_VEC.size();
+		message_set.reserve(size);
+		for (int i = 0; i < size; i++) {
+			message_set.emplace_back();
+		}
+
+		FrameId max_id = 0;
+		free_ids.clear();
+		std::unordered_set<int> used_ids;
+
+		for (auto& [key, frame] : fmap) {
+			used_ids.insert(key);
+			if (key > max_id) {
+				max_id = key;
+			}
+			for (auto& msg : frame.msg_set) {
+				message_set[msg.get_id_message()] = msg;
+			}
+		}
+
+		for (int i = 0; i <= max_id; ++i) {
+			if (used_ids.count(i) == 0) {
+				free_ids.insert(i);  // i 是空闲 ID
+			}
+		}
+
+	}
+
+	PackingScheme::PackingScheme(const PackingScheme& other) {
+		this->message_set = other.message_set;
+		this->frame_map = other.frame_map;
+		this->free_ids = other.free_ids;
+	}
+
+	PackingScheme::PackingScheme(PackingScheme&& other) noexcept {
+		this->message_set = std::move(other.message_set);
+		this->frame_map = std::move(other.frame_map);
+		this->free_ids = std::move(other.free_ids);
 	}
 
 
@@ -38,7 +84,7 @@ namespace cfd {
 
 				while (!temp_set.empty()) {
 					// 随便取一个 message 新建一个 frame
-					FrameId frame_index = add_frame(message_set[temp_set.back()]);
+					FrameId frame_index = new_frame(message_set[temp_set.back()]);
 					temp_set.pop_back();
 
 					// 尝试把剩下的 message 往这个 frame 里塞
@@ -54,39 +100,23 @@ namespace cfd {
 			}
 		}
 
-#ifdef OFFSET_TEST
-		// 随机分配
-		std::random_device rd;
-		std::mt19937 gen(rd());
-
-		for (auto& [id, frame] : frame_map) {
-			int period = frame.get_period(); // 获取当前帧的周期
-			// 随机分配 [0, period-1) 范围内的自然数
-			std::uniform_int_distribution<int> offset_dist(0, period - 1); // 左闭右闭，范围 0 到 period-1
-			int offset = offset_dist(gen);
-			frame.set_offset(offset);
-		}
-
-		//TODO 本文方法分配
 
 
 
-#endif // OFFSET_TEST
 
-
-
-		if (calc_bandwidth_utilization() > 0.95) {
+		if (calc_bandwidth_utilization() >= 1.0) {
 			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "信号类型太多，导致帧过多，传输困难", " U = ", calc_bandwidth_utilization());
 			return false;
 		}
 
-		if (!cfd::schedule::paper1::assign_priority(this->frame_map)) {
+		if (!cfd::schedule::assign_priority_by_period(this->frame_map)) {
 			DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "初始方案无法分配优先级，无法调度");
 			return false;
 		}
 
 		return true;
 	}
+
 	int PackingScheme::get_free_id()
 	{
 		int new_id = -1;
@@ -112,6 +142,52 @@ namespace cfd {
 		}
 
 		free_ids.insert(id);  // 回收 ID
+	}
+
+	// 重新初始化，生成初始打包方案
+
+	bool PackingScheme::re_init_frames() {
+		for (auto& m : message_set) {
+			m.clear_frame();
+		}
+		frame_map.clear();
+		return init_frames();
+	}
+
+	// 增加一个新帧，其只包含一个基准msg，返回新帧id
+
+	int PackingScheme::new_frame(Message& msg) {
+		FrameId  id = get_free_id();
+		if (id == -1) {
+			std::cout << "id error\n";
+		}
+		auto result = this->frame_map.try_emplace(id, id, msg);
+
+		this->frame_map[id].set_offset(0);
+
+		if (result.second) {
+			msg.assign_frame(id);
+			return id;
+		}
+		else {
+			return -1;
+		}
+	}
+
+	// 增加一个新帧，其只包含一个基准msg，返回新帧id
+
+	int PackingScheme::new_frame(int _period, int _deadline, const EcuPair& _ecu_pair, int _offset) {
+		FrameId  id = get_free_id();
+		if (id == -1) {
+			std::cout << "id error\n";
+		}
+		auto result = this->frame_map.try_emplace(id, id, _period, _deadline, _ecu_pair, _offset);
+		if (result.second) {
+			return id;
+		}
+		else {
+			return -1;
+		}
 	}
 
 

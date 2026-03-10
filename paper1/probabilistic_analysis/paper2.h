@@ -1,15 +1,15 @@
-#ifndef PROBABILISTIC_ANALYSIS_H
+﻿#ifndef PROBABILISTIC_ANALYSIS_H
 #define PROBABILISTIC_ANALYSIS_H
 
 #include <cmath>
 #include <queue>
 #include <stack>
 
-#include "packing_scheme.h"
-#include "debug_tool.h"
+#include "../scheme.h"
+#include "../debug_tool.h"
 
 #define NORETRY 
-namespace cfd::schedule::paper2
+namespace cfd::analysis::paper2
 {
 	/*
 	paper2 方法来自Probabilistic analysis of CAN with faults
@@ -44,8 +44,8 @@ namespace cfd::schedule::paper2
 		double p_timeout = 0;		// 超时概率
 		double e_retry = 0;
 		double e_u = 0;
-		ProbResult(double expected_response_time = 0, double prob_timeout = 0, double retry = 0, double u = 0) 
-			: e_response_time(expected_response_time), p_timeout(prob_timeout), e_retry(retry),e_u(u)
+		ProbResult(double expected_response_time = 0, double prob_timeout = 0, double retry = 0, double u = 0)
+			: e_response_time(expected_response_time), p_timeout(prob_timeout), e_retry(retry), e_u(u)
 		{}
 	};
 	struct ProbData
