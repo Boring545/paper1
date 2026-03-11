@@ -1,127 +1,83 @@
 #ifndef PACKINGSCHEME_H
 #define PACKINGSCHEME_H
 
-#include<unordered_set>
-#include"canfd_frame.h"
-
+#include <unordered_set>
+#include"config.h"
+#include "canfd_frame.h"
 
 namespace cfd {
-	constexpr double LIMIT_BANDWIDTH = 0.9;	// 带宽利用率上限
-	class PackingScheme;
+constexpr double LIMIT_BANDWIDTH = 0.9;  // 带宽利用率上限
+class PackingScheme;
 
+// 一个打包方案，包含一组装载了全部消息的CANFD帧
+class PackingScheme {
+ private:
+  using PeriodFrameeMap =
+      std::map<int, std::vector<int>>;  // 相同ECUpair下，不同周期对应的frame索引分表,通过frame_set[索引]选取frame
+  using EcuToFrameMap =
+      std::unordered_map<EcuPair, PeriodFrameeMap, EcuPairHash>;  // 根据【ECUpair，period】选择PeriodFrameeMap分表
 
+  using PeriodMessageMap =
+      std::map<int,
+               std::vector<size_t>>;  // 相同ECUpair下，不同周期对应的message索引分表,通过message_set[索引]选取message
+  using EcuPeriodMessageMap =
+      std::unordered_map<EcuPair, PeriodMessageMap, EcuPairHash>;  // 根据【ECUpair，period】选择PeriodMessageMap分表
 
+  std::unordered_set<int>
+      free_ids;  // 可复用的ID池,给帧标号用,加入新帧时从池里选择id，帧清空时id返回池，池为空则分配frame_map.size()作为id
 
-	//一个打包方案，包含一组装载了全部消息的CANFD帧
-	class PackingScheme {
-	private:
+  // 根据消息集合生成初始化的帧集合，作为生成初始打包方案
+  bool init_frames();
 
-		using PeriodFrameeMap = std::map<int, std::vector<int>>;		// 相同ECUpair下，不同周期对应的frame索引分表,通过frame_set[索引]选取frame
-		using EcuToFrameMap = std::unordered_map<EcuPair, PeriodFrameeMap, EcuPairHash>;	// 根据【ECUpair，period】选择PeriodFrameeMap分表
+ public:
+  MessageVec message_set;  // 信号集合
 
-		using PeriodMessageMap = std::map<int, std::vector<size_t>>;		// 相同ECUpair下，不同周期对应的message索引分表,通过message_set[索引]选取message
-		using EcuPeriodMessageMap = std::unordered_map<EcuPair, PeriodMessageMap, EcuPairHash>;	// 根据【ECUpair，period】选择PeriodMessageMap分表
+  CanfdFrameMap frame_map;  // key为 frame的id，id应该唯一，分配id时注意使用get_free_id()获取唯一的id
 
-		std::unordered_set<int> free_ids;  // 可复用的ID池,给帧标号用,加入新帧时从池里选择id，帧清空时id返回池，池为空则分配frame_map.size()作为id
+  // 获取一个可用帧id,取必用！
+  int get_free_id();
+  // 回收帧的id
+  void recover_id(int id);
 
-		// 根据消息集合生成初始化的帧集合，作为生成初始打包方案
-		bool init_frames();
+  // 重新初始化，生成初始打包方案
+  bool re_init_frames();
 
+  // 增加一个新帧，其只包含一个基准msg，返回新帧id
+  int new_frame(Message& msg);
 
+  // 增加一个新帧，其只包含一个基准msg，返回新帧id
+  int new_frame(int _period, int _deadline, const EcuPair& _ecu_pair, int _offset);
 
+  // 计算带宽利用率
+  double calc_bandwidth_utilization() const;
+  void print_frame() { cfd::utils::print_frame(this->frame_map); }
 
+  PackingScheme(bool backup = true, MessageInfoVec& vec = cfd::MESSAGE_INFO_VEC) {
+    int original_size = vec.size();
 
+    for (size_t i = 0; i < vec.size(); i++) {
+      message_set.emplace_back(i);
+    }
+    init_frames();
+  }
 
-	public:
+  // 用于从fmap表示的打包方案初始化一个PackingScheme类
+  PackingScheme(const CanfdFrameMap& fmap);
+  PackingScheme(const PackingScheme& other);
+  PackingScheme(PackingScheme&& other) noexcept;
 
-		MessageVec message_set;  // 信号集合
-
-		CanfdFrameMap frame_map;	// key为 frame的id，id应该唯一，分配id时注意使用get_free_id()获取唯一的id
-
-		//获取一个可用帧id,取必用！
-		int get_free_id();
-		//回收帧的id
-		void recover_id(int id);
-
-		// 重新初始化，生成初始打包方案
-		bool re_init_frames();
-
-
-		// 增加一个新帧，其只包含一个基准msg，返回新帧id
-		int new_frame(Message& msg);
-
-		// 增加一个新帧，其只包含一个基准msg，返回新帧id
-		int new_frame(int _period, int _deadline, const EcuPair& _ecu_pair, int _offset);
-
-
-
-		//计算带宽利用率
-		double calc_bandwidth_utilization()const;
-		void print_frame() {
-			cfd::utils::print_frame(this->frame_map);
-		}
-
-		PackingScheme(bool backup=true, MessageInfoVec& vec = cfd::MESSAGE_INFO_VEC) {
-			int original_size = vec.size();
-			// 添加异源备份
-			// if (NUM_ECU >= 3 && backup == true) {
-				
-			// 	for (int i = 0; i < original_size; i++) {
-			// 		if (vec[i].type == 1) {
-			// 			//TODO 增加两个异源副本到MESSAGE_INFO_VEC
-			// 			int origin_src_ecu = vec[i].ecu_pair.src_ecu;
-
-			// 			// 顺序挑选两个不同的 ECU
-			// 			int new_ecu1 = -1, new_ecu2 = -1;
-			// 			for (int e : OPTION_ECU) {
-			// 				if (e != origin_src_ecu) {
-			// 					if (new_ecu1 == -1)
-			// 						new_ecu1 = e;
-			// 					else if (new_ecu2 == -1) {
-			// 						new_ecu2 = e;
-			// 						break; // 已经找到两个，退出
-			// 					}
-			// 				}
-			// 			}
-
-			// 			MessageInfo backup1(vec[i], new_ecu1);
-			// 			MessageInfo backup2(vec[i], new_ecu2);
-			// 			vec.push_back(backup1);
-			// 			vec.push_back(backup2);
-			// 		}
-			// 	}
-			// 	DEBUG_MSG_DEBUG1(std::cout, "总计新增 ", vec.size() - original_size, " 个异源信号副本");
-			// }
-
-			
-			for (size_t i = 0; i < vec.size(); i++) {
-				message_set.emplace_back(i);
-			}
-			init_frames();
-
-		}
-
-		// 用于从fmap表示的打包方案初始化一个PackingScheme类
-		PackingScheme(const CanfdFrameMap& fmap);
-		PackingScheme(const PackingScheme& other);
-		PackingScheme(PackingScheme&& other)noexcept;
-
-		PackingScheme& operator=(const PackingScheme& other) {
-			this->message_set = other.message_set;
-			this->frame_map = other.frame_map;
-			this->free_ids = other.free_ids;
-			return *this;
-		}
-	};
-}
+  PackingScheme& operator=(const PackingScheme& other) {
+    this->message_set = other.message_set;
+    this->frame_map = other.frame_map;
+    this->free_ids = other.free_ids;
+    return *this;
+  }
+};
+}  // namespace cfd
 
 namespace cfd::packing {
-	enum class PACK_METHOD {
-		SIMULATED_ANNEALING=0, // SA 打包
-	};
-	// 对初始化后的scheme进行打包
-	double frame_pack(PackingScheme& scheme, PACK_METHOD method);
-}
+// 对初始化后的scheme进行打包
+double frame_pack(PackingScheme& scheme, PACK_METHOD method);
+}  // namespace cfd::packing
 
-
-#endif // !FRAMEPACKING_H
+#endif  // !FRAMEPACKING_H

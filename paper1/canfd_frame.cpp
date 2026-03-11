@@ -625,6 +625,7 @@ namespace cfd::utils {
 
 		std::discrete_distribution<>dist_level(PROBABILITY_MESSAGE_LEVEL, PROBABILITY_MESSAGE_LEVEL + NUM_MESSAGE_LEVEL);
 
+		// 0 允许同源备份；1 必须异源备份
 		std::discrete_distribution<> dist_type(PROBABILITY_MESSAGE_TYPE, PROBABILITY_MESSAGE_TYPE + NUM_MESSAGE_TYPE);
 
 

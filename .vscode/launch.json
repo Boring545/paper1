@@ -5,7 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(Windows) 启动",
+            "name": "构建+调试(windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/paper1/Debug/paper1.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "console": "externalTerminal",
+            "preLaunchTask": "build"
+        },
+        {
+            "name": "调试(windows)",
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/paper1/Debug/paper1.exe",
@@ -16,6 +28,5 @@
             "console": "externalTerminal",
             "preLaunchTask": "build"
         }
-
     ]
 }
