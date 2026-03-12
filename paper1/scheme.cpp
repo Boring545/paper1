@@ -96,9 +96,9 @@ bool PackingScheme::init_frames() {
     DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "信号类型太多，导致帧过多，传输困难", " U = ", calc_bandwidth_utilization());
     return false;
   }
-
-  if (!cfd::schedule::assign_priority_by_period(this->frame_map)) {
-    DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "初始方案无法分配优先级，无法调度");
+  cfd::schedule::assign_priority(this->frame_map);
+  if (!cfd::schedule::feasibility_check(this->frame_map)) {
+    DEBUG_MSG_DEBUG1(std::cerr, "ERROR", "初始方案无法调度");
     return false;
   }
 

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -92,6 +93,7 @@ PackingScheme homo_signal_backup(PackingScheme& scheme, double lambda) {
   auto code_index_map = build_code_index_map();
 
   for (int iter = 0; iter < MAX_ITER; ++iter) {
+    // 计算当前方案的端到端故障概率
     auto result = analysis::sig_trans_fault_prob_analysis(working, lambda);
     bool need_backup = false;
     int added_cnt = 0;
@@ -105,10 +107,12 @@ PackingScheme homo_signal_backup(PackingScheme& scheme, double lambda) {
       int level = MESSAGE_INFO_VEC[idx].level;
       if (level < 0 || level >= NUM_MESSAGE_LEVEL) continue;
 
-      double threshold = THRESHOLD_RELIABILITY[level];
+      double threshold = cfd::analysis::threshold_per_window(level, MESSAGE_INFO_VEC[idx].period);
       if (p_total <= threshold) continue;
 
+      // 估算需要新增的同源副本数量
       int backup_num = calc_required_backup_num(p_total, threshold);
+      DEBUG_MSG_DEBUG2(std::cout, "信号", code, "需要新增同源副本数量: ", backup_num);
       if (backup_num <= 0) continue;
 
       need_backup = true;
@@ -124,6 +128,7 @@ PackingScheme homo_signal_backup(PackingScheme& scheme, double lambda) {
 
     DEBUG_MSG_DEBUG1(std::cout, "本轮新增同源副本数量: ", added_cnt);
 
+    // 触发重打包与可调度性检查
     if (!working.re_init_frames()) {
       DEBUG_MSG_DEBUG1(std::cout, "重打包失败，返回上一轮可行解");
       return prev;
@@ -137,6 +142,7 @@ PackingScheme homo_signal_backup(PackingScheme& scheme, double lambda) {
       return prev;
     }
 
+    // 本轮可行，继续迭代寻找更可靠的方案
     best = working;
   }
 
@@ -166,7 +172,7 @@ PackingScheme hetero_signal_backup(PackingScheme& scheme, int redundancy_n, doub
   bool need_repack = false;
 
   for (size_t i = 0; i < origin_info_size; ++i) {
-    const auto& info = MESSAGE_INFO_VEC[i];
+    const MessageInfo info = MESSAGE_INFO_VEC[i];
     if (info.type != 1) continue;  // 仅处理需要异源备份的原始信号
     if (processed.count(info.code)) continue;
     processed.insert(info.code);

@@ -21,8 +21,19 @@ namespace cfd {
 	double CanfdFrame::calc_wctt(int paylaod_size)
 	{
 		int p = paylaod_size;
-		double wctt = 32 * TIME_BIT_ARBITRATION + (28 + 5 * ceil((p - 16) / 64.0) + 10.0 * p) * TIME_BIT_TRANSMISSION;
+		double wctt = calc_arbitration_time() + calc_data_time(p);
 		return wctt;
+	}
+
+	double CanfdFrame::calc_arbitration_time()
+	{
+		return 32 * TIME_BIT_ARBITRATION;
+	}
+
+	double CanfdFrame::calc_data_time(int paylaod_size)
+	{
+		int p = paylaod_size;
+		return (28 + 5 * ceil((p - 16) / 64.0) + 10.0 * p) * TIME_BIT_TRANSMISSION;
 	}
 
 	//根据data_size更新data_size、payload_size,exec_time

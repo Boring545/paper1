@@ -37,13 +37,15 @@ double prob_fault_one_more(double interference_win, double lambda) {
 std::unordered_map<MessageCode, double> sig_trans_fault_prob_analysis(PackingScheme& scheme, double lambda) {
   std::unordered_map<MessageCode, double> fault_prob_map;
   for (const auto& [id, frame] : scheme.frame_map) {
-    int win = frame.get_trans_time();
+    double win = frame.get_trans_time();
 
     for (const auto& msg : frame.msg_set) {
-      if (fault_prob_map.find(msg.get_code()) == fault_prob_map.end()) {
-        fault_prob_map[msg.get_code()] = prob_fault_one_more(win, lambda);
+      double p_fail = prob_fault_one_more(win, lambda);
+      auto it = fault_prob_map.find(msg.get_code());
+      if (it == fault_prob_map.end()) {
+        fault_prob_map[msg.get_code()] = p_fail;
       } else {
-        fault_prob_map[msg.get_code()] *= prob_fault_one_more(win, lambda);
+        it->second *= p_fail;
       }
     }
   }
@@ -84,7 +86,8 @@ double ecu_fault_prob_analysis(const std::vector<double>& p_comm_fail, double p_
   for (int k = need; k <= n; ++k) {
     p_safe += dp[k];
   }
-  return clamp01(p_safe);
+  double p_fault = 1.0 - clamp01(p_safe);
+  return clamp01(p_fault);
 }
 
 double ecu_fault_prob_analysis(const std::array<double, 3>& p_comm_fail, double p_ecu_fail) {
@@ -92,7 +95,8 @@ double ecu_fault_prob_analysis(const std::array<double, 3>& p_comm_fail, double 
   return ecu_fault_prob_analysis(v, p_ecu_fail);
 }
 
-std::unordered_map<MessageCode, double> ecu_fault_prob_analysis(PackingScheme& scheme, int redundancy_n, double lambda) {
+std::unordered_map<MessageCode, double> ecu_fault_prob_analysis(PackingScheme& scheme, int redundancy_n,
+                                                                double lambda) {
   // N模冗余要求：N为奇数且>=3
   if (redundancy_n < 3 || (redundancy_n % 2) == 0) {
     DEBUG_MSG_DEBUG1(std::cout, "N模冗余参数非法，N应为奇数且>=3");
@@ -115,8 +119,10 @@ std::unordered_map<MessageCode, double> ecu_fault_prob_analysis(PackingScheme& s
     }
   }
 
-  // 收集每个type1信号的通信失败概率（按不同源ECU区分）
+  // 收集每个需要异源备份的信号（type1）的通信失败概率（按不同源ECU区分）
   std::unordered_map<MessageCode, std::unordered_map<EcuId, double>> code_comm_fail;
+  std::unordered_map<MessageCode, int> code_period;
+  code_period.reserve(MESSAGE_INFO_VEC.size());
   for (const auto& [id, frame] : scheme.frame_map) {
     if (frame.empty()) continue;
     double p_comm = prob_fault_one_more(frame.get_trans_time(), lambda);
@@ -129,8 +135,12 @@ std::unordered_map<MessageCode, double> ecu_fault_prob_analysis(PackingScheme& s
       if (it == ecu_map.end()) {
         ecu_map[info.ecu_pair.src_ecu] = p_comm;
       } else {
-        // 若同一ECU存在多路副本，取更保守的通信失败概率
-        it->second = std::max(it->second, p_comm);
+        // 同一ECU存在多路副本：假设独立，计算“全部失败”的概率
+        it->second *= p_comm;
+      }
+
+      if (code_period.find(info.code) == code_period.end()) {
+        code_period.emplace(info.code, info.period);
       }
     }
   }
@@ -151,11 +161,16 @@ std::unordered_map<MessageCode, double> ecu_fault_prob_analysis(PackingScheme& s
     std::vector<double> p_comm_fail;
     p_comm_fail.reserve(redundancy_n);
     double p_ecu_fail = 0.0;
+    int period_ms = -1;
+    auto it_p0 = code_period.find(code);
+    if (it_p0 != code_period.end()) {
+      period_ms = it_p0->second;
+    }
     for (size_t i = 0; i < items.size() && i < static_cast<size_t>(redundancy_n); ++i) {
       p_comm_fail.emplace_back(items[i].second);
       auto ecu = items[i].first;
       int level = ecu_max_level.count(ecu) ? ecu_max_level[ecu] : 0;
-      p_ecu_fail = std::max(p_ecu_fail, THRESHOLD_RELIABILITY[level]);
+      p_ecu_fail = std::max(p_ecu_fail, threshold_per_window(level, period_ms));
     }
 
     // 若不足N路，用“通信失败概率=1”补齐到N路（保守估计）

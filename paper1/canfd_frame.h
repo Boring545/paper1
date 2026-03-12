@@ -73,14 +73,16 @@ struct EcuPairHash {
 class MessageInfo {
  public:
   // 默认构造函数，便于容器默认初始化
-  MessageInfo() = default;
+  MessageInfo(){
+    ;
+  }
   MessageCode code = 0;  // 消息的身份码
   int data_size = 0;     // 数据长度，默认为空,单位为b，取值为[0, 512]
   int period = -1;       // 周期，单位为微秒(μs)
   int deadline = -1;     // 时限，同周期
   EcuPair ecu_pair;      // 源、目ECU对
   int offset = 0;        // 偏移，单位为微秒(μs)，
-  int level = 0;         // 等级，比如安全优先级【LEVEL == 1 表示R2备份消息】
+  int level = 0;         // ASIL等级，0 1 2 3 分别对应 A B C D
   int type = 0;          // 冗余类型，0 无需异源备份；1 需要异源备份
 
   MessageInfo(MessageCode _code, int _data_size, int _period, int _deadline, int _src_ecu, int _dst_ecu,
@@ -198,6 +200,8 @@ class CanfdFrame {
 
   // 根据paylaod_size计算最坏传输时间,paylaod_size单位是bit， 返回值是毫秒
   static double calc_wctt(int paylaod_size);
+  static double calc_arbitration_time();
+  static double calc_data_time(int paylaod_size);
   // 序列化 CanfdFrame 对象为 JSON
   json to_json() const;
 
@@ -218,6 +222,8 @@ class CanfdFrame {
   int get_deadline() const { return this->deadline; }
   FrameId get_id() const { return this->id; }
   double get_trans_time() const { return this->trans_time; }
+  double get_arbitration_time() const { return calc_arbitration_time(); }
+  double get_data_time() const { return calc_data_time(this->payload_size); }
   EcuPair get_ecu_pair() const { return this->ecu_pair; }
 
   double get_offset() const { return this->offset; }

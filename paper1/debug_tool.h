@@ -3,7 +3,9 @@
 
 #include <chrono>
 #include <ctime>
+#include <iomanip>
 #include <iostream>
+#include <limits>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -41,6 +43,27 @@ template <typename T, typename... Args>
 inline void debug_print(std::ostream& os, T&& first, Args&&... args) {
     os << std::forward<T>(first);
     debug_print(os, std::forward<Args>(args)...);
+}
+
+template <typename T>
+struct Sci {
+    T value;
+    int precision;
+};
+
+template <typename T>
+inline Sci<T> sci(T value, int precision = std::numeric_limits<T>::max_digits10) {
+    return {value, precision};
+}
+
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const Sci<T>& s) {
+    auto flags = os.flags();
+    auto prec = os.precision();
+    os << std::scientific << std::setprecision(s.precision) << s.value;
+    os.flags(flags);
+    os.precision(prec);
+    return os;
 }
 
 #ifdef DEBUG_OUTPUT
