@@ -1,8 +1,9 @@
 // config.h
-#include <string>
-#include <xutility>
 #ifndef CONFIG_H
 #define CONFIG_H
+
+#include <string>
+#include <xutility>
 
 #define V0 1
 #define V1 0

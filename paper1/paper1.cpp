@@ -7,7 +7,7 @@
 
 #include "config.h"
 #include "debug_tool.h"
-#include "probabilistic_analysis/normal.h"
+#include "probabilistic_analysis/no_retry.h"
 #include "scheme.h"
 #include "signal_backup/backup.h"
 
@@ -21,6 +21,7 @@ extern "C" __declspec(dllimport) int __stdcall SetConsoleCP(unsigned int);
 #endif
 
 using namespace cfd;
+using namespace cfd::analysis;
 
 // 返回时间戳
 std::string create_msg() {
@@ -59,7 +60,7 @@ cfd::PackingScheme build_scheme_from_current_msgs() {
 
 // 输出当前各信号的故障概率、阈值与副本数量
 void dump_signal_fault_summary(cfd::PackingScheme& scheme, double lambda, const char* title) {
-  auto prob_map = cfd::analysis::sig_trans_fault_prob_analysis(scheme, lambda);
+  auto prob_map = noretry::sig_trans_fault_prob_analysis(scheme, lambda);
 
   std::unordered_map<MessageCode, int> code_level;
   std::unordered_map<MessageCode, int> code_count;
@@ -99,7 +100,7 @@ void dump_signal_fault_summary(cfd::PackingScheme& scheme, double lambda, const 
     if (it_p0 != code_period.end()) {
       period_ms = it_p0->second;
     }
-    double threshold = cfd::analysis::threshold_per_window(level, period_ms);
+    double threshold = threshold_per_window(level, period_ms);
 
     int count = 0;
     auto it_c = code_count.find(code);
@@ -197,7 +198,7 @@ void dump_signal_fault_compare(const cfd::PackingScheme& origin, const cfd::Pack
 
     for (const auto& [id, frame] : scheme.frame_map) {
       if (frame.empty()) continue;
-      double p_comm = cfd::analysis::prob_fault_one_more(frame.get_trans_time(), lambda);
+      double p_comm = prob_fault_one_more(frame.get_trans_time(), lambda);
       for (const auto& msg : frame.msg_set) {
         const auto& info = MESSAGE_INFO_VEC[msg.get_id_message()];
         if (info.type != 1 && info.type != 2) continue;
@@ -226,11 +227,11 @@ void dump_signal_fault_compare(const cfd::PackingScheme& origin, const cfd::Pack
         p_comm_fail.emplace_back(kv.second);
         auto ecu = kv.first;
         int level = ecu_max_level.count(ecu) ? ecu_max_level.at(ecu) : 0;
-        p_ecu_fail = std::max(p_ecu_fail, cfd::analysis::threshold_per_window(level, period_ms));
+        p_ecu_fail = std::max(p_ecu_fail, threshold_per_window(level, period_ms));
       }
 
       if (!p_comm_fail.empty()) {
-        result.p_fault[code] = cfd::analysis::ecu_fault_prob_analysis(p_comm_fail, p_ecu_fail);
+        result.p_fault[code] = noretry::ecu_fault_prob_analysis(p_comm_fail, p_ecu_fail);
         result.p_ecu_fail[code] = p_ecu_fail;
       }
     }
@@ -239,10 +240,8 @@ void dump_signal_fault_compare(const cfd::PackingScheme& origin, const cfd::Pack
 
   const auto meta = build_code_meta();
   const auto ecu_max_level = build_ecu_max_level();
-  const auto prob_origin =
-      cfd::analysis::sig_trans_fault_prob_analysis(const_cast<cfd::PackingScheme&>(origin), lambda);
-  const auto prob_backup =
-      cfd::analysis::sig_trans_fault_prob_analysis(const_cast<cfd::PackingScheme&>(backup), lambda);
+  const auto prob_origin = noretry::sig_trans_fault_prob_analysis(const_cast<cfd::PackingScheme&>(origin), lambda);
+  const auto prob_backup = noretry::sig_trans_fault_prob_analysis(const_cast<cfd::PackingScheme&>(backup), lambda);
   const auto ecu_origin = calc_ecu_fault_actual(origin, meta, ecu_max_level);
   const auto ecu_backup = calc_ecu_fault_actual(backup, meta, ecu_max_level);
   const auto copies_origin = count_copies(origin);
@@ -275,7 +274,7 @@ void dump_signal_fault_compare(const cfd::PackingScheme& origin, const cfd::Pack
     int c1 = copies_backup.count(code) ? copies_backup.at(code) : 0;
     if (c0 <= 0 && c1 <= 0) continue;
 
-    double threshold = cfd::analysis::threshold_per_window(m.level, m.period_ms);
+    double threshold = threshold_per_window(m.level, m.period_ms);
     double p0 = prob_origin.count(code) ? prob_origin.at(code) : 0.0;
     double p1 = prob_backup.count(code) ? prob_backup.at(code) : 0.0;
 
@@ -352,7 +351,7 @@ void task_test_hetero_backup() {
 
   // 统计异源备份后的ECU故障概率（仅打印部分结果）
   DEBUG_MSG_DEBUG1(std::cout, "计算异源备份后的ECU故障概率");
-  auto res_ecu = cfd::analysis::ecu_fault_prob_analysis(scheme_hetero, cfd::REDUNDANCY_N);
+  auto res_ecu = noretry::ecu_fault_prob_analysis(scheme_hetero, cfd::REDUNDANCY_N);
   int cnt = 0;
   for (const auto& [code, p_fault] : res_ecu) {
     DEBUG_MSG_DEBUG1(std::cout, "code=", code, " P_fault=", sci(p_fault));
@@ -383,7 +382,7 @@ void task_test_all() {
 
   // 统计异源备份后的ECU故障概率（仅打印部分结果）
   DEBUG_MSG_DEBUG1(std::cout, "计算异源备份后的ECU故障概率");
-  auto res_ecu = cfd::analysis::ecu_fault_prob_analysis(scheme_hetero);
+  auto res_ecu = noretry::ecu_fault_prob_analysis(scheme_hetero);
   int cnt = 0;
   for (const auto& [code, p_fault] : res_ecu) {
     DEBUG_MSG_DEBUG1(std::cout, "code=", code, " P_fault=", p_fault);

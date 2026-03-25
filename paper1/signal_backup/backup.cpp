@@ -1,4 +1,4 @@
-﻿#include "signal_backup/backup.h"
+﻿#include "backup.h"
 
 #include <algorithm>
 #include <cmath>
@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "priority_allocation.h"
-#include "probabilistic_analysis/normal.h"
+#include "probabilistic_analysis/no_retry.h"
 namespace cfd::backups {
 namespace {
 constexpr int MAX_ITER = 50;
@@ -94,7 +94,7 @@ PackingScheme homo_signal_backup(PackingScheme& scheme, double lambda) {
 
   for (int iter = 0; iter < MAX_ITER; ++iter) {
     // 计算当前方案的端到端故障概率
-    auto result = analysis::sig_trans_fault_prob_analysis(working, lambda);
+    auto result = analysis::noretry::sig_trans_fault_prob_analysis(working, lambda);
     bool need_backup = false;
     int added_cnt = 0;
 
@@ -107,7 +107,7 @@ PackingScheme homo_signal_backup(PackingScheme& scheme, double lambda) {
       int level = MESSAGE_INFO_VEC[idx].level;
       if (level < 0 || level >= NUM_MESSAGE_LEVEL) continue;
 
-      double threshold = cfd::analysis::threshold_per_window(level, MESSAGE_INFO_VEC[idx].period);
+      double threshold = analysis::threshold_per_window(level, MESSAGE_INFO_VEC[idx].period);
       if (p_total <= threshold) continue;
 
       // 估算需要新增的同源副本数量

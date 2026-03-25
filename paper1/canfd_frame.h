@@ -1,3 +1,6 @@
+#ifndef CANFDFRAME_H
+#define CANFDFRAME_H
+
 #include <algorithm>
 #include <array>
 #include <fstream>
@@ -18,8 +21,6 @@
 
 #include "config.h"
 #include "debug_tool.h"
-#ifndef CANFDFRAME_H
-#define CANFDFRAME_H
 
 namespace cfd {
 /*
@@ -73,9 +74,7 @@ struct EcuPairHash {
 class MessageInfo {
  public:
   // 默认构造函数，便于容器默认初始化
-  MessageInfo(){
-    ;
-  }
+  MessageInfo() { ; }
   MessageCode code = 0;  // 消息的身份码
   int data_size = 0;     // 数据长度，默认为空,单位为b，取值为[0, 512]
   int period = -1;       // 周期，单位为微秒(μs)

@@ -12,14 +12,13 @@
 #include <utility>  // std::forward
 
 inline std::string get_time_stamp() {
-    auto now = std::chrono::system_clock::now();
-    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+  auto now = std::chrono::system_clock::now();
+  auto now_time_t = std::chrono::system_clock::to_time_t(now);
 
-    std::tm tm = *std::localtime(&now_time_t);
-    std::ostringstream timestamp;
-    timestamp << (tm.tm_year + 1900) << (tm.tm_mon + 1) << tm.tm_mday << "_"
-        << tm.tm_hour << tm.tm_min << tm.tm_sec;
-    return timestamp.str();
+  std::tm tm = *std::localtime(&now_time_t);
+  std::ostringstream timestamp;
+  timestamp << (tm.tm_year + 1900) << (tm.tm_mon + 1) << tm.tm_mday << "_" << tm.tm_hour << tm.tm_min << tm.tm_sec;
+  return timestamp.str();
 }
 
 /*
@@ -30,40 +29,40 @@ inline std::string get_time_stamp() {
 #define DEBUG_OUTPUT DebugLevel::DEBUG1
 
 enum class DebugLevel {
-    INFO,
-    DEBUG1,
-    DEBUG2,
-    DEBUG3,
-    DEBUG4,
+  INFO,
+  DEBUG1,
+  DEBUG2,
+  DEBUG3,
+  DEBUG4,
 };
 
 inline void debug_print(std::ostream& os) { os << std::endl; }
 
 template <typename T, typename... Args>
 inline void debug_print(std::ostream& os, T&& first, Args&&... args) {
-    os << std::forward<T>(first);
-    debug_print(os, std::forward<Args>(args)...);
+  os << std::forward<T>(first);
+  debug_print(os, std::forward<Args>(args)...);
 }
 
 template <typename T>
 struct Sci {
-    T value;
-    int precision;
+  T value;
+  int precision;
 };
 
 template <typename T>
 inline Sci<T> sci(T value, int precision = std::numeric_limits<T>::max_digits10) {
-    return {value, precision};
+  return {value, precision};
 }
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const Sci<T>& s) {
-    auto flags = os.flags();
-    auto prec = os.precision();
-    os << std::scientific << std::setprecision(s.precision) << s.value;
-    os.flags(flags);
-    os.precision(prec);
-    return os;
+  auto flags = os.flags();
+  auto prec = os.precision();
+  os << std::scientific << std::setprecision(s.precision) << s.value;
+  os.flags(flags);
+  os.precision(prec);
+  return os;
 }
 
 #ifdef DEBUG_OUTPUT
@@ -71,53 +70,63 @@ inline std::ostream& operator<<(std::ostream& os, const Sci<T>& s) {
 constexpr DebugLevel CURRENT_DEBUG_LEVEL = DEBUG_OUTPUT;
 
 // 下面全部改成“单行宏”，避免多行宏续行符在 Windows 上被空白字符坑到。
-#define DEBUG_MSG_INFO(os, ...) \
-  do { \
+#define DEBUG_MSG_INFO(os, ...)                                                        \
+  do {                                                                                 \
     if (static_cast<int>(DebugLevel::INFO) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
-      (os) << "[INFO] "; \
-      debug_print((os), __VA_ARGS__); \
-    } \
+      (os) << "[INFO] ";                                                               \
+      debug_print((os), __VA_ARGS__);                                                  \
+    }                                                                                  \
   } while (0)
 
-#define DEBUG_MSG_DEBUG1(os, ...) \
-  do { \
+#define DEBUG_MSG_DEBUG1(os, ...)                                                        \
+  do {                                                                                   \
     if (static_cast<int>(DebugLevel::DEBUG1) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
-      (os) << "[DEBUG1] "; \
-      debug_print((os), __VA_ARGS__); \
-    } \
+      (os) << "[DEBUG1] ";                                                               \
+      debug_print((os), __VA_ARGS__);                                                    \
+    }                                                                                    \
   } while (0)
 
-#define DEBUG_MSG_DEBUG2(os, ...) \
-  do { \
+#define DEBUG_MSG_DEBUG2(os, ...)                                                        \
+  do {                                                                                   \
     if (static_cast<int>(DebugLevel::DEBUG2) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
-      (os) << "[DEBUG2] "; \
-      debug_print((os), __VA_ARGS__); \
-    } \
+      (os) << "[DEBUG2] ";                                                               \
+      debug_print((os), __VA_ARGS__);                                                    \
+    }                                                                                    \
   } while (0)
 
-#define DEBUG_MSG_DEBUG3(os, ...) \
-  do { \
+#define DEBUG_MSG_DEBUG3(os, ...)                                                        \
+  do {                                                                                   \
     if (static_cast<int>(DebugLevel::DEBUG3) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
-      (os) << "[DEBUG3] "; \
-      debug_print((os), __VA_ARGS__); \
-    } \
+      (os) << "[DEBUG3] ";                                                               \
+      debug_print((os), __VA_ARGS__);                                                    \
+    }                                                                                    \
   } while (0)
 
-#define DEBUG_MSG_DEBUG4(os, ...) \
-  do { \
+#define DEBUG_MSG_DEBUG4(os, ...)                                                        \
+  do {                                                                                   \
     if (static_cast<int>(DebugLevel::DEBUG4) <= static_cast<int>(CURRENT_DEBUG_LEVEL)) { \
-      (os) << "[DEBUG4] "; \
-      debug_print((os), __VA_ARGS__); \
-    } \
+      (os) << "[DEBUG4] ";                                                               \
+      debug_print((os), __VA_ARGS__);                                                    \
+    }                                                                                    \
   } while (0)
 
 #else
 
-#define DEBUG_MSG_INFO(os, ...)   do {} while (0)
-#define DEBUG_MSG_DEBUG1(os, ...) do {} while (0)
-#define DEBUG_MSG_DEBUG2(os, ...) do {} while (0)
-#define DEBUG_MSG_DEBUG3(os, ...) do {} while (0)
-#define DEBUG_MSG_DEBUG4(os, ...) do {} while (0)
+#define DEBUG_MSG_INFO(os, ...) \
+  do {                          \
+  } while (0)
+#define DEBUG_MSG_DEBUG1(os, ...) \
+  do {                            \
+  } while (0)
+#define DEBUG_MSG_DEBUG2(os, ...) \
+  do {                            \
+  } while (0)
+#define DEBUG_MSG_DEBUG3(os, ...) \
+  do {                            \
+  } while (0)
+#define DEBUG_MSG_DEBUG4(os, ...) \
+  do {                            \
+  } while (0)
 
 #endif
 
