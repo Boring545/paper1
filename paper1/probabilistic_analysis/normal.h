@@ -7,10 +7,11 @@ namespace cfd::analysis {
 // 计算阶乘
 long long int factorial(int m);
 
-// 计算时间段t内，重传num次的概率
+// 计算时间段 t_ms（单位 ms）内，发生 num 次故障的概率。
+// lambda 的单位是“每秒故障次数”，函数内部会先把 ms 转成 s。
 double prob_fault(double t, int num, double lambda = LAMBDA_CONFERENCE);
 
-// 在电磁干扰的干涉窗口内，至少发生一次故障的概率
+// 在干涉窗口 interference_win（单位 ms）内，至少发生一次故障的概率
 double prob_fault_one_more(double interference_win, double lambda = LAMBDA_CONFERENCE);
 
 // 将每小时故障概率上限转换为frame对应的发送窗口内的故障概率
