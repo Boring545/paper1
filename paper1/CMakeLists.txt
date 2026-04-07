@@ -16,7 +16,8 @@ add_executable(paper1
     probabilistic_analysis/normal.cpp
     probabilistic_analysis/no_retry.cpp
 
-    signal_backup/backup.cpp
+    backups/signal_backup.cpp
+    backups/frame_backup.cpp
 )
 
 target_include_directories(paper1

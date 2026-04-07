@@ -1,0 +1,5 @@
+D:/document/CODE/paper1/build_codex_nmake/CMakeFiles/edit_cache.dir
+D:/document/CODE/paper1/build_codex_nmake/CMakeFiles/rebuild_cache.dir
+D:/document/CODE/paper1/build_codex_nmake/paper1/CMakeFiles/paper1.dir
+D:/document/CODE/paper1/build_codex_nmake/paper1/CMakeFiles/edit_cache.dir
+D:/document/CODE/paper1/build_codex_nmake/paper1/CMakeFiles/rebuild_cache.dir

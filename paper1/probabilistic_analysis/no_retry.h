@@ -17,7 +17,7 @@ namespace cfd::analysis::noretry {
 std::unordered_map<MessageCode, double> sig_trans_fault_prob_analysis(PackingScheme& scheme,
                                                                       double lambda = LAMBDA_CONFERENCE);
 
-// 计算ECU语义故障概率，基于N模冗余多数投票机制（允许两路到达形成多数），考虑通信失败和ECU语义故障两种情况
+// 计算每种信号的ECU语义故障概率，基于N模冗余多数投票机制（允许两路到达形成多数），考虑通信失败和ECU语义故障两种情况
 // p_comm_fail: N路通信失败概率数组
 // p_ecu_fail: 单 ECU 语义故障概率
 double ecu_fault_prob_analysis(const std::vector<double>& p_comm_fail, double p_ecu_fail);

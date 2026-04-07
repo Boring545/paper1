@@ -1,0 +1,559 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineSystem.cmake:205 (message)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      The system is: Windows - 10.0.19045 - AMD64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      用于 .NET Framework 的 Microsoft (R) 生成引擎版本 16.11.6+a918ceb31
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      生成启动时间为 2026/4/7 15:57:55。
+      节点 1 上的项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标)。
+      PrepareForBuild:
+        正在创建目录“Debug\\”。
+        正在创建目录“Debug\\CompilerIdC.tlog\\”。
+      InitializeBuildStatus:
+        正在创建“Debug\\CompilerIdC.tlog\\unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      已完成生成项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标)的操作 - 失败。
+      
+      生成失败。
+      
+      “D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标) (1) ->
+      (ClCompile 目标) -> 
+        C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      
+          0 个警告
+          1 个错误
+      
+      已用时间 00:00:00.41
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      用于 .NET Framework 的 Microsoft (R) 生成引擎版本 16.11.6+a918ceb31
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      生成启动时间为 2026/4/7 15:57:56。
+      节点 1 上的项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标)。
+      PrepareForBuild:
+        正在创建目录“Debug\\”。
+        正在创建目录“Debug\\CompilerIdC.tlog\\”。
+      InitializeBuildStatus:
+        正在创建“Debug\\CompilerIdC.tlog\\unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      已完成生成项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标)的操作 - 失败。
+      
+      生成失败。
+      
+      “D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标) (1) ->
+      (ClCompile 目标) -> 
+        C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      
+          0 个警告
+          1 个错误
+      
+      已用时间 00:00:00.40
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      用于 .NET Framework 的 Microsoft (R) 生成引擎版本 16.11.6+a918ceb31
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      生成启动时间为 2026/4/7 15:57:57。
+      节点 1 上的项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标)。
+      PrepareForBuild:
+        正在创建目录“Debug\\”。
+        正在创建目录“Debug\\CompilerIdCXX.tlog\\”。
+      InitializeBuildStatus:
+        正在创建“Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      已完成生成项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标)的操作 - 失败。
+      
+      生成失败。
+      
+      “D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标) (1) ->
+      (ClCompile 目标) -> 
+        C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      
+          0 个警告
+          1 个错误
+      
+      已用时间 00:00:00.40
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      用于 .NET Framework 的 Microsoft (R) 生成引擎版本 16.11.6+a918ceb31
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      生成启动时间为 2026/4/7 15:57:57。
+      节点 1 上的项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标)。
+      PrepareForBuild:
+        正在创建目录“Debug\\”。
+        正在创建目录“Debug\\CompilerIdCXX.tlog\\”。
+      InitializeBuildStatus:
+        正在创建“Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      已完成生成项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标)的操作 - 失败。
+      
+      生成失败。
+      
+      “D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标) (1) ->
+      (ClCompile 目标) -> 
+        C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      
+          0 个警告
+          1 个错误
+      
+      已用时间 00:00:00.40
+      
+      
+...
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      用于 .NET Framework 的 Microsoft (R) 生成引擎版本 16.11.6+a918ceb31
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      生成启动时间为 2026/4/7 15:58:50。
+      节点 1 上的项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标)。
+      PrepareForBuild:
+        正在创建目录“Debug\\”。
+        正在创建目录“Debug\\CompilerIdC.tlog\\”。
+      InitializeBuildStatus:
+        正在创建“Debug\\CompilerIdC.tlog\\unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      已完成生成项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标)的操作 - 失败。
+      
+      生成失败。
+      
+      “D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标) (1) ->
+      (ClCompile 目标) -> 
+        C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      
+          0 个警告
+          1 个错误
+      
+      已用时间 00:00:00.42
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      用于 .NET Framework 的 Microsoft (R) 生成引擎版本 16.11.6+a918ceb31
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      生成启动时间为 2026/4/7 15:58:51。
+      节点 1 上的项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标)。
+      PrepareForBuild:
+        正在创建目录“Debug\\”。
+        正在创建目录“Debug\\CompilerIdC.tlog\\”。
+      InitializeBuildStatus:
+        正在创建“Debug\\CompilerIdC.tlog\\unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      已完成生成项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标)的操作 - 失败。
+      
+      生成失败。
+      
+      “D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj”(默认目标) (1) ->
+      (ClCompile 目标) -> 
+        C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdC\\CompilerIdC.vcxproj]
+      
+          0 个警告
+          1 个错误
+      
+      已用时间 00:00:00.39
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      用于 .NET Framework 的 Microsoft (R) 生成引擎版本 16.11.6+a918ceb31
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      生成启动时间为 2026/4/7 15:58:52。
+      节点 1 上的项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标)。
+      PrepareForBuild:
+        正在创建目录“Debug\\”。
+        正在创建目录“Debug\\CompilerIdCXX.tlog\\”。
+      InitializeBuildStatus:
+        正在创建“Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      已完成生成项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标)的操作 - 失败。
+      
+      生成失败。
+      
+      “D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标) (1) ->
+      (ClCompile 目标) -> 
+        C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      
+          0 个警告
+          1 个错误
+      
+      已用时间 00:00:00.39
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "D:/tool/cmake/share/cmake-4.0/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:6 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" failed.
+      Compiler:  
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      1
+      用于 .NET Framework 的 Microsoft (R) 生成引擎版本 16.11.6+a918ceb31
+      版权所有(C) Microsoft Corporation。保留所有权利。
+      
+      生成启动时间为 2026/4/7 15:58:52。
+      节点 1 上的项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标)。
+      PrepareForBuild:
+        正在创建目录“Debug\\”。
+        正在创建目录“Debug\\CompilerIdCXX.tlog\\”。
+      InitializeBuildStatus:
+        正在创建“Debug\\CompilerIdCXX.tlog\\unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      已完成生成项目“D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标)的操作 - 失败。
+      
+      生成失败。
+      
+      “D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj”(默认目标) (1) ->
+      (ClCompile 目标) -> 
+        C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: “CL”任务意外失败。 [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018: System.TypeInitializationException: “Microsoft.Build.Utilities.FileTracker”的类型初始值设定项引发异常。 ---> System.UnauthorizedAccessException: 拒绝访问。 (异常来自 HRESULT:0x80070005 (E_ACCESSDENIED)) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 System.Runtime.InteropServices.Marshal.ThrowExceptionForHRInternal(Int32 errorCode, IntPtr errorInfo) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.ThrowExceptionForErrorCode(Int32 errorCode) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Shared.NativeMethodsShared.GetLongFilePath(String path) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker..cctor() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    --- 内部异常堆栈跟踪的结尾 --- [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.FileTracker.FormatRootingMarker(ITaskItem[] sources) [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.CL.ComputeOutOfDateSources() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.SkipTaskExecution() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.Utilities.ToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.VCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.CPPTasks.TrackedVCToolTask.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskExecutionHost.Microsoft.Build.BackEnd.ITaskExecutionHost.Execute() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\MSBuild\\Microsoft\\VC\\v160\\Microsoft.CppCommon.targets(687,5): error MSB4018:    在 Microsoft.Build.BackEnd.TaskBuilder.<ExecuteInstantiatedTask>d__26.MoveNext() [D:\\document\\CODE\\paper1\\build_codex\\CMakeFiles\\4.0.2\\CompilerIdCXX\\CompilerIdCXX.vcxproj]
+      
+          0 个警告
+          1 个错误
+      
+      已用时间 00:00:00.41
+      
+      
+...

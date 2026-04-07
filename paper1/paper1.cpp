@@ -1,15 +1,20 @@
-﻿// paper1.cpp: 定义应用程序的入口点。
+// paper1.cpp: 定义应用程序的入口点。
 
 #include <algorithm>
+#include <array>
 #include <fstream>
+#include <iomanip>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "backups/frame_backup.h"
+#include "backups/signal_backup.h"
 #include "config.h"
 #include "debug_tool.h"
 #include "probabilistic_analysis/no_retry.h"
+#include "probabilistic_analysis/retry.h"
 #include "scheme.h"
-#include "signal_backup/backup.h"
 
 #ifdef _WIN32
 extern "C" __declspec(dllimport) int __stdcall SetConsoleOutputCP(unsigned int);
@@ -23,10 +28,111 @@ extern "C" __declspec(dllimport) int __stdcall SetConsoleCP(unsigned int);
 using namespace cfd;
 using namespace cfd::analysis;
 
+namespace {
+
+struct CodeMeta {
+  int level = 0;
+  int period_ms = 0;
+  int type = 0;
+  EcuId src_ecu = 0;
+  EcuId dst_ecu = 0;
+};
+
+struct SignalMetric {
+  MessageCode code = 0;
+  CodeMeta meta;
+  double p_fault = 0.0;
+  double p_threshold = 0.0;
+  double p_wcrt_over_deadline = 0.0;
+  double expected_wcrt_ms = 0.0;
+  double wcrt_p95_ms = 0.0;
+  double wcrt_p99_ms = 0.0;
+  double wcrt_ratio_p95 = 0.0;
+  double wcrt_ratio_p99 = 0.0;
+};
+
+struct SchemeMetrics {
+  std::string name;
+  double compare_bandwidth_utilization = 0.0;
+  double static_bandwidth_utilization = 0.0;
+  std::vector<SignalMetric> signals;
+};
+
+struct AsilStats {
+  int count = 0;
+  double fault_sum = 0.0;
+  double fault_max = 0.0;
+  double wcrt_deadline_miss_sum = 0.0;
+  double wcrt_deadline_miss_max = 0.0;
+  double wcrt_ratio_p95_sum = 0.0;
+  double wcrt_ratio_p95_max = 0.0;
+  double wcrt_ratio_p99_sum = 0.0;
+  double wcrt_ratio_p99_max = 0.0;
+};
+
+char level_to_asil(int level) {
+  switch (level) {
+    case 0:
+      return 'A';
+    case 1:
+      return 'B';
+    case 2:
+      return 'C';
+    case 3:
+      return 'D';
+    default:
+      return '?';
+  }
+}
+
+double calc_ratio(double wcrt_ms, int period_ms) {
+  if (period_ms <= 0) {
+    return 0.0;
+  }
+  return wcrt_ms / static_cast<double>(period_ms);
+}
+
+std::unordered_map<MessageCode, CodeMeta> build_code_meta(const MessageInfoVec& original_infos) {
+  std::unordered_map<MessageCode, CodeMeta> meta_by_code;
+  meta_by_code.reserve(original_infos.size());
+
+  for (const auto& info : original_infos) {
+    auto it = meta_by_code.find(info.code);
+    if (it == meta_by_code.end()) {
+      meta_by_code.emplace(info.code, CodeMeta{info.level, info.period, info.type, info.ecu_pair.src_ecu,
+                                               info.ecu_pair.dst_ecu});
+    }
+  }
+
+  return meta_by_code;
+}
+
+std::vector<MessageCode> sorted_codes(const std::unordered_map<MessageCode, CodeMeta>& meta_by_code) {
+  std::vector<MessageCode> codes;
+  codes.reserve(meta_by_code.size());
+  for (const auto& [code, _] : meta_by_code) {
+    codes.push_back(code);
+  }
+
+  std::sort(codes.begin(), codes.end(), [&](MessageCode lhs, MessageCode rhs) {
+    const auto& left = meta_by_code.at(lhs);
+    const auto& right = meta_by_code.at(rhs);
+    if (left.level != right.level) {
+      return left.level > right.level;
+    }
+    if (left.period_ms != right.period_ms) {
+      return left.period_ms < right.period_ms;
+    }
+    return lhs < rhs;
+  });
+
+  return codes;
+}
+
 // 返回时间戳
 std::string create_msg() {
   cfd::utils::generate_msg_info_set();
-  auto ts = cfd::utils::store_msg(cfd::TEST_INFO_PATH);
+  const auto ts = cfd::utils::store_msg(cfd::TEST_INFO_PATH);
   DEBUG_MSG_DEBUG1(std::cout, "生成信号集合,数量：", cfd::SIZE_ORIGINAL_MESSAGE);
   DEBUG_MSG_DEBUG1(std::cout, "已生成信号集合, 时间戳: ", ts);
   return ts;
@@ -34,368 +140,264 @@ std::string create_msg() {
 
 // 读取某个信号集合
 void read_data_1() {
-  // 读取消息
   cfd::utils::read_message(cfd::TEST_INFO_PATH + cfd::DEFAULT_MSG_FILE);
   DEBUG_MSG_DEBUG1(std::cout, "读取信号集合: ", cfd::DEFAULT_MSG_FILE);
-  return;
 }
 
-// 读取某个信号集合及其对应的打包方案
-cfd::PackingScheme read_data_2() {
-  // 读取消息
-  cfd::utils::read_message(cfd::TEST_INFO_PATH + cfd::DEFAULT_MSG_FILE);
-
-  // 读取对应的打包方案
-  cfd::CanfdFrameMap fmap;
-  cfd::utils::read_frame(fmap, cfd::TEST_INFO_PATH + cfd::DEFAULT_FRM_FILE);
-  return cfd::PackingScheme(fmap);
-}
-
-// 基于当前MESSAGE_INFO_VEC构建并优化打包方案
-cfd::PackingScheme build_scheme_from_current_msgs() {
-  cfd::PackingScheme scheme{};
+// 基于当前 MESSAGE_INFO_VEC 构建并优化打包方案
+PackingScheme build_scheme_from_current_msgs() {
+  PackingScheme scheme{};
   cfd::packing::frame_pack(scheme, cfd::DEFAULT_PACK_METHOD);
   return scheme;
 }
 
-// 输出当前各信号的故障概率、阈值与副本数量
-void dump_signal_fault_summary(cfd::PackingScheme& scheme, double lambda, const char* title) {
-  auto prob_map = noretry::sig_trans_fault_prob_analysis(scheme, lambda);
+std::unordered_map<MessageCode, double> calc_best_signal_wcrt_ms(const PackingScheme& scheme) {
+  std::unordered_map<MessageCode, double> best_wcrt_ms;
+  best_wcrt_ms.reserve(MESSAGE_INFO_VEC.size());
 
-  std::unordered_map<MessageCode, int> code_level;
-  std::unordered_map<MessageCode, int> code_count;
-  std::unordered_map<MessageCode, int> code_period;
-  code_level.reserve(MESSAGE_INFO_VEC.size());
-  code_count.reserve(MESSAGE_INFO_VEC.size());
-  code_period.reserve(MESSAGE_INFO_VEC.size());
+  for (const auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame.empty()) {
+      continue;
+    }
 
-  for (const auto& [id, frame] : scheme.frame_map) {
-    if (frame.empty()) continue;
+    const double frame_wcrt_ms = frame.get_trans_time();
     for (const auto& msg : frame.msg_set) {
-      const auto& info = MESSAGE_INFO_VEC[msg.get_id_message()];
-      auto it = code_level.find(info.code);
-      if (it == code_level.end()) {
-        code_level.emplace(info.code, info.level);
+      auto it = best_wcrt_ms.find(msg.get_code());
+      if (it == best_wcrt_ms.end()) {
+        best_wcrt_ms.emplace(msg.get_code(), frame_wcrt_ms);
       } else {
-        it->second = std::max(it->second, info.level);
+        it->second = std::min(it->second, frame_wcrt_ms);
       }
-      if (code_period.find(info.code) == code_period.end()) {
-        code_period.emplace(info.code, info.period);
-      }
-      code_count[info.code] += 1;
     }
   }
 
-  DEBUG_MSG_DEBUG1(std::cout, "=============================== ");
-  DEBUG_MSG_DEBUG1(std::cout, title, " 信号故障概率/阈值/副本数量");
-  for (const auto& [code, level] : code_level) {
-    double p_fail = 0.0;
-    auto it_p = prob_map.find(code);
-    if (it_p != prob_map.end()) {
-      p_fail = it_p->second;
-    }
-
-    int period_ms = -1;
-    auto it_p0 = code_period.find(code);
-    if (it_p0 != code_period.end()) {
-      period_ms = it_p0->second;
-    }
-    double threshold = threshold_per_window(level, period_ms);
-
-    int count = 0;
-    auto it_c = code_count.find(code);
-    if (it_c != code_count.end()) {
-      count = it_c->second;
-    }
-
-    DEBUG_MSG_DEBUG1(std::cout, "code=", code, " P_fault=", sci(p_fail), " threshold=", sci(threshold),
-                     " copies=", count, " level=", level);
-  }
-  DEBUG_MSG_DEBUG1(std::cout, "=============================== ");
+  return best_wcrt_ms;
 }
 
-// 导出：原方案信号故障概率、备份后信号故障概率、备份后ECU故障概率
-void dump_signal_fault_compare(const cfd::PackingScheme& origin, const cfd::PackingScheme& backup, double lambda,
-                               const std::string& filename) {
-  struct CodeMeta {
-    int level = 0;
-    int period_ms = -1;
-    EcuId src_ecu = 0;
-    EcuId dst_ecu = 0;
-    int type = 0;
-  };
-  struct EcuFaultResult {
-    std::unordered_map<MessageCode, double> p_fault;
-    std::unordered_map<MessageCode, double> p_ecu_fail;
-  };
+SchemeMetrics analyze_deterministic_scheme(const std::string& name, PackingScheme& scheme,
+                                           const std::unordered_map<MessageCode, CodeMeta>& meta_by_code) {
+  SchemeMetrics metrics;
+  metrics.name = name;
+  metrics.compare_bandwidth_utilization = scheme.calc_bandwidth_utilization();
+  metrics.static_bandwidth_utilization = metrics.compare_bandwidth_utilization;
 
-  auto level_to_char = [](int level) -> char {
-    switch (level) {
-      case 0:
-        return 'A';
-      case 1:
-        return 'B';
-      case 2:
-        return 'C';
-      case 3:
-        return 'D';
-      default:
-        return '?';
-    }
-  };
+  const auto p_fault_map = noretry::sig_trans_fault_prob_analysis(scheme, LAMBDA_CONFERENCE);
+  const auto best_wcrt_ms = calc_best_signal_wcrt_ms(scheme);
+  const auto codes = sorted_codes(meta_by_code);
 
-  auto build_code_meta = []() {
-    std::unordered_map<MessageCode, CodeMeta> meta;
-    meta.reserve(MESSAGE_INFO_VEC.size());
-    for (const auto& info : MESSAGE_INFO_VEC) {
-      auto it = meta.find(info.code);
-      if (it == meta.end()) {
-        meta.emplace(info.code,
-                     CodeMeta{info.level, info.period, info.ecu_pair.src_ecu, info.ecu_pair.dst_ecu, info.type});
-      } else if (it->second.type != 1 && info.type == 1) {
-        it->second = {info.level, info.period, info.ecu_pair.src_ecu, info.ecu_pair.dst_ecu, info.type};
-      }
-    }
-    return meta;
-  };
-
-  auto build_ecu_max_level = []() {
-    std::unordered_map<EcuId, int> ecu_max_level;
-    ecu_max_level.reserve(NUM_ECU);
-    for (int e : OPTION_ECU) {
-      ecu_max_level[static_cast<EcuId>(e)] = 0;
-    }
-    for (const auto& info : MESSAGE_INFO_VEC) {
-      auto src = info.ecu_pair.src_ecu;
-      auto it = ecu_max_level.find(src);
-      if (it == ecu_max_level.end()) {
-        ecu_max_level[src] = info.level;
-      } else {
-        it->second = std::max(it->second, info.level);
-      }
-    }
-    return ecu_max_level;
-  };
-
-  auto count_copies = [](const cfd::PackingScheme& scheme) {
-    std::unordered_map<MessageCode, int> count;
-    count.reserve(MESSAGE_INFO_VEC.size());
-    for (const auto& [id, frame] : scheme.frame_map) {
-      if (frame.empty()) continue;
-      for (const auto& msg : frame.msg_set) {
-        const auto& info = MESSAGE_INFO_VEC[msg.get_id_message()];
-        count[info.code] += 1;
-      }
-    }
-    return count;
-  };
-
-  auto calc_ecu_fault_actual = [&](const cfd::PackingScheme& scheme,
-                                   const std::unordered_map<MessageCode, CodeMeta>& meta,
-                                   const std::unordered_map<EcuId, int>& ecu_max_level) {
-    std::unordered_map<MessageCode, std::unordered_map<EcuId, double>> code_comm_fail;
-    code_comm_fail.reserve(MESSAGE_INFO_VEC.size());
-
-    for (const auto& [id, frame] : scheme.frame_map) {
-      if (frame.empty()) continue;
-      double p_comm = prob_fault_one_more(frame.get_trans_time(), lambda);
-      for (const auto& msg : frame.msg_set) {
-        const auto& info = MESSAGE_INFO_VEC[msg.get_id_message()];
-        if (info.type != 1 && info.type != 2) continue;
-        auto& ecu_map = code_comm_fail[info.code];
-        auto it = ecu_map.find(info.ecu_pair.src_ecu);
-        if (it == ecu_map.end()) {
-          ecu_map[info.ecu_pair.src_ecu] = p_comm;
-        } else {
-          it->second *= p_comm;
-        }
-      }
+  metrics.signals.reserve(codes.size());
+  for (const auto code : codes) {
+    const auto meta_it = meta_by_code.find(code);
+    if (meta_it == meta_by_code.end()) {
+      continue;
     }
 
-    EcuFaultResult result;
-    result.p_fault.reserve(code_comm_fail.size());
-    result.p_ecu_fail.reserve(code_comm_fail.size());
-    for (const auto& [code, ecu_map] : code_comm_fail) {
-      std::vector<double> p_comm_fail;
-      p_comm_fail.reserve(ecu_map.size());
-      double p_ecu_fail = 0.0;
-
-      auto it_meta = meta.find(code);
-      int period_ms = (it_meta != meta.end()) ? it_meta->second.period_ms : -1;
-
-      for (const auto& kv : ecu_map) {
-        p_comm_fail.emplace_back(kv.second);
-        auto ecu = kv.first;
-        int level = ecu_max_level.count(ecu) ? ecu_max_level.at(ecu) : 0;
-        p_ecu_fail = std::max(p_ecu_fail, threshold_per_window(level, period_ms));
-      }
-
-      if (!p_comm_fail.empty()) {
-        result.p_fault[code] = noretry::ecu_fault_prob_analysis(p_comm_fail, p_ecu_fail);
-        result.p_ecu_fail[code] = p_ecu_fail;
-      }
+    const auto p_fault_it = p_fault_map.find(code);
+    const auto wcrt_it = best_wcrt_ms.find(code);
+    if (p_fault_it == p_fault_map.end() || wcrt_it == best_wcrt_ms.end()) {
+      continue;
     }
-    return result;
-  };
 
-  const auto meta = build_code_meta();
-  const auto ecu_max_level = build_ecu_max_level();
-  const auto prob_origin = noretry::sig_trans_fault_prob_analysis(const_cast<cfd::PackingScheme&>(origin), lambda);
-  const auto prob_backup = noretry::sig_trans_fault_prob_analysis(const_cast<cfd::PackingScheme&>(backup), lambda);
-  const auto ecu_origin = calc_ecu_fault_actual(origin, meta, ecu_max_level);
-  const auto ecu_backup = calc_ecu_fault_actual(backup, meta, ecu_max_level);
-  const auto copies_origin = count_copies(origin);
-  const auto copies_backup = count_copies(backup);
+    const auto& meta = meta_it->second;
+    const double wcrt_ms = wcrt_it->second;
+    metrics.signals.push_back(
+        {code, meta, p_fault_it->second, threshold_per_window(meta.level, meta.period_ms), p_fault_it->second,
+         wcrt_ms, wcrt_ms, wcrt_ms,
+         calc_ratio(wcrt_ms, meta.period_ms), calc_ratio(wcrt_ms, meta.period_ms)});
+  }
 
-  std::ofstream ofs(filename, std::ios::trunc);
+  return metrics;
+}
+
+SchemeMetrics analyze_retry_scheme(const std::string& name, const retry::AnalysisReport& report,
+                                   const std::unordered_map<MessageCode, CodeMeta>& meta_by_code) {
+  SchemeMetrics metrics;
+  metrics.name = name;
+  // 对重传方案，直接使用期望发送次数对应的平均带宽占用。
+  metrics.compare_bandwidth_utilization = report.expected_bandwidth_utilization;
+  metrics.static_bandwidth_utilization = report.base_bandwidth_utilization;
+
+  const auto codes = sorted_codes(meta_by_code);
+  metrics.signals.reserve(codes.size());
+  for (const auto code : codes) {
+    const auto meta_it = meta_by_code.find(code);
+    const auto signal_it = report.signal_results.find(code);
+    if (meta_it == meta_by_code.end() || signal_it == report.signal_results.end()) {
+      continue;
+    }
+
+    const auto& meta = meta_it->second;
+    const auto& signal = signal_it->second;
+    metrics.signals.push_back(
+        {code, meta, signal.p_timeout, signal.p_threshold, signal.p_timeout, signal.expected_wcrt, signal.wcrt_p95,
+         signal.wcrt_p99,
+         calc_ratio(signal.wcrt_p95, meta.period_ms), calc_ratio(signal.wcrt_p99, meta.period_ms)});
+  }
+
+  return metrics;
+}
+
+std::array<AsilStats, NUM_MESSAGE_LEVEL> calc_asil_stats(const SchemeMetrics& metrics) {
+  std::array<AsilStats, NUM_MESSAGE_LEVEL> stats{};
+
+  for (const auto& signal : metrics.signals) {
+    if (signal.meta.level < 0 || signal.meta.level >= NUM_MESSAGE_LEVEL) {
+      continue;
+    }
+
+    auto& level_stats = stats[signal.meta.level];
+    level_stats.count += 1;
+    level_stats.fault_sum += signal.p_fault;
+    level_stats.fault_max = std::max(level_stats.fault_max, signal.p_fault);
+    level_stats.wcrt_deadline_miss_sum += signal.p_wcrt_over_deadline;
+    level_stats.wcrt_deadline_miss_max = std::max(level_stats.wcrt_deadline_miss_max, signal.p_wcrt_over_deadline);
+    level_stats.wcrt_ratio_p95_sum += signal.wcrt_ratio_p95;
+    level_stats.wcrt_ratio_p95_max = std::max(level_stats.wcrt_ratio_p95_max, signal.wcrt_ratio_p95);
+    level_stats.wcrt_ratio_p99_sum += signal.wcrt_ratio_p99;
+    level_stats.wcrt_ratio_p99_max = std::max(level_stats.wcrt_ratio_p99_max, signal.wcrt_ratio_p99);
+  }
+
+  return stats;
+}
+
+std::string build_compare_output_path(const std::string& timestamp) {
+  return TEST_INFO_PATH + "compare_methods_" + timestamp + ".txt";
+}
+
+std::string build_retry_output_path(const std::string& timestamp) {
+  return TEST_INFO_PATH + "retry_analysis_" + timestamp + ".txt";
+}
+
+void write_comparison_report(const std::string& output_path, const std::vector<SchemeMetrics>& schemes,
+                             const std::string& retry_report_path) {
+  std::ofstream ofs(output_path, std::ios::trunc);
   if (!ofs) {
-    DEBUG_MSG_DEBUG1(std::cout, "Failed to open output file: ", filename);
+    DEBUG_MSG_DEBUG1(std::cout, "无法写入对比结果文件: ", output_path);
     return;
   }
 
-  ofs << "origin_bandwidth_util\t" << sci(origin.calc_bandwidth_utilization()) << '\n';
-  ofs << "backup_bandwidth_util\t" << sci(backup.calc_bandwidth_utilization()) << '\n' << '\n';
+  ofs << std::setprecision(17);
+  ofs << "retry_distribution_report\t" << retry_report_path << "\n\n";
 
-  ofs << "[signal_fault_compare]\n";
-  ofs << "code\tlevel\tlevel_asil\tsrc_ecu\tdst_ecu\tperiod_ms\tcopies_backup\tp_fault_origin\tp_fault_backup\tp_"
-         "threshold\n";
-  struct SignalRow {
-    MessageCode code;
-    CodeMeta meta;
-    int copies_backup;
-    double p0;
-    double p1;
-    double threshold;
-  };
-  std::vector<SignalRow> rows;
-  rows.reserve(meta.size());
-  for (const auto& [code, m] : meta) {
-    int c0 = copies_origin.count(code) ? copies_origin.at(code) : 0;
-    int c1 = copies_backup.count(code) ? copies_backup.at(code) : 0;
-    if (c0 <= 0 && c1 <= 0) continue;
-
-    double threshold = threshold_per_window(m.level, m.period_ms);
-    double p0 = prob_origin.count(code) ? prob_origin.at(code) : 0.0;
-    double p1 = prob_backup.count(code) ? prob_backup.at(code) : 0.0;
-
-    rows.push_back(SignalRow{code, m, c1, p0, p1, threshold});
-  }
-  std::sort(rows.begin(), rows.end(), [](const SignalRow& a, const SignalRow& b) {
-    if (a.threshold != b.threshold) return a.threshold > b.threshold;
-    return a.code < b.code;
-  });
-  for (const auto& r : rows) {
-    const auto& m = r.meta;
-    ofs << r.code << '\t' << m.level << '\t' << level_to_char(m.level) << '\t' << m.src_ecu << '\t' << m.dst_ecu << '\t'
-        << m.period_ms << '\t' << r.copies_backup << '\t' << sci(r.p0) << '\t' << sci(r.p1) << '\t' << sci(r.threshold)
-        << '\n';
+  ofs << "[scheme_summary]\n";
+  ofs << "scheme\tcompare_bandwidth_utilization\tstatic_bandwidth_utilization\tsignal_count\n";
+  for (const auto& scheme : schemes) {
+    ofs << scheme.name << '\t' << scheme.compare_bandwidth_utilization << '\t' << scheme.static_bandwidth_utilization
+        << '\t' << scheme.signals.size() << '\n';
   }
 
-  ofs << "\n[ecu_fault_compare]\n";
-  ofs << "code\tlevel\tlevel_asil\tsrc_ecu\tdst_ecu\tperiod_ms\tp_fault_origin\tp_fault_backup\n";
-  std::unordered_map<MessageCode, double> ecu_union = ecu_origin.p_fault;
-  for (const auto& [code, p_fault] : ecu_backup.p_fault) {
-    ecu_union[code] = p_fault;
-  }
-  for (const auto& [code, _] : ecu_union) {
-    double p1 = ecu_backup.p_fault.count(code) ? ecu_backup.p_fault.at(code) : 0.0;
-
-    double p_comm = prob_origin.count(code) ? prob_origin.at(code) : 0.0;
-    double p_ecu = ecu_origin.p_ecu_fail.count(code) ? ecu_origin.p_ecu_fail.at(code) : 0.0;
-    double p0 = 1.0 - (1.0 - p_comm) * (1.0 - p_ecu);
-    if (p0 < 0.0) p0 = 0.0;
-    if (p0 > 1.0) p0 = 1.0;
-
-    auto it_meta = meta.find(code);
-    if (it_meta != meta.end()) {
-      const auto& m = it_meta->second;
-      ofs << code << '\t' << m.level << '\t' << level_to_char(m.level) << '\t' << m.src_ecu << '\t' << m.dst_ecu << '\t'
-          << m.period_ms << '\t' << sci(p0) << '\t' << sci(p1) << '\n';
-    } else {
-      ofs << code << '\t' << -1 << '\t' << '?' << '\t' << -1 << '\t' << -1 << '\t' << -1 << '\t' << sci(p0) << '\t'
-          << sci(p1) << '\n';
+  ofs << "\n[asil_wcrt_ratio_p95]\n";
+  ofs << "scheme\tasil\tsignal_count\tavg_wcrt_ratio_p95\tmax_wcrt_ratio_p95\n";
+  for (const auto& scheme : schemes) {
+    const auto stats = calc_asil_stats(scheme);
+    for (int level = 0; level < NUM_MESSAGE_LEVEL; ++level) {
+      const auto& item = stats[level];
+      if (item.count <= 0) {
+        continue;
+      }
+      ofs << scheme.name << '\t' << level_to_asil(level) << '\t' << item.count << '\t'
+          << (item.wcrt_ratio_p95_sum / item.count) << '\t' << item.wcrt_ratio_p95_max << '\n';
     }
   }
-  ofs.close();
-}
 
-void task_test_homo_backup() {
-  // 初始方案
-  DEBUG_MSG_DEBUG1(std::cout, "生成打包方案");
-  cfd::PackingScheme scheme_origin = build_scheme_from_current_msgs();
+  ofs << "\n[asil_wcrt_ratio_p99]\n";
+  ofs << "scheme\tasil\tsignal_count\tavg_wcrt_ratio_p99\tmax_wcrt_ratio_p99\n";
+  for (const auto& scheme : schemes) {
+    const auto stats = calc_asil_stats(scheme);
+    for (int level = 0; level < NUM_MESSAGE_LEVEL; ++level) {
+      const auto& item = stats[level];
+      if (item.count <= 0) {
+        continue;
+      }
+      ofs << scheme.name << '\t' << level_to_asil(level) << '\t' << item.count << '\t'
+          << (item.wcrt_ratio_p99_sum / item.count) << '\t' << item.wcrt_ratio_p99_max << '\n';
+    }
+  }
 
-  // 备份前统计
-  // dump_signal_fault_summary(scheme_origin, cfd::LAMBDA_CONFERENCE, "备份前");
+  ofs << "\n[asil_fault_probability]\n";
+  ofs << "scheme\tasil\tsignal_count\tavg_fault_probability\tmax_fault_probability\n";
+  for (const auto& scheme : schemes) {
+    const auto stats = calc_asil_stats(scheme);
+    for (int level = 0; level < NUM_MESSAGE_LEVEL; ++level) {
+      const auto& item = stats[level];
+      if (item.count <= 0) {
+        continue;
+      }
+      ofs << scheme.name << '\t' << level_to_asil(level) << '\t' << item.count << '\t'
+          << (item.fault_sum / item.count) << '\t' << item.fault_max << '\n';
+    }
+  }
 
-  // 同源备份
-  DEBUG_MSG_DEBUG1(std::cout, "执行同源备份");
-  cfd::PackingScheme scheme_homo = cfd::backups::homo_signal_backup(scheme_origin);
+  ofs << "\n[asil_wcrt_deadline_miss_probability]\n";
+  ofs << "scheme\tasil\tsignal_count\tavg_wcrt_deadline_miss_probability\tmax_wcrt_deadline_miss_probability\n";
+  for (const auto& scheme : schemes) {
+    const auto stats = calc_asil_stats(scheme);
+    for (int level = 0; level < NUM_MESSAGE_LEVEL; ++level) {
+      const auto& item = stats[level];
+      if (item.count <= 0) {
+        continue;
+      }
+      ofs << scheme.name << '\t' << level_to_asil(level) << '\t' << item.count << '\t'
+          << (item.wcrt_deadline_miss_sum / item.count) << '\t' << item.wcrt_deadline_miss_max << '\n';
+    }
+  }
 
-  // 备份后统计
-  // dump_signal_fault_summary(scheme_homo, cfd::LAMBDA_CONFERENCE, "备份后");
-
-  // 简单统计带宽利用率
-  DEBUG_MSG_DEBUG1(std::cout, "原方案带宽利用率: ", scheme_origin.calc_bandwidth_utilization());
-  DEBUG_MSG_DEBUG1(std::cout, "同源备份带宽利用率: ", scheme_homo.calc_bandwidth_utilization());
-}
-
-// 任务：测试异源备份
-void task_test_hetero_backup() {
-  // 初始方案
-  DEBUG_MSG_DEBUG1(std::cout, "生成打包方案");
-  cfd::PackingScheme scheme_origin = build_scheme_from_current_msgs();
-
-  // 异源备份
-  DEBUG_MSG_DEBUG1(std::cout, "执行异源备份, N = ", cfd::REDUNDANCY_N);
-  cfd::PackingScheme scheme_hetero = cfd::backups::hetero_signal_backup(scheme_origin, cfd::REDUNDANCY_N);
-
-  // 统计异源备份后的ECU故障概率（仅打印部分结果）
-  DEBUG_MSG_DEBUG1(std::cout, "计算异源备份后的ECU故障概率");
-  auto res_ecu = noretry::ecu_fault_prob_analysis(scheme_hetero, cfd::REDUNDANCY_N);
-  int cnt = 0;
-  for (const auto& [code, p_fault] : res_ecu) {
-    DEBUG_MSG_DEBUG1(std::cout, "code=", code, " P_fault=", sci(p_fault));
+  ofs << "\n[signal_detail]\n";
+  ofs << "scheme\tcode\tasil\tlevel\ttype\tperiod_ms\tsrc_ecu\tdst_ecu\tp_fault\tp_threshold\texpected_wcrt_ms\t"
+         "p_wcrt_over_deadline\twcrt_p95_ms\twcrt_p99_ms\twcrt_ratio_p95\twcrt_ratio_p99\n";
+  for (const auto& scheme : schemes) {
+    for (const auto& signal : scheme.signals) {
+      ofs << scheme.name << '\t' << signal.code << '\t' << level_to_asil(signal.meta.level) << '\t'
+          << signal.meta.level << '\t' << signal.meta.type << '\t' << signal.meta.period_ms << '\t'
+          << signal.meta.src_ecu << '\t' << signal.meta.dst_ecu << '\t' << signal.p_fault << '\t'
+          << signal.p_threshold << '\t' << signal.expected_wcrt_ms << '\t' << signal.p_wcrt_over_deadline << '\t'
+          << signal.wcrt_p95_ms << '\t'
+          << signal.wcrt_p99_ms << '\t' << signal.wcrt_ratio_p95 << '\t' << signal.wcrt_ratio_p99 << '\n';
+    }
   }
 }
 
-// 任务：同源备份 + 异源备份全流程
-void task_test_all() {
-  // 初始方案
-  DEBUG_MSG_DEBUG1(std::cout, "生成打包方案");
-  cfd::PackingScheme scheme_origin = build_scheme_from_current_msgs();
-  double origin_u = scheme_origin.calc_bandwidth_utilization();
+void run_compare_experiment() {
+  const MessageInfoVec original_infos = MESSAGE_INFO_VEC;
+  const auto meta_by_code = build_code_meta(original_infos);
+  const std::string timestamp = get_time_stamp();
 
-  // 同源备份
-  DEBUG_MSG_DEBUG1(std::cout, "执行同源备份");
-  cfd::PackingScheme scheme_homo = cfd::backups::homo_signal_backup(scheme_origin);
-  double homo_u = scheme_homo.calc_bandwidth_utilization();
+  // 基础方法：先做信号同源备份，再对要求异源冗余的信号补异源副本。
+  MESSAGE_INFO_VEC = original_infos;
+  PackingScheme scheme_base = build_scheme_from_current_msgs();
+  scheme_base = backups::signal::homo_signal_backup(scheme_base);
+  scheme_base = backups::signal::hetero_signal_backup(scheme_base);
+  SchemeMetrics foundation_metrics = analyze_deterministic_scheme("foundation", scheme_base, meta_by_code);
 
-  // 异源备份（基于原始方案）
-  DEBUG_MSG_DEBUG1(std::cout, "执行异源备份, N = ", REDUNDANCY_N);
-  cfd::PackingScheme scheme_hetero = cfd::backups::hetero_signal_backup(scheme_homo);
-  double hetero_u = scheme_hetero.calc_bandwidth_utilization();
+  // baseline1：按帧故障概率直接生成报文副本。
+  MESSAGE_INFO_VEC = original_infos;
+  PackingScheme scheme_baseline1 = build_scheme_from_current_msgs();
+  scheme_baseline1 = backups::frame::homo_frame_backup(scheme_baseline1);
+  SchemeMetrics baseline1_metrics = analyze_deterministic_scheme("baseline1", scheme_baseline1, meta_by_code);
 
-  // 打印带宽利用率对比
-  DEBUG_MSG_DEBUG1(std::cout, "原方案带宽利用率: ", sci(origin_u));
-  DEBUG_MSG_DEBUG1(std::cout, "同源备份带宽利用率: ", sci(homo_u));
-  DEBUG_MSG_DEBUG1(std::cout, "异源备份带宽利用率: ", sci(hetero_u));
+  // baseline2：ASIL B/C 生成 1 个报文副本，ASIL D 生成 2 个报文副本。
+  MESSAGE_INFO_VEC = original_infos;
+  PackingScheme scheme_baseline2 = build_scheme_from_current_msgs();
+  scheme_baseline2 = backups::frame::homo_frame_backup_method2(scheme_baseline2);
+  SchemeMetrics baseline2_metrics = analyze_deterministic_scheme("baseline2", scheme_baseline2, meta_by_code);
 
-  // 统计异源备份后的ECU故障概率（仅打印部分结果）
-  DEBUG_MSG_DEBUG1(std::cout, "计算异源备份后的ECU故障概率");
-  auto res_ecu = noretry::ecu_fault_prob_analysis(scheme_hetero);
-  int cnt = 0;
-  for (const auto& [code, p_fault] : res_ecu) {
-    DEBUG_MSG_DEBUG1(std::cout, "code=", code, " P_fault=", p_fault);
-  }
+  // baseline3：保留重传，并输出每个帧的重传分布与 WCRT 分布。
+  MESSAGE_INFO_VEC = original_infos;
+  PackingScheme scheme_baseline3 = build_scheme_from_current_msgs();
+  retry::AnalysisReport retry_report = retry::probabilistic_analysis_report(scheme_baseline3, timestamp);
+  SchemeMetrics baseline3_metrics = analyze_retry_scheme("baseline3", retry_report, meta_by_code);
 
-  // dump_signal_fault_summary(scheme_hetero, cfd::LAMBDA_CONFERENCE, "异源备份后");
+  const std::string compare_output_path = build_compare_output_path(timestamp);
+  const std::string retry_output_path = build_retry_output_path(timestamp);
+  write_comparison_report(compare_output_path,
+                          {foundation_metrics, baseline1_metrics, baseline2_metrics, baseline3_metrics},
+                          retry_output_path);
 
-  // 导出“原方案 vs 备份后”对比结果
-  const std::string ts = get_time_stamp();
-  const std::string out_file = cfd::TEST_INFO_PATH + "signal_fault_compare_" + ts + ".txt";
-  dump_signal_fault_compare(scheme_origin, scheme_hetero, cfd::LAMBDA_CONFERENCE, out_file);
-  DEBUG_MSG_DEBUG1(std::cout, "对比结果已导出: ", out_file);
+  DEBUG_MSG_DEBUG1(std::cout, "对比结果已输出: ", compare_output_path);
+  DEBUG_MSG_DEBUG1(std::cout, "baseline3 分布结果已输出: ", retry_output_path);
 }
+
+}  // namespace
 
 int main() {
 #ifdef _WIN32
@@ -406,9 +408,7 @@ int main() {
 
   read_data_1();
   // create_msg();
-  //   task_test_homo_backup();
-  //   task_test_hetero_backup();
-  task_test_all();
+  run_compare_experiment();
 
   return 0;
 }

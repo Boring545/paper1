@@ -1,82 +1,81 @@
-﻿#ifndef PROBABILISTIC_ANALYSIS_H
+#ifndef PROBABILISTIC_ANALYSIS_H
 #define PROBABILISTIC_ANALYSIS_H
 
-#include <cmath>
-#include <queue>
-#include <stack>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "debug_tool.h"
-#include "normal.h"
 #include "scheme.h"
 
-#define NORETRY
-namespace cfd::analysis::paper2 {
-/*
-paper2 方法来自Probabilistic analysis of CAN with faults
-可以对已经分配优先级的帧集合进行 基于概率的 可调度性分析，最终得到每个帧可能的多个 响应时间和对应概率
-*/
+namespace cfd::analysis::retry {
 
-/*
-        LAMBDA为每秒发生错误的次数，这个故障率反映的是系统在一个故障多发的环境下的实际表现，用来评估系统在恶劣条件下的容错能力。
-        probabilistic_analysis中的epsilon使用的另一个概率要求（max_fault_rate[i]）则是在可靠性标准上提出的，
-        也就是系统在长期运行中的容忍度，通常用于定义系统应当达到的“可靠性水平
-*/
-extern double LAMBDA;  // 0.03表示每秒30次 ，时间单位换算为毫秒
+/*方法来自 Probabilistic analysis of CAN with faults。
+对已经分配优先级的帧集合做概率分析，输出每个帧的重传分布、WCRT 分布，以及每个信号的超时概率。*/
 
-// 电磁兼容性（EMC）测试标准如IEC 61000-4系列对不同类型的电磁干扰规定了相应的测试脉冲宽度,这里先设为0ms
+// 电磁兼容性（EMC）测试标准对应的干扰脉冲宽度，单位 ms，这里默认视为 0。
 extern double EI_LEN;
 
-// state_transition_matrix
-extern double STM[2][2];
-
-extern double pi_0;  // 处于常态的概率
-extern double pi_1;  // 处于故障态的概率
-
-extern double bcnt_global;
-
-// 每个CANFD帧对应一个概率分析结果
-struct ProbResult {
-  double e_response_time = 0;  // 响应时间期望
-  double p_timeout = 0;        // 超时概率
-  double e_retry = 0;
-  double e_u = 0;
-  ProbResult(double expected_response_time = 0, double prob_timeout = 0, double retry = 0, double u = 0)
-      : e_response_time(expected_response_time), p_timeout(prob_timeout), e_retry(retry), e_u(u) {}
+struct RetryDistributionPoint {
+  int retry_count = 0;
+  double probability = 0.0;
 };
+
+struct ResponseDistributionPoint {
+  double response_time = 0.0;
+  double probability = 0.0;
+};
+
 struct ProbData {
-  MessageID id;
-  int period;
-  int level;
-  int type;
-  double p_threshold = 0.0;  // 安全等级要求的最大容忍故障概率
-  double p_timeout = 1.0;    // 添加备份的实际总故障概率，初始化为1.0
+  MessageID id = 0;
+  FrameId frame_id = 0;
+  int period = 0;
+  int level = 0;
+  int type = 0;
+  double p_threshold = 0.0;  // 按信号周期换算后的故障概率阈值
+  double p_timeout = 1.0;    // 信号总超时概率
+  double expected_wcrt = 0.0;
+  double wcrt_p95 = 0.0;
+  double wcrt_p99 = 0.0;
+  double expected_retry_count = 0.0;
 };
 
-// 计算时间段t内，重传num次的概率
-double calc_probability_fault(double t, int num, double lambda = LAMBDA);
-// 在电磁干扰的干涉窗口内，至少发生一次故障的概率
-double calc_probability_fault(double interference_win);
-// 计算时间段t内，高优先级帧对当前帧的干涉综合
-double calc_interference();
+struct FrameProbData {
+  FrameId frame_id = 0;
+  int priority = -1;
+  int period = 0;
+  int deadline = 0;
+  double trans_time = 0.0;
+  double expected_response_time = 0.0;
+  double expected_retry_count = 0.0;
+  double expected_tx_count = 1.0;
+  int rounded_expected_retry_count = 0;
+  double rounded_expected_tx_count = 1.0;
+  int retry_p99 = 0;
+  double tx_count_p99 = 1.0;
+  double p_timeout = 0.0;
+  double wcrt_p95 = 0.0;
+  double wcrt_p99 = 0.0;
+  std::vector<RetryDistributionPoint> retry_distribution;
+  std::vector<ResponseDistributionPoint> wcrt_distribution;
+};
 
-// 计算并返回指定帧的概率分析结果
-ProbResult analyze_frame_probability(const CanfdFrame& frame, const std::vector<CanfdFrame>& sorted_frames,
-                                     const std::unordered_map<FrameId, double>& max_fault_rate, int frame_index,
-                                     double COST_MAX_ERROR_FRAME);
-#define BACKUP_OFF -1    // 不备份，只分析
-#define BACKUP_DIRECT 0  // 直接备份
-#define BACKUP_REPACK 1  // 重打包
-// 对整个方案进行概率分析，返回每个帧对应的结果 enable_backup -1 不备份只分析 =0 直接备份 =1 重打包
-std::unordered_map<MessageCode, ProbData> probabilistic_analysis(PackingScheme& scheme, int enable_backup = BACKUP_OFF,
+struct AnalysisReport {
+  double base_bandwidth_utilization = 0.0;
+  double expected_bandwidth_utilization = 0.0;
+  double rounded_expected_bandwidth_utilization = 0.0;
+  double bandwidth_utilization_p99 = 0.0;
+  std::unordered_map<FrameId, FrameProbData> frame_results;
+  std::unordered_map<MessageCode, ProbData> signal_results;
+};
+
+// 返回完整概率分析报告，并将分布结果写入 storage 目录。
+AnalysisReport probabilistic_analysis_report(PackingScheme& scheme, std::string timestamp = get_time_stamp());
+
+// 兼容旧接口：仅返回信号级结果。
+std::unordered_map<MessageCode, ProbData> probabilistic_analysis(PackingScheme& scheme,
                                                                  std::string timestamp = get_time_stamp());
 
-void compare_prob_result(const std::string& filename, const std::unordered_map<MessageCode, ProbData>& origin_res,
-                         const std::unordered_map<MessageCode, ProbData>& repack_res,
-                         const PackingScheme& scheme_origin, const PackingScheme& scheme_repack);
-
-// 根据概率分析的结果，依照ASIL等级添加备份
-// ASIL A、B、C、D分别对应的故障率上限为1/10^6 、1/10^7 、1/10^7 、1/10^8
-
-}  // namespace cfd::analysis::paper2
+}  // namespace cfd::analysis::retry
 
 #endif  // !PROBABILISTIC_ANALYSIS_H

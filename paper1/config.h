@@ -35,7 +35,8 @@ const cfd::schedule::PRIORITY_ASSIGN_METHOD DEFAULT_PRIORITY_ASSIGN_METHOD =
 
 constexpr int REDUNDANCY_N = 3;  // N模冗余，必须是奇数
 
-constexpr double LAMBDA_CONFERENCE = 2.7e-4;  // 干扰强度
+constexpr double LAMBDA_CONFERENCE =
+    2.7e-4;  // 干扰强度，每秒发生错误的次数，这个故障率反映的是系统在一个故障多发的环境下的实际表现，用来评估系统在恶劣条件下的容错能力。
 
 constexpr int FACTOR_M_F_PERIOD = 2;  // 被打包到一个帧中的消息，消息周期必须为帧周期的[1,factor]倍
 
