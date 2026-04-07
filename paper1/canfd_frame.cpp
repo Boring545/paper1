@@ -1,4 +1,6 @@
-#include"canfd_frame.h"
+#include "canfd_frame.h"
+
+#include <cctype>
 
 namespace cfd {
 	MessageInfoVec MESSAGE_INFO_VEC;//全局维护一个message info 表
@@ -311,6 +313,104 @@ namespace cfd {
 
 namespace cfd::utils {
 
+namespace {
+
+std::string trim_copy(const std::string& input) {
+	std::string value = input;
+	value.erase(value.begin(),
+	            std::find_if(value.begin(), value.end(),
+	                         [](unsigned char ch) { return !std::isspace(ch); }));
+	value.erase(std::find_if(value.rbegin(), value.rend(),
+	                         [](unsigned char ch) { return !std::isspace(ch); })
+	                .base(),
+	            value.end());
+	return value;
+}
+
+std::string to_lower_copy(std::string value) {
+	std::transform(value.begin(), value.end(), value.begin(),
+	               [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+	return value;
+}
+
+std::string extension_lower(const std::string& file) {
+	const auto pos = file.find_last_of('.');
+	if (pos == std::string::npos) {
+		return "";
+	}
+	return to_lower_copy(file.substr(pos));
+}
+
+std::vector<std::string> split_line(const std::string& line, char separator) {
+	std::vector<std::string> fields;
+	std::stringstream ss(line);
+	std::string field;
+	while (std::getline(ss, field, separator)) {
+		fields.push_back(trim_copy(field));
+	}
+	return fields;
+}
+
+void validate_message_info(const MessageInfo& m) {
+	if (m.data_size < 0 || m.period < 0 || m.deadline < 0 || m.offset < 0 || m.offset >= m.deadline ||
+	    m.data_size > SIZE_MAX_CANFD_DATA) {
+		throw std::invalid_argument("鏁版嵁澶у皬銆佸懆鏈熴€佹椂闄愭垨鍋忕Щ鏃犳晥: " + std::to_string(m.code));
+	}
+
+	if (m.deadline > m.period || m.ecu_pair.src_ecu == m.ecu_pair.dst_ecu) {
+		throw std::invalid_argument("娑堟伅 " + std::to_string(m.code) +
+		                            " 鐨?deadline 搴旂瓑浜?period锛屼笖 src_ecu 涓嶅簲绛変簬 dst_ecu");
+	}
+}
+
+char detect_table_separator(const std::string& file, const std::string& first_line) {
+	const std::string ext = extension_lower(file);
+	if (ext == ".csv") {
+		return ',';
+	}
+	if (first_line.find('\t') != std::string::npos) {
+		return '\t';
+	}
+	if (first_line.find(',') != std::string::npos) {
+		return ',';
+	}
+	return '\t';
+}
+
+void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) {
+	std::string line;
+	int line_number = 0;
+
+	while (std::getline(is, line)) {
+		++line_number;
+		const std::string trimmed_line = trim_copy(line);
+		if (trimmed_line.empty()) {
+			continue;
+		}
+
+		const auto fields = split_line(trimmed_line, separator);
+		if (fields.empty()) {
+			continue;
+		}
+
+		if (line_number == 1 && to_lower_copy(fields.front()) == "code") {
+			continue;
+		}
+
+		if (fields.size() != 9) {
+			throw std::invalid_argument("绗? " + std::to_string(line_number) + " 琛屽瓧娈垫暟涓嶆槸 9");
+		}
+
+		MessageInfo m(static_cast<MessageCode>(std::stoull(fields[0])), std::stoi(fields[1]), std::stoi(fields[2]),
+		              std::stoi(fields[3]), std::stoi(fields[4]), std::stoi(fields[5]), std::stoi(fields[6]),
+		              std::stoi(fields[7]), std::stoi(fields[8]));
+		validate_message_info(m);
+		mset.emplace_back(m);
+	}
+}
+
+}  // namespace
+
 
 
 
@@ -442,39 +542,55 @@ namespace cfd::utils {
 		os << j.dump(4);
 	}
 	// 将多个 MessageInfo 对象以 TAB 分隔格式写入文本文件
-	void write_msg_txt_to_stream(std::ostream& os, const MessageInfoVec& mvec) {
+	void write_msg_table_to_stream(std::ostream& os, const MessageInfoVec& mvec, char separator) {
 		// 写表头
-		os << "code\tdata_size\tperiod\tdeadline\tsrc_ecu\tdst_ecu\toffset\tlevel\ttype\n";
+		os << "code" << separator << "data_size" << separator << "period" << separator << "deadline" << separator
+		   << "src_ecu" << separator << "dst_ecu" << separator << "offset" << separator << "level" << separator
+		   << "type\n";
 		for (const auto& msg : mvec) {
-			os << msg.code << '\t'
-				<< msg.data_size << '\t'
-				<< msg.period << '\t'
-				<< msg.deadline << '\t'
-				<< msg.ecu_pair.src_ecu << '\t'
-				<< msg.ecu_pair.dst_ecu << '\t'
-				<< msg.offset << '\t'
-				<< msg.level << '\t'
+			os << msg.code << separator
+				<< msg.data_size << separator
+				<< msg.period << separator
+				<< msg.deadline << separator
+				<< msg.ecu_pair.src_ecu << separator
+				<< msg.ecu_pair.dst_ecu << separator
+				<< msg.offset << separator
+				<< msg.level << separator
 				<< msg.type << '\n';
-				;
-
 		}
 	}
+	void write_message_json(MessageInfoVec& mvec, const std::string& file, bool append) {
+		std::ofstream ofs(file, append ? std::ios::app : std::ios::out);
+		if (!ofs) {
+			throw std::ios_base::failure("Failed to open the file: " + file);
+		}
+		write_msg_json_to_stream(ofs, mvec);
+	}
+
+	void write_message_table(MessageInfoVec& mvec, const std::string& file, char separator, bool append) {
+		std::ofstream ofs(file, append ? std::ios::app : std::ios::out);
+		if (!ofs) {
+			throw std::ios_base::failure("Failed to open the file: " + file);
+		}
+		write_msg_table_to_stream(ofs, mvec, separator);
+	}
+
 	void write_message(MessageInfoVec& mvec, const std::string& filename, bool append)
 	{
-		auto fjname = filename + ".txt";
-		auto ftname = filename + "_tab.txt";
-		std::ofstream ofs_j(fjname, append ? std::ios::app : std::ios::out);
-
-		if (!ofs_j) {
-			throw std::ios_base::failure("Failed to open the file: " + fjname);
+		const std::string ext = extension_lower(filename);
+		if (ext == ".json") {
+			write_message_json(mvec, filename, append);
+			return;
 		}
-		write_msg_json_to_stream(ofs_j, mvec);
-
-		std::ofstream ofs_t(ftname, append ? std::ios::app : std::ios::out);
-		if (!ofs_t) {
-			throw std::ios_base::failure("Failed to open the file: " + ftname);
+		if (ext == ".csv") {
+			write_message_table(mvec, filename, ',', append);
+			return;
 		}
-		write_msg_txt_to_stream(ofs_t, mvec);
+		if (ext == ".txt" || ext == ".tsv") {
+			write_message_table(mvec, filename, '\t', append);
+			return;
+		}
+		write_message_table(mvec, filename + "_tab.txt", '\t', append);
 	}
 
 
@@ -486,6 +602,38 @@ namespace cfd::utils {
 		}
 
 		try {
+			mset.clear();
+
+			char first_non_space = '\0';
+			char current = '\0';
+			while (ifs.get(current)) {
+				if (!std::isspace(static_cast<unsigned char>(current))) {
+					first_non_space = current;
+					break;
+				}
+			}
+
+			ifs.clear();
+			ifs.seekg(0, std::ios::beg);
+
+			if (first_non_space == '[' || first_non_space == '{') {
+				json j;
+				ifs >> j;
+				for (const auto& item : j) {
+					auto m = MessageInfo::from_json(item);
+					validate_message_info(m);
+					mset.emplace_back(m);
+				}
+				return;
+			}
+
+			std::string first_line;
+			std::getline(ifs, first_line);
+			const char separator = detect_table_separator(file, first_line);
+			ifs.clear();
+			ifs.seekg(0, std::ios::beg);
+			read_message_table(ifs, mset, separator);
+			return;
 			// 读取整个文件内容
 			json j;
 			ifs >> j;
@@ -575,7 +723,7 @@ namespace cfd::utils {
 		std::string timestamp = get_time_stamp();
 
 		// 构造文件名
-		std::string message_filename = folder_path + "/msg_" + timestamp + ".txt";
+		std::string message_filename = folder_path + "/msg_" + timestamp + "_tab.txt";
 		std::string frame_filename = folder_path + "/frm_" + timestamp + ".txt";
 
 		// 写入消息文件
@@ -592,7 +740,7 @@ namespace cfd::utils {
 		std::string timestamp=get_time_stamp();
 
 		// 构造文件名
-		std::string message_filename = folder_path + "/msg_" + timestamp;
+		std::string message_filename = folder_path + "/msg_" + timestamp + "_tab.txt";
 
 		// 写入消息文件
 		write_message(mset, message_filename, false);
@@ -617,7 +765,11 @@ namespace cfd::utils {
 
 
 
-	void generate_msg_info_set(MessageInfoVec& mset , size_t num) {
+	void generate_msg_info_set(MessageInfoVec& mset, size_t num, size_t ecu_count) {
+		if (ecu_count < 2 || ecu_count > NUM_ECU) {
+			throw std::invalid_argument("ecu_count must be in [2, " + std::to_string(NUM_ECU) + "]");
+		}
+
 		std::random_device rd;
 		std::mt19937 gen(rd());
 		mset.clear();
@@ -629,10 +781,8 @@ namespace cfd::utils {
 
 		std::discrete_distribution<>dist_period(PROBABILITY_MESSAGE_PERIOD, PROBABILITY_MESSAGE_PERIOD + NUM_MESSAGE_PERIOD);
 
-		std::uniform_int_distribution<>dist_ecu1(0, NUM_ECU - 1);
-		std::uniform_int_distribution<>dist_ecu2(0, NUM_ECU - 2);
-
-		std::uniform_real_distribution<> dist_offset(0.0, 1.0);
+		std::uniform_int_distribution<>dist_ecu1(0, static_cast<int>(ecu_count) - 1);
+		std::uniform_int_distribution<>dist_ecu2(0, static_cast<int>(ecu_count) - 2);
 
 		std::discrete_distribution<>dist_level(PROBABILITY_MESSAGE_LEVEL, PROBABILITY_MESSAGE_LEVEL + NUM_MESSAGE_LEVEL);
 
@@ -643,9 +793,10 @@ namespace cfd::utils {
 		int size = 0, period = 0, deadline = 0, src = 0, dst = 0, offset = 0, level = 0,type=0;
 
 		// 获取一个ecu数组的备份
-		std::array<int, NUM_ECU> option_ecu_copy;
-		for (size_t i = 0; i < NUM_ECU; ++i) {
-			option_ecu_copy[i] = OPTION_ECU[i];
+		std::vector<int> ecu_options;
+		ecu_options.reserve(ecu_count);
+		for (size_t i = 0; i < ecu_count; ++i) {
+			ecu_options.push_back(OPTION_ECU[i]);
 		}
 
 		std::hash<std::string> hash_fn;
@@ -656,9 +807,10 @@ namespace cfd::utils {
 			period = OPTION_MESSAGE_PERIOD[dist_period(gen)];
 			deadline = period;
 
+			auto option_ecu_copy = ecu_options;
 			int ecu1_index = dist_ecu1(gen);
 			src = option_ecu_copy[ecu1_index];
-			std::swap(option_ecu_copy[NUM_ECU - 1], option_ecu_copy[ecu1_index]);
+			std::swap(option_ecu_copy[ecu_count - 1], option_ecu_copy[ecu1_index]);
 			dst = option_ecu_copy[dist_ecu2(gen)];
 
 			// offset = dist_offset(gen) * period;
@@ -683,5 +835,9 @@ namespace cfd::utils {
 		}
 
 		return;
+	}
+
+	void generate_msg_info_set(MessageInfoVec& mset , size_t num) {
+		generate_msg_info_set(mset, num, NUM_ECU);
 	}
 }

@@ -350,6 +350,9 @@ void print_frame(const CanfdFrame& frame, bool append = true);
 void print_frame(const CanfdFrameMap& fmap, bool append = true);
 
 void write_msg_json_to_stream(std::ostream& os, const MessageInfoVec& mvec);
+void write_msg_table_to_stream(std::ostream& os, const MessageInfoVec& mvec, char separator = '\t');
+void write_message_json(MessageInfoVec& mvec, const std::string& file, bool append = false);
+void write_message_table(MessageInfoVec& mvec, const std::string& file, char separator = '\t', bool append = false);
 // 向file文件写入消息集合，默认append为不追加写入
 void write_message(MessageInfoVec& mvec, const std::string& filename, bool append = false);
 // 从file读取消息集合
@@ -367,6 +370,7 @@ std::string store_msg(const std::string& folder_path, MessageInfoVec& mset = MES
 std::string store_frm(CanfdFrameMap& fmap, const std::string& folder_path);
 
 // 随机生成一组消息
+void generate_msg_info_set(MessageInfoVec& mset, size_t num, size_t ecu_count);
 void generate_msg_info_set(MessageInfoVec& mset = MESSAGE_INFO_VEC, size_t num = SIZE_ORIGINAL_MESSAGE);
 
 }  // namespace cfd::utils

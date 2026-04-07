@@ -25,7 +25,7 @@ enum class PRIORITY_ASSIGN_METHOD {
 
 namespace cfd {
 const std::string TEST_INFO_PATH = "D:/document/CODE/paper1/storage/";  // 存储测试数据的文件
-const std::string DEFAULT_MSG_FILE = "msg_2026312_21355.txt";   // 默认读取的消息文件名（需要你自己改成实际存在的文件）
+const std::string DEFAULT_MSG_FILE = "msg_2026312_21355_tab.txt";   // 默认读取的消息文件名（需要你自己改成实际存在的文件）
 const std::string DEFAULT_FRM_FILE = "frm_2025611_132913.txt";  // 默认读取的帧文件名（需要你自己改成实际存在的文件）
 
 const cfd::packing::PACK_METHOD DEFAULT_PACK_METHOD = cfd::packing::PACK_METHOD::SIMULATED_ANNEALING;  // 默认打包算法

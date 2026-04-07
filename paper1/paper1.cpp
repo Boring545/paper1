@@ -1,9 +1,11 @@
-// paper1.cpp: 定义应用程序的入口点。
+﻿// paper1.cpp: 定义应用程序的入口点。
 
 #include <algorithm>
 #include <array>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,6 +29,7 @@ extern "C" __declspec(dllimport) int __stdcall SetConsoleCP(unsigned int);
 
 using namespace cfd;
 using namespace cfd::analysis;
+namespace fs = std::filesystem;
 
 namespace {
 
@@ -36,6 +39,12 @@ struct CodeMeta {
   int type = 0;
   EcuId src_ecu = 0;
   EcuId dst_ecu = 0;
+};
+
+struct ExperimentDatasetSpec {
+  const char* name = "";
+  size_t ecu_count = 0;
+  size_t signal_count = 0;
 };
 
 struct SignalMetric {
@@ -90,6 +99,19 @@ char level_to_asil(int level) {
   }
 }
 
+const std::array<ExperimentDatasetSpec, 5> kScalingDatasetSpecs = {{
+    {"M1", 3, 75},
+    {"M2", 4, 105},
+    {"M3", 5, 135},
+    {"M4", 5, 170},
+    {"M5", 6, 200},
+}};
+
+std::string scaling_dataset_filename(const ExperimentDatasetSpec& spec) {
+  return "msg_" + std::string(spec.name) + "_" + std::to_string(spec.ecu_count) + "ecu_" +
+         std::to_string(spec.signal_count) + "signals_tab.txt";
+}
+
 double calc_ratio(double wcrt_ms, int period_ms) {
   if (period_ms <= 0) {
     return 0.0;
@@ -135,18 +157,102 @@ std::vector<MessageCode> sorted_codes(const std::unordered_map<MessageCode, Code
 }
 
 // 返回时间戳
-std::string create_msg() {
-  cfd::utils::generate_msg_info_set();
-  const auto ts = cfd::utils::store_msg(cfd::TEST_INFO_PATH);
-  DEBUG_MSG_DEBUG1(std::cout, "生成信号集合,数量：", cfd::SIZE_ORIGINAL_MESSAGE);
-  DEBUG_MSG_DEBUG1(std::cout, "已生成信号集合, 时间戳: ", ts);
-  return ts;
+std::string normalize_dataset_output_path(const std::string& dataset_file);
+
+std::string normalize_dataset_output_path(const std::string& dataset_file);
+
+std::string create_msg(const std::string& dataset_file = "", size_t message_count = cfd::SIZE_ORIGINAL_MESSAGE,
+                       size_t ecu_count = cfd::NUM_ECU) {
+  cfd::utils::generate_msg_info_set(cfd::MESSAGE_INFO_VEC, message_count, ecu_count);
+  const std::string output_path = normalize_dataset_output_path(dataset_file);
+  DEBUG_MSG_DEBUG1(std::cout, "生成信号集合, ECU/数量: ", ecu_count, "/", message_count);
+  DEBUG_MSG_DEBUG1(std::cout, "已写入消息数据集: ", output_path);
+  cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
+  return output_path;
+}
+
+std::vector<std::string> create_scaling_experiment_datasets() {
+  std::vector<std::string> dataset_paths;
+  dataset_paths.reserve(kScalingDatasetSpecs.size());
+  MessageInfoVec cumulative_infos;
+  size_t generated_signal_count = 0;
+
+  for (const auto& spec : kScalingDatasetSpecs) {
+    if (spec.ecu_count > cfd::NUM_ECU) {
+      throw std::invalid_argument("Current config does not provide enough ECU ids for " + std::string(spec.name));
+    }
+    if (spec.signal_count < generated_signal_count) {
+      throw std::invalid_argument("Scaling dataset signal_count must be non-decreasing");
+    }
+
+    const size_t incremental_signal_count = spec.signal_count - generated_signal_count;
+    if (incremental_signal_count > 0) {
+      MessageInfoVec incremental_infos;
+      cfd::utils::generate_msg_info_set(incremental_infos, incremental_signal_count, spec.ecu_count);
+      cumulative_infos.insert(cumulative_infos.end(), incremental_infos.begin(), incremental_infos.end());
+    }
+
+    cfd::MESSAGE_INFO_VEC = cumulative_infos;
+    const std::string output_path = normalize_dataset_output_path(scaling_dataset_filename(spec));
+    DEBUG_MSG_DEBUG1(std::cout, "渐进生成信号集合, 场景/新增/累计: ", spec.name, "/", incremental_signal_count, "/",
+                     cumulative_infos.size());
+    cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
+    dataset_paths.push_back(output_path);
+    generated_signal_count = spec.signal_count;
+  }
+
+  return dataset_paths;
+}
+
+std::string normalize_dataset_path(const std::string& dataset_file) {
+  fs::path path(dataset_file);
+  if (!path.is_absolute()) {
+    path = fs::path(cfd::TEST_INFO_PATH) / path;
+  }
+  if (path.has_extension()) {
+    return path.string();
+  }
+
+  const std::array<fs::path, 4> candidates = {
+      fs::path(path.string() + "_tab.txt"),
+      fs::path(path.string() + ".txt"),
+      fs::path(path.string() + ".csv"),
+      fs::path(path.string() + ".json"),
+  };
+
+  for (const auto& candidate : candidates) {
+    if (fs::exists(candidate)) {
+      return candidate.string();
+    }
+  }
+
+  return candidates.front().string();
+}
+
+std::string normalize_dataset_output_path(const std::string& dataset_file) {
+  if (dataset_file.empty()) {
+    return (fs::path(cfd::TEST_INFO_PATH) / ("msg_" + get_time_stamp() + "_tab.txt")).string();
+  }
+
+  fs::path path(dataset_file);
+  if (!path.is_absolute()) {
+    path = fs::path(cfd::TEST_INFO_PATH) / path;
+  }
+  if (!path.has_extension()) {
+    path += ".txt";
+  }
+  return path.string();
+}
+
+std::string dataset_tag(const std::string& dataset_file) {
+  return fs::path(dataset_file).stem().string();
 }
 
 // 读取某个信号集合
-void read_data_1() {
-  cfd::utils::read_message(cfd::TEST_INFO_PATH + cfd::DEFAULT_MSG_FILE);
-  DEBUG_MSG_DEBUG1(std::cout, "读取信号集合: ", cfd::DEFAULT_MSG_FILE);
+void read_data_1(const std::string& dataset_file = cfd::DEFAULT_MSG_FILE) {
+  const std::string full_path = normalize_dataset_path(dataset_file);
+  cfd::utils::read_message(full_path);
+  DEBUG_MSG_DEBUG1(std::cout, "读取信号集合: ", fs::path(full_path).filename().string());
 }
 
 // 基于当前 MESSAGE_INFO_VEC 构建并优化打包方案
@@ -289,12 +395,12 @@ std::array<AsilStats, NUM_MESSAGE_LEVEL> calc_asil_stats(const SchemeMetrics& me
   return stats;
 }
 
-std::string build_compare_output_path(const std::string& timestamp) {
-  return TEST_INFO_PATH + "compare_methods_" + timestamp + ".txt";
+std::string build_compare_output_path(const std::string& timestamp, const std::string& dataset_name) {
+  return TEST_INFO_PATH + "compare_methods_" + dataset_name + "_" + timestamp + ".txt";
 }
 
-std::string build_retry_output_path(const std::string& timestamp) {
-  return TEST_INFO_PATH + "retry_analysis_" + timestamp + ".txt";
+std::string build_retry_output_path(const std::string& timestamp, const std::string& dataset_name) {
+  return TEST_INFO_PATH + "retry_analysis_" + dataset_name + "_" + timestamp + ".txt";
 }
 
 void write_comparison_report(const std::string& output_path, const std::vector<SchemeMetrics>& schemes,
@@ -415,16 +521,17 @@ void write_comparison_report(const std::string& output_path, const std::vector<S
   }
 }
 
-void run_compare_experiment() {
+void run_compare_experiment(const std::string& dataset_file = cfd::DEFAULT_MSG_FILE) {
+  read_data_1(dataset_file);
   const MessageInfoVec original_infos = MESSAGE_INFO_VEC;
   const auto meta_by_code = build_code_meta(original_infos);
   const std::string timestamp = get_time_stamp();
+  const std::string dataset_name = dataset_tag(dataset_file);
 
-  // 基础方法：先做信号同源备份，再对要求异源冗余的信号补异源副本。
+  // 基础方法：仅做信号同源备份。当前对比实验先关闭异源备份。
   MESSAGE_INFO_VEC = original_infos;
   PackingScheme scheme_base = build_scheme_from_current_msgs();
   scheme_base = backups::signal::homo_signal_backup(scheme_base);
-  scheme_base = backups::signal::hetero_signal_backup(scheme_base);
   SchemeMetrics foundation_metrics = analyze_deterministic_scheme("foundation", scheme_base, meta_by_code);
 
   // baseline1：按帧故障概率直接生成报文副本。
@@ -445,14 +552,13 @@ void run_compare_experiment() {
   retry::AnalysisReport retry_report = retry::probabilistic_analysis_report(scheme_baseline3, timestamp);
   SchemeMetrics baseline3_metrics = analyze_retry_scheme("baseline3", retry_report, meta_by_code);
 
-  const std::string compare_output_path = build_compare_output_path(timestamp);
-  const std::string retry_output_path = build_retry_output_path(timestamp);
+  const std::string compare_output_path = build_compare_output_path(timestamp, dataset_name);
+  const std::string retry_output_path = build_retry_output_path(timestamp, dataset_name);
   write_comparison_report(compare_output_path,
                           {foundation_metrics, baseline1_metrics, baseline2_metrics, baseline3_metrics},
                           retry_output_path);
 
   DEBUG_MSG_DEBUG1(std::cout, "对比结果已输出: ", compare_output_path);
-  DEBUG_MSG_DEBUG1(std::cout, "baseline3 分布结果已输出: ", retry_output_path);
 }
 
 }  // namespace
@@ -464,9 +570,18 @@ int main() {
   SetConsoleCP(CP_UTF8);
 #endif
 
-  read_data_1();
-  // create_msg();
-  run_compare_experiment();
+  // 固定当前这组已生成的数据集，后续实验直接读取，不再每次重新生成。
+  // const auto dataset_files = create_scaling_experiment_datasets();
+  const std::vector<std::string> dataset_files = {
+      "msg_M1_3ecu_75signals_tab.txt",
+      "msg_M2_4ecu_105signals_tab.txt",
+      "msg_M3_5ecu_135signals_tab.txt",
+      "msg_M4_5ecu_170signals_tab.txt",
+      "msg_M5_6ecu_200signals_tab.txt",
+  };
+  for (const auto& dataset_file : dataset_files) {
+    run_compare_experiment(dataset_file);
+  }
 
   return 0;
 }
