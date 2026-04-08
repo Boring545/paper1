@@ -1,16 +1,18 @@
-#include "retry.h"
+﻿#include "retry.h"
 
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <queue>
 #include <random>
 #include <utility>
 #include <vector>
 
 #include "normal.h"
+#include "storage_layout.h"
 
 namespace cfd::analysis::retry {
 
@@ -21,7 +23,6 @@ namespace {
 constexpr double COST_MAX_ERROR_FRAME = 0.405;  // 错误帧开销，单位 ms
 constexpr double EPS_RESPONSE = 1e-7;
 constexpr int MAX_ENUMERATED_RETRY = 64;
-
 struct AnalysisState {
   int retry_count = 0;
   double prev_response_time = 0.0;
@@ -37,6 +38,20 @@ struct FrameContext {
 };
 
 double clamp_probability(double value) { return std::clamp(value, 0.0, 1.0); }
+
+double multiply_probability_precise(double lhs, double rhs) {
+  const long double product = static_cast<long double>(lhs) * static_cast<long double>(rhs);
+  if (product <= 0.0L) {
+    return 0.0;
+  }
+  if (product >= 1.0L) {
+    return 1.0;
+  }
+  if (product < static_cast<long double>(std::numeric_limits<double>::min())) {
+    return 0.0;
+  }
+  return static_cast<double>(product);
+}
 
 FrameContext build_frame_context(const std::vector<CanfdFrame>& sorted_frames, int frame_index) {
   FrameContext ctx;
@@ -56,7 +71,11 @@ FrameContext build_frame_context(const std::vector<CanfdFrame>& sorted_frames, i
   }
 
   const double p_threshold = threshold_per_window(max_level, sorted_frames[frame_index].get_period());
-  ctx.prune_epsilon = std::clamp(p_threshold * 0.01, 1e-14, 1e-9);
+  if (p_threshold > 0.0) {
+    ctx.prune_epsilon = std::pow(10.0, std::floor(std::log10(p_threshold)) - 1.0);
+  } else {
+    ctx.prune_epsilon = 1e-14;
+  }
   ctx.single_error_cost = COST_MAX_ERROR_FRAME + ctx.max_hp_trans_time;
   return ctx;
 }
@@ -188,7 +207,8 @@ int sample_retry_count(const RetrySampler& sampler, double random01) {
 }
 
 double calc_system_bandwidth_quantile(const std::vector<CanfdFrame>& sorted_frames,
-                                      const std::unordered_map<FrameId, FrameProbData>& frame_results, double quantile) {
+                                      const std::unordered_map<FrameId, FrameProbData>& frame_results,
+                                      double quantile) {
   if (sorted_frames.empty()) {
     return 0.0;
   }
@@ -237,9 +257,8 @@ double calc_system_bandwidth_quantile(const std::vector<CanfdFrame>& sorted_fram
 
   std::sort(total_utils.begin(), total_utils.end());
   const double target = clamp_probability(quantile);
-  const size_t index =
-      std::min(total_utils.size() - 1,
-               static_cast<size_t>(std::ceil(target * static_cast<double>(total_utils.size())) - 1.0));
+  const size_t index = std::min(total_utils.size() - 1,
+                                static_cast<size_t>(std::ceil(target * static_cast<double>(total_utils.size())) - 1.0));
   return total_utils[index];
 }
 
@@ -279,8 +298,8 @@ void add_probability_gap(FrameProbData& result, const CanfdFrame& frame, double 
       result.retry_distribution.empty() ? 1 : (result.retry_distribution.back().retry_count + 1);
   const double conservative_response =
       std::max(static_cast<double>(frame.get_deadline()) + single_error_cost,
-               result.wcrt_distribution.empty() ? frame.get_trans_time() : (result.wcrt_distribution.back().response_time +
-                                                                            single_error_cost));
+               result.wcrt_distribution.empty() ? frame.get_trans_time()
+                                                : (result.wcrt_distribution.back().response_time + single_error_cost));
 
   add_retry_probability(result.retry_distribution, conservative_retry, probability_gap);
   add_response_probability(result.wcrt_distribution, conservative_response, probability_gap);
@@ -373,8 +392,8 @@ FrameProbData analyze_frame_probability(const std::vector<CanfdFrame>& sorted_fr
       }
 
       const int total_retry_count = state.retry_count + retry_in_window;
-      const double next_response_time = ctx.max_lp_trans_time + frame.get_trans_time() + interference +
-                                        total_retry_count * ctx.single_error_cost;
+      const double next_response_time =
+          ctx.max_lp_trans_time + frame.get_trans_time() + interference + total_retry_count * ctx.single_error_cost;
 
       const bool probability_too_small = branch_probability < ctx.prune_epsilon;
       const bool converged = std::abs(next_response_time - state.response_time) < EPS_RESPONSE;
@@ -408,7 +427,6 @@ FrameProbData analyze_frame_probability(const std::vector<CanfdFrame>& sorted_fr
   result.tx_count_p99 = 1.0 + static_cast<double>(result.retry_p99);
   result.expected_response_time = calc_expected_response_time(result.wcrt_distribution);
   result.wcrt_p95 = calc_response_quantile(result.wcrt_distribution, 0.95);
-  result.wcrt_p99 = calc_response_quantile(result.wcrt_distribution, 0.99);
 
   double p_timeout = 0.0;
   for (const auto& point : result.wcrt_distribution) {
@@ -416,17 +434,18 @@ FrameProbData analyze_frame_probability(const std::vector<CanfdFrame>& sorted_fr
       p_timeout += point.probability;
     }
   }
-  result.p_timeout = std::max(clamp_probability(p_timeout), calc_timeout_probability_floor(sorted_frames, frame_index, ctx));
+  const double timeout_floor = calc_timeout_probability_floor(sorted_frames, frame_index, ctx);
+  // Only use tail compensation when it is above the current analysis resolution.
+  // Otherwise the reported timeout probability would be dominated by an extremely
+  // small floor that is far below the branch-pruning granularity.
+  const double effective_timeout_floor = (timeout_floor >= ctx.prune_epsilon) ? timeout_floor : 0.0;
+  result.p_timeout = clamp_probability(std::max(clamp_probability(p_timeout), effective_timeout_floor));
 
   return result;
 }
 
 std::string build_output_path(const std::string& timestamp) {
-#ifdef _WIN32
-  return "D:/document/CODE/paper1/storage/retry_analysis_" + timestamp + ".txt";
-#else
-  return "../../storage/retry_analysis_" + timestamp + ".txt";
-#endif
+  return cfd::storage::normalize_retry_report_output_path(timestamp);
 }
 
 void save_prob_result(const std::string& address, const AnalysisReport& report) {
@@ -452,14 +471,14 @@ void save_prob_result(const std::string& address, const AnalysisReport& report) 
   ofs << "[frame_summary]\n";
   ofs << "frame_id\tpriority\tperiod_ms\tdeadline_ms\ttrans_time_ms\texpected_retry_count\texpected_tx_count\t"
          "rounded_expected_retry_count\trounded_expected_tx_count\tretry_p99\ttx_count_p99\texpected_wcrt_ms\t"
-         "p_timeout\twcrt_p95_ms\twcrt_p99_ms\n";
+         "p_timeout\twcrt_p95_ms\n";
   for (const auto frame_id : frame_ids) {
     const auto& frame = report.frame_results.at(frame_id);
     ofs << frame.frame_id << '\t' << frame.priority << '\t' << frame.period << '\t' << frame.deadline << '\t'
         << frame.trans_time << '\t' << frame.expected_retry_count << '\t' << frame.expected_tx_count << '\t'
         << frame.rounded_expected_retry_count << '\t' << frame.rounded_expected_tx_count << '\t' << frame.retry_p99
         << '\t' << frame.tx_count_p99 << '\t' << frame.expected_response_time << '\t' << frame.p_timeout << '\t'
-        << frame.wcrt_p95 << '\t' << frame.wcrt_p99 << '\n';
+        << frame.wcrt_p95 << '\n';
   }
 
   ofs << "\n[frame_retry_distribution]\n";
@@ -488,13 +507,13 @@ void save_prob_result(const std::string& address, const AnalysisReport& report) 
   std::sort(codes.begin(), codes.end());
 
   ofs << "\n[signal_summary]\n";
-  ofs << "code\tframe_id\tperiod_ms\tlevel\ttype\tp_timeout\texpected_wcrt_ms\twcrt_p95_ms\twcrt_p99_ms\t"
+  ofs << "code\tframe_id\tperiod_ms\tlevel\ttype\tp_timeout\texpected_wcrt_ms\twcrt_p95_ms\t"
          "expected_retry_count\tp_threshold\n";
   for (const auto code : codes) {
     const auto& signal = report.signal_results.at(code);
     ofs << code << '\t' << signal.frame_id << '\t' << signal.period << '\t' << signal.level << '\t' << signal.type
         << '\t' << signal.p_timeout << '\t' << signal.expected_wcrt << '\t' << signal.wcrt_p95 << '\t'
-        << signal.wcrt_p99 << '\t' << signal.expected_retry_count << '\t' << signal.p_threshold << '\n';
+        << signal.expected_retry_count << '\t' << signal.p_threshold << '\n';
   }
 }
 
@@ -533,25 +552,17 @@ AnalysisReport probabilistic_analysis_report(PackingScheme& scheme, std::string 
       const auto code = msg.get_code();
       auto signal_it = report.signal_results.find(code);
       if (signal_it == report.signal_results.end()) {
-        report.signal_results[code] = {
-            msg.get_id_message(),
-            frame.get_id(),
-            msg.get_period(),
-            msg.get_level(),
-            msg.get_type(),
-            threshold_per_window(msg.get_level(), msg.get_period()),
-            frame_result.p_timeout,
-            frame_result.expected_response_time,
-            frame_result.wcrt_p95,
-            frame_result.wcrt_p99,
-            frame_result.expected_retry_count};
+        report.signal_results[code] = {msg.get_id_message(),   frame.get_id(),
+                                       msg.get_period(),       msg.get_level(),
+                                       msg.get_type(),         threshold_per_window(msg.get_level(), msg.get_period()),
+                                       frame_result.p_timeout, frame_result.expected_response_time,
+                                       frame_result.wcrt_p95,  frame_result.expected_retry_count};
       } else {
-        signal_it->second.p_timeout *= frame_result.p_timeout;
+        signal_it->second.p_timeout = multiply_probability_precise(signal_it->second.p_timeout, frame_result.p_timeout);
         if (frame_result.wcrt_p95 < signal_it->second.wcrt_p95) {
           signal_it->second.frame_id = frame.get_id();
           signal_it->second.expected_wcrt = frame_result.expected_response_time;
           signal_it->second.wcrt_p95 = frame_result.wcrt_p95;
-          signal_it->second.wcrt_p99 = frame_result.wcrt_p99;
           signal_it->second.expected_retry_count = frame_result.expected_retry_count;
         }
       }

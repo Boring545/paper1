@@ -40,9 +40,12 @@ constexpr double LAMBDA_CONFERENCE =
 
 constexpr int FACTOR_M_F_PERIOD = 2;  // 被打包到一个帧中的消息，消息周期必须为帧周期的[1,factor]倍
 
-constexpr int OPTION_MESSAGE_SIZE[] = {1, 2, 4, 8, 16, 32, 64};  // 信号尺寸选项,单位为b
+// constexpr int OPTION_MESSAGE_SIZE[] = {1, 2, 4, 8, 16, 32, 64};  // 信号尺寸选项,单位为b
+// constexpr int NUM_MESSAGE_SIZE = std::size(OPTION_MESSAGE_SIZE);
+// constexpr double PROBABILITY_MESSAGE_SIZE[] = {0.35, 0.49, 0.13, 0.008, 0.013, 0.005, 0.002};  // 选择概率
+constexpr int OPTION_MESSAGE_SIZE[] = {1, 2, 4, 8, 16, 32, 64};  // 当前生效的信号尺寸选项,单位为b
 constexpr int NUM_MESSAGE_SIZE = std::size(OPTION_MESSAGE_SIZE);
-constexpr double PROBABILITY_MESSAGE_SIZE[] = {0.35, 0.49, 0.13, 0.008, 0.013, 0.005, 0.002};  // 选择概率
+constexpr double PROBABILITY_MESSAGE_SIZE[] = {0.15, 0.28, 0.30, 0.14, 0.08, 0.03, 0.02};  // 当前生效的选择概率
 
 constexpr int OPTION_MESSAGE_LEVEL[] = {0, 1, 2, 3};  // 安全等级选项,对应A\B\C\D
 constexpr int NUM_MESSAGE_LEVEL = std::size(OPTION_MESSAGE_LEVEL);

@@ -341,6 +341,100 @@ std::string extension_lower(const std::string& file) {
 	return to_lower_copy(file.substr(pos));
 }
 
+std::vector<size_t> allocate_bucket_counts(size_t total, const std::vector<double>& weights) {
+	std::vector<size_t> counts(weights.size(), 0);
+	if (total == 0 || weights.empty()) {
+		return counts;
+	}
+
+	double weight_sum = 0.0;
+	for (const double weight : weights) {
+		weight_sum += std::max(0.0, weight);
+	}
+	if (weight_sum <= 0.0) {
+		counts.front() = total;
+		return counts;
+	}
+
+	std::vector<std::pair<double, size_t>> remainders;
+	remainders.reserve(weights.size());
+	size_t assigned = 0;
+	for (size_t index = 0; index < weights.size(); ++index) {
+		const double normalized = std::max(0.0, weights[index]) / weight_sum;
+		const double exact = normalized * static_cast<double>(total);
+		const double floored = std::floor(exact);
+		counts[index] = static_cast<size_t>(floored);
+		assigned += counts[index];
+		remainders.emplace_back(exact - floored, index);
+	}
+
+	std::sort(remainders.begin(), remainders.end(), [](const auto& lhs, const auto& rhs) {
+		if (lhs.first != rhs.first) {
+			return lhs.first > rhs.first;
+		}
+		return lhs.second < rhs.second;
+	});
+
+	for (size_t extra = 0; assigned < total && extra < remainders.size(); ++extra, ++assigned) {
+		counts[remainders[extra].second] += 1;
+	}
+
+	return counts;
+}
+
+std::vector<int> build_value_sequence(const int* options, size_t option_count, const std::vector<size_t>& counts,
+                                      std::mt19937& gen) {
+	std::vector<int> values;
+	size_t total = 0;
+	for (const size_t count : counts) {
+		total += count;
+	}
+	values.reserve(total);
+
+	for (size_t index = 0; index < option_count && index < counts.size(); ++index) {
+		for (size_t repeat = 0; repeat < counts[index]; ++repeat) {
+			values.push_back(options[index]);
+		}
+	}
+
+	std::shuffle(values.begin(), values.end(), gen);
+	return values;
+}
+
+std::vector<int> build_level_sequence(size_t num, std::mt19937& gen) {
+	const std::vector<double> level_weights(PROBABILITY_MESSAGE_LEVEL,
+	                                        PROBABILITY_MESSAGE_LEVEL + NUM_MESSAGE_LEVEL);
+	const auto level_counts = allocate_bucket_counts(num, level_weights);
+	return build_value_sequence(OPTION_MESSAGE_LEVEL, NUM_MESSAGE_LEVEL, level_counts, gen);
+}
+
+std::array<std::vector<int>, NUM_MESSAGE_LEVEL> build_period_sequences_by_level(const std::vector<int>& levels,
+                                                                                std::mt19937& gen) {
+	const std::array<std::array<double, NUM_MESSAGE_PERIOD>, NUM_MESSAGE_LEVEL> level_period_weights = {{
+	    {{0.01, 0.02, 0.03, 0.29, 0.28, 0.07, 0.30}},
+	    {{0.03, 0.05, 0.08, 0.31, 0.28, 0.09, 0.16}},
+	    {{0.10, 0.10, 0.14, 0.32, 0.22, 0.07, 0.05}},
+	    {{0.25, 0.20, 0.18, 0.20, 0.10, 0.04, 0.03}},
+	}};
+
+	std::array<size_t, NUM_MESSAGE_LEVEL> level_counts{};
+	for (const int level : levels) {
+		if (level >= 0 && level < NUM_MESSAGE_LEVEL) {
+			level_counts[level] += 1;
+		}
+	}
+
+	std::array<std::vector<int>, NUM_MESSAGE_LEVEL> period_sequences;
+	for (int level = 0; level < NUM_MESSAGE_LEVEL; ++level) {
+		const std::vector<double> period_weights(level_period_weights[level].begin(),
+		                                         level_period_weights[level].end());
+		const auto period_counts = allocate_bucket_counts(level_counts[level], period_weights);
+		period_sequences[level] = build_value_sequence(OPTION_MESSAGE_PERIOD, NUM_MESSAGE_PERIOD, period_counts, gen);
+	}
+
+	return period_sequences;
+}
+
 std::vector<std::string> split_line(const std::string& line, char separator) {
 	std::vector<std::string> fields;
 	std::stringstream ss(line);
@@ -799,12 +893,25 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 			ecu_options.push_back(OPTION_ECU[i]);
 		}
 
+		const auto levels = build_level_sequence(num, gen);
+		auto period_sequences = build_period_sequences_by_level(levels, gen);
+		std::array<size_t, NUM_MESSAGE_LEVEL> period_offsets{};
+
 		std::hash<std::string> hash_fn;
 
 		for (size_t i = 0; i < num; i++) {
 			size = OPTION_MESSAGE_SIZE[dist_size(gen)];
 
-			period = OPTION_MESSAGE_PERIOD[dist_period(gen)];
+			level = (i < levels.size()) ? levels[i] : 0;
+			if (level < 0 || level >= NUM_MESSAGE_LEVEL) {
+				level = 0;
+			}
+			if (period_offsets[level] < period_sequences[level].size()) {
+				period = period_sequences[level][period_offsets[level]++];
+			}
+			else {
+				period = OPTION_MESSAGE_PERIOD[0];
+			}
 			deadline = period;
 
 			auto option_ecu_copy = ecu_options;
@@ -817,7 +924,7 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 			offset = 0;	// 信号不设offset
 
 
-			level = OPTION_MESSAGE_LEVEL[dist_level(gen)];
+			level = (i < levels.size()) ? levels[i] : 0;
 
 			type = OPTION_MESSAGE_TYPE[dist_type(gen)];
 

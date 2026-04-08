@@ -10,10 +10,11 @@
 
 namespace cfd::analysis::retry {
 
-/*方法来自 Probabilistic analysis of CAN with faults。
-对已经分配优先级的帧集合做概率分析，输出每个帧的重传分布、WCRT 分布，以及每个信号的超时概率。*/
+// Probabilistic analysis of CAN with faults:
+// for a priority-assigned frame set, output each frame's retry distribution,
+// WCRT distribution, and each signal's timeout probability.
 
-// 电磁兼容性（EMC）测试标准对应的干扰脉冲宽度，单位 ms，这里默认视为 0。
+// EMC equivalent interference pulse width, in ms.
 extern double EI_LEN;
 
 struct RetryDistributionPoint {
@@ -32,11 +33,10 @@ struct ProbData {
   int period = 0;
   int level = 0;
   int type = 0;
-  double p_threshold = 0.0;  // 按信号周期换算后的故障概率阈值
-  double p_timeout = 1.0;    // 信号总超时概率
+  double p_threshold = 0.0;
+  double p_timeout = 1.0;
   double expected_wcrt = 0.0;
   double wcrt_p95 = 0.0;
-  double wcrt_p99 = 0.0;
   double expected_retry_count = 0.0;
 };
 
@@ -55,7 +55,6 @@ struct FrameProbData {
   double tx_count_p99 = 1.0;
   double p_timeout = 0.0;
   double wcrt_p95 = 0.0;
-  double wcrt_p99 = 0.0;
   std::vector<RetryDistributionPoint> retry_distribution;
   std::vector<ResponseDistributionPoint> wcrt_distribution;
 };
@@ -69,10 +68,8 @@ struct AnalysisReport {
   std::unordered_map<MessageCode, ProbData> signal_results;
 };
 
-// 返回完整概率分析报告，并将分布结果写入 storage 目录。
 AnalysisReport probabilistic_analysis_report(PackingScheme& scheme, std::string timestamp = get_time_stamp());
 
-// 兼容旧接口：仅返回信号级结果。
 std::unordered_map<MessageCode, ProbData> probabilistic_analysis(PackingScheme& scheme,
                                                                  std::string timestamp = get_time_stamp());
 

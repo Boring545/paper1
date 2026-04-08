@@ -4,15 +4,16 @@ namespace cfd::analysis::noretry {
 std::unordered_map<MessageCode, double> sig_trans_fault_prob_analysis(PackingScheme& scheme, double lambda) {
   std::unordered_map<MessageCode, double> fault_prob_map;
   for (const auto& [id, frame] : scheme.frame_map) {
-    double win = frame.get_trans_time();
+    const double win = frame.get_trans_time();
 
     for (const auto& msg : frame.msg_set) {
-      double p_fail = prob_fault_one_more(win, lambda);
+      const double p_fail = prob_fault_one_more(win, lambda);
       auto it = fault_prob_map.find(msg.get_code());
       if (it == fault_prob_map.end()) {
         fault_prob_map[msg.get_code()] = p_fail;
       } else {
-        it->second *= p_fail;
+        const long double product = static_cast<long double>(it->second) * static_cast<long double>(p_fail);
+        it->second = product <= 0.0L ? 0.0 : static_cast<double>(product);
       }
     }
   }

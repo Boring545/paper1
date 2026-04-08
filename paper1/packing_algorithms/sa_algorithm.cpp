@@ -2,6 +2,13 @@
 #include "../priority_allocation.h"
 #include "../scheme.h"
 
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <random>
+#include <unordered_map>
+#include <vector>
+
 namespace cfd::packing::heuristics {
 
 // fitness计算函数1
@@ -11,6 +18,37 @@ double calculate_fitness_a(cfd::PackingScheme& scheme) {
 }
 
 using FrameIndexMap = std::unordered_map<EcuPair, std::unordered_map<int, std::vector<int>>, EcuPairHash>;
+
+namespace {
+
+inline void cleanup_empty_frames(cfd::PackingScheme& scheme) {
+  std::vector<int> to_remove;
+  for (const auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame.empty()) {
+      to_remove.push_back(frame_id);
+    }
+  }
+  for (int frame_id : to_remove) {
+    scheme.recover_id(frame_id);
+    scheme.frame_map.erase(frame_id);
+  }
+}
+
+inline FrameIndexMap build_frame_index_map(cfd::PackingScheme& scheme,
+                                           const std::map<int, std::vector<int>>& valid_period_map) {
+  FrameIndexMap frame_index_map;
+  for (auto& [fid, frame] : scheme.frame_map) {
+    if (frame.empty()) continue;
+    auto period_it = valid_period_map.find(frame.get_period());
+    if (period_it == valid_period_map.end()) continue;
+    for (int period : period_it->second) {
+      frame_index_map[frame.get_ecu_pair()][period].emplace_back(frame.get_id());
+    }
+  }
+  return frame_index_map;
+}
+
+}  // namespace
 
 //--------------------------------- 工具函数 ---------------------------------
 //
@@ -171,12 +209,12 @@ double simulated_annealing(PackingScheme& scheme) {
   std::uniform_real_distribution<> dist(0.0, 1.0);
 
   //----- SA参数初始化
-  constexpr double INITIAL_TEMPERATURE = 10;  // 初始温度
+  constexpr double INITIAL_TEMPERATURE = 12;  // 初始温度
   constexpr double FINAL_TEMPERATURE = 0.01;  // 收敛终止温度
-  constexpr double ALPHA = 0.995;             // 温度衰减因子
-  constexpr int NUM_MIN_MOVE = 1;             // 每次至少移动消息数
+  constexpr double ALPHA = 0.997;             // 温度衰减因子，放慢降温速度
+  constexpr int NUM_MIN_MOVE = 2;             // 每次至少移动消息数
   constexpr double FACTOR_COST_SCALE =
-      1000.0;  // 成本差值放大系数，值越大收敛越快，探索程度越低；值越小，收敛越慢，搜索更深
+      200.0;  // 成本差值放大系数，值越大收敛越快，探索程度越低；值越小，收敛越慢，搜索更深
 
   double current_temperature = INITIAL_TEMPERATURE;
 
@@ -188,68 +226,56 @@ double simulated_annealing(PackingScheme& scheme) {
   double best_cost = pre_cost;
 
   //----- SA过程
+  const int message_count = static_cast<int>(scheme.message_set.size());
+  const int neighborhood_trials_per_temperature = std::clamp(message_count / 24, 6, 18);
+
   while (current_temperature > FINAL_TEMPERATURE) {
-    PackingScheme new_solution = pre_solution;
+    double temperature_ratio = current_temperature / INITIAL_TEMPERATURE;
+    int max_select_num = std::max(NUM_MIN_MOVE, message_count / 10);
+    int select_num = std::max(NUM_MIN_MOVE, static_cast<int>(std::ceil(max_select_num * temperature_ratio)));
+    int local_trial_count = std::max(1, static_cast<int>(std::ceil(neighborhood_trials_per_temperature *
+                                                                    (0.5 + 0.5 * temperature_ratio))));
 
-    // 构建 frame_index_map，用于快速找到同 ECU 对下可用帧
-    FrameIndexMap frame_index_map;
-    for (auto& [fid, frame] : new_solution.frame_map) {
-      if (frame.empty()) continue;
-      for (auto& p : valid_period_map[frame.get_period()]) {
-        frame_index_map[frame.get_ecu_pair()][p].emplace_back(frame.get_id());
+    std::uniform_int_distribution<> msg_dist(0, message_count - 1);
+
+    // 每个温度层内多做几次邻域搜索，避免“每降一次温只看一个候选解”导致搜索过浅。
+    for (int trial = 0; trial < local_trial_count; ++trial) {
+      PackingScheme new_solution = pre_solution;
+      FrameIndexMap frame_index_map = build_frame_index_map(new_solution, valid_period_map);
+
+      for (int i = 0; i < select_num; i++) {
+        int mid = msg_dist(gen);
+        auto& msg = new_solution.message_set[mid];
+        try_move_message(new_solution, frame_index_map, valid_period_map, msg, gen, dist);
       }
-    }
+      schedule::assign_priority(new_solution.frame_map);  // 重新分配优先级
+      cleanup_empty_frames(new_solution);
 
-    // 根据温度决定移动消息数量，高温移动多，低温移动少
-    double num_probability = current_temperature / INITIAL_TEMPERATURE;
-    int max_select_num = new_solution.message_set.size() / 10;
-    int select_num = static_cast<int>(max_select_num * num_probability);
-    if (select_num < NUM_MIN_MOVE) select_num = NUM_MIN_MOVE;
+      new_cost = calculate_fitness_a(new_solution);
 
-    std::uniform_int_distribution<> msg_dist(0, new_solution.message_set.size() - 1);
-
-    //----- 随机尝试移动 select_num 个消息
-    for (int i = 0; i < select_num; i++) {
-      int mid = msg_dist(gen);
-      auto& msg = new_solution.message_set[mid];
-      try_move_message(new_solution, frame_index_map, valid_period_map, msg, gen, dist);
-    }
-    schedule::assign_priority(new_solution.frame_map);  // 重新分配优先级
-
-    new_cost = calculate_fitness_a(new_solution);
-
-    //----- 判断是否接受新解
-    if (new_cost <= pre_cost) {
-      if (new_cost <= best_cost) {
-        best_solution = new_solution;
-        best_cost = new_cost;
-      }
-      pre_solution = std::move(new_solution);
-      pre_cost = new_cost;
-    } else {
-      double acceptance_probability = std::exp(-(new_cost - pre_cost) * FACTOR_COST_SCALE / current_temperature);
-      if (dist(gen) < acceptance_probability) {
+      //----- 判断是否接受新解
+      if (new_cost <= pre_cost) {
+        if (new_cost <= best_cost) {
+          best_solution = new_solution;
+          best_cost = new_cost;
+        }
         pre_solution = std::move(new_solution);
         pre_cost = new_cost;
+      } else {
+        double acceptance_probability = std::exp(-(new_cost - pre_cost) * FACTOR_COST_SCALE / current_temperature);
+        if (dist(gen) < acceptance_probability) {
+          pre_solution = std::move(new_solution);
+          pre_cost = new_cost;
+        }
       }
-    }
-
-    //----- 清理空帧，回收 ID
-    std::vector<int> to_remove;
-    for (const auto& [key, frame] : pre_solution.frame_map) {
-      if (frame.empty()) {
-        to_remove.push_back(key);
-      }
-    }
-    for (auto i : to_remove) {
-      pre_solution.recover_id(i);
-      pre_solution.frame_map.erase(i);
     }
 
     //----- 打印调试信息
     DEBUG_MSG_DEBUG2(std::cout, "Fitness = ", pre_cost);
     DEBUG_MSG_DEBUG2(std::cout, "Utilization = ", pre_solution.calc_bandwidth_utilization());
-    DEBUG_MSG_DEBUG2(std::cout, "Temperature = ", current_temperature, "\n");
+    DEBUG_MSG_DEBUG2(std::cout, "Temperature = ", current_temperature);
+    DEBUG_MSG_DEBUG2(std::cout, "LocalTrial = ", local_trial_count);
+    DEBUG_MSG_DEBUG2(std::cout, "MoveCount = ", select_num, "\n");
 
     // 温度衰减
     current_temperature *= ALPHA;

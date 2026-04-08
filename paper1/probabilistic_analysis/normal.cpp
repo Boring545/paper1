@@ -36,19 +36,25 @@ double prob_fault(double t, int num, double lambda) {
   }
 
   // 调用方在工程内统一传入 ms，这里换算成秒后再与“每秒故障次数”相乘。
-  const double t_seconds = std::max(0.0, t) / MILLISECONDS_PER_SECOND;
-  const double rate = lambda * t_seconds;
-  if (rate <= 0.0) {
+  const long double t_seconds = static_cast<long double>(std::max(0.0, t)) / MILLISECONDS_PER_SECOND;
+  const long double rate = static_cast<long double>(lambda) * t_seconds;
+  if (rate <= 0.0L) {
     return num == 0 ? 1.0 : 0.0;
   }
 
   // 使用 lgamma 计算泊松分布，避免 factorial 在重传次数较大时溢出或抛异常。
-  const double log_prob = -rate + num * std::log(rate) - std::lgamma(static_cast<double>(num) + 1.0);
-  return std::exp(log_prob);
+  const long double log_prob =
+      -rate + static_cast<long double>(num) * std::log(rate) - std::lgammal(static_cast<long double>(num) + 1.0L);
+  return static_cast<double>(std::exp(log_prob));
 }
 
 double prob_fault_one_more(double interference_win, double lambda) {
-  return 1 - prob_fault(interference_win, 0, lambda);
+  const long double t_seconds = static_cast<long double>(std::max(0.0, interference_win)) / MILLISECONDS_PER_SECOND;
+  const long double rate = static_cast<long double>(lambda) * t_seconds;
+  if (rate <= 0.0L) {
+    return 0.0;
+  }
+  return static_cast<double>(-std::expm1(-rate));
 }
 
 }  // namespace cfd::analysis
