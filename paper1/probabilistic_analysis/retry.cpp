@@ -20,7 +20,7 @@ double EI_LEN = 0;  // 电磁干扰宽度，单位 ms
 
 namespace {
 
-constexpr double COST_MAX_ERROR_FRAME = 0.405;  // 错误帧开销，单位 ms
+constexpr double COST_MAX_ERROR_FRAME = 20.0 * TIME_BIT_ARBITRATION;  // 错误帧开销，约为仲裁段20bit时间
 constexpr double EPS_RESPONSE = 1e-7;
 constexpr int MAX_ENUMERATED_RETRY = 64;
 struct AnalysisState {
@@ -72,7 +72,9 @@ FrameContext build_frame_context(const std::vector<CanfdFrame>& sorted_frames, i
 
   const double p_threshold = threshold_per_window(max_level, sorted_frames[frame_index].get_period());
   if (p_threshold > 0.0) {
-    ctx.prune_epsilon = std::pow(10.0, std::floor(std::log10(p_threshold)) - 1.0);
+    // Lower the pruning resolution by two extra orders of magnitude so that
+    // extremely small timeout branches have a better chance to be explicitly enumerated.
+    ctx.prune_epsilon = std::pow(10.0, std::floor(std::log10(p_threshold)) - 2.0);
   } else {
     ctx.prune_epsilon = 1e-14;
   }

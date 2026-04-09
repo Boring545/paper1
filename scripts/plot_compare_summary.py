@@ -205,8 +205,8 @@ def main() -> None:
         build_grouped_bar_figure(
             sections["fault_probability"],
             output_dir,
-            title="不同数据集和ASIL等级下的故障概率对比",
-            y_label="故障概率",
+            title="不同数据集和ASIL等级下的超时概率对比",
+            y_label="超时概率（对数坐标）",
             avg_key="avg_fault_probability",
             max_key="max_fault_probability",
             filename="fault_probability.png",
