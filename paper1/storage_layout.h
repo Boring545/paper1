@@ -3,6 +3,7 @@
 
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <vector>
 
@@ -45,13 +46,13 @@ inline fs::path analysis_batch_dir(const std::string& run_tag) {
 }
 
 inline fs::path analysis_compare_dir(const std::string& run_tag) {
-  fs::path compare_dir = analysis_batch_dir(run_tag) / "compare";
+  fs::path compare_dir = analysis_batch_dir(run_tag) / "comparison_reports";
   ensure_directory(compare_dir);
   return compare_dir;
 }
 
 inline fs::path analysis_retry_dir(const std::string& run_tag) {
-  fs::path retry_dir = analysis_batch_dir(run_tag) / "retry";
+  fs::path retry_dir = analysis_batch_dir(run_tag) / "retry_probability_reports";
   ensure_directory(retry_dir);
   return retry_dir;
 }
@@ -125,7 +126,16 @@ inline std::string dataset_output_path(const std::string& dataset_file) {
 }
 
 inline std::string dataset_tag_from_file(const std::string& dataset_file) {
-  return fs::path(resolve_dataset_input_path(dataset_file)).stem().string();
+  std::string tag = fs::path(resolve_dataset_input_path(dataset_file)).stem().string();
+  if (tag.rfind("msg_", 0) == 0) {
+    tag.erase(0, 4);
+  }
+  constexpr std::string_view kLegacySuffix = "_tab";
+  if (tag.size() > kLegacySuffix.size() &&
+      tag.compare(tag.size() - kLegacySuffix.size(), kLegacySuffix.size(), kLegacySuffix) == 0) {
+    tag.erase(tag.size() - kLegacySuffix.size());
+  }
+  return tag;
 }
 
 inline std::string compare_report_path(const std::string& run_tag, const std::string& dataset_tag) {

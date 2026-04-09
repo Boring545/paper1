@@ -192,6 +192,17 @@ int calc_retry_quantile(const std::vector<RetryDistributionPoint>& distribution,
   return distribution.back().retry_count;
 }
 
+double calc_retry_cdf(const std::vector<RetryDistributionPoint>& distribution, int retry_count) {
+  double cumulative = 0.0;
+  for (const auto& point : distribution) {
+    if (point.retry_count > retry_count) {
+      break;
+    }
+    cumulative += point.probability;
+  }
+  return clamp_probability(cumulative);
+}
+
 struct RetrySampler {
   double utilization_weight = 0.0;
   std::vector<std::pair<int, double>> retry_cdf;
@@ -285,6 +296,17 @@ double calc_response_quantile(const std::vector<ResponseDistributionPoint>& dist
   }
 
   return distribution.back().response_time;
+}
+
+double calc_response_cdf(const std::vector<ResponseDistributionPoint>& distribution, double response_time) {
+  double cumulative = 0.0;
+  for (const auto& point : distribution) {
+    if (point.response_time > response_time + 1e-12) {
+      break;
+    }
+    cumulative += point.probability;
+  }
+  return clamp_probability(cumulative);
 }
 
 void add_probability_gap(FrameProbData& result, const CanfdFrame& frame, double single_error_cost) {
@@ -490,6 +512,16 @@ void save_prob_result(const std::string& address, const AnalysisReport& report) 
     }
   }
 
+  ofs << "\n[frame_retry_cdf]\n";
+  ofs << "frame_id\tretry_count\tcumulative_probability\n";
+  for (const auto frame_id : frame_ids) {
+    const auto& frame = report.frame_results.at(frame_id);
+    for (const auto& point : frame.retry_distribution) {
+      ofs << frame_id << '\t' << point.retry_count << '\t'
+          << calc_retry_cdf(frame.retry_distribution, point.retry_count) << '\n';
+    }
+  }
+
   ofs << "\n[frame_wcrt_distribution]\n";
   ofs << "frame_id\tresponse_time_ms\tprobability\n";
   for (const auto frame_id : frame_ids) {
@@ -497,6 +529,30 @@ void save_prob_result(const std::string& address, const AnalysisReport& report) 
     for (const auto& point : frame.wcrt_distribution) {
       ofs << frame_id << '\t' << point.response_time << '\t' << point.probability << '\n';
     }
+  }
+
+  ofs << "\n[frame_wcrt_cdf]\n";
+  ofs << "frame_id\tresponse_time_ms\tcumulative_probability\n";
+  for (const auto frame_id : frame_ids) {
+    const auto& frame = report.frame_results.at(frame_id);
+    for (const auto& point : frame.wcrt_distribution) {
+      ofs << frame_id << '\t' << point.response_time << '\t'
+          << calc_response_cdf(frame.wcrt_distribution, point.response_time) << '\n';
+    }
+  }
+
+  ofs << "\n[frame_distribution_quantiles]\n";
+  ofs << "frame_id\tretry_q50\tretry_q90\tretry_q95\tretry_q99\twcrt_q50_ms\twcrt_q90_ms\twcrt_q95_ms\twcrt_q99_ms\n";
+  for (const auto frame_id : frame_ids) {
+    const auto& frame = report.frame_results.at(frame_id);
+    ofs << frame_id << '\t' << calc_retry_quantile(frame.retry_distribution, 0.50) << '\t'
+        << calc_retry_quantile(frame.retry_distribution, 0.90) << '\t'
+        << calc_retry_quantile(frame.retry_distribution, 0.95) << '\t'
+        << calc_retry_quantile(frame.retry_distribution, 0.99) << '\t'
+        << calc_response_quantile(frame.wcrt_distribution, 0.50) << '\t'
+        << calc_response_quantile(frame.wcrt_distribution, 0.90) << '\t'
+        << calc_response_quantile(frame.wcrt_distribution, 0.95) << '\t'
+        << calc_response_quantile(frame.wcrt_distribution, 0.99) << '\n';
   }
 
   std::vector<MessageCode> codes;

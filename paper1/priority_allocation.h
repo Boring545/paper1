@@ -62,6 +62,8 @@ bool assign_priority_by_period(CanfdFrameMap& frame_map);
 // wcrt 可行性检查：通过wcrt迭代公式从高优先级到低优先级计算每个报文是否满足R<D
 bool feasibility_check(const CanfdFrameMap& frame_map);
 
+std::unordered_map<FrameId, double> calc_frame_response_times(const CanfdFrameMap& frame_map);
+
 }  // namespace cfd::schedule
 
 #endif  // !PRIORITY_ALLOCATION_H

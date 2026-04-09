@@ -2,9 +2,11 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -14,6 +16,7 @@
 #include "backups/signal_backup.h"
 #include "config.h"
 #include "debug_tool.h"
+#include "priority_allocation.h"
 #include "probabilistic_analysis/no_retry.h"
 #include "probabilistic_analysis/retry.h"
 #include "scheme.h"
@@ -37,6 +40,7 @@ namespace {
 struct CodeMeta {
   int level = 0;
   int period_ms = 0;
+  int deadline_ms = 0;
   int type = 0;
   EcuId src_ecu = 0;
   EcuId dst_ecu = 0;
@@ -145,8 +149,8 @@ std::unordered_map<MessageCode, CodeMeta> build_code_meta(const MessageInfoVec& 
   for (const auto& info : original_infos) {
     auto it = meta_by_code.find(info.code);
     if (it == meta_by_code.end()) {
-      meta_by_code.emplace(info.code,
-                           CodeMeta{info.level, info.period, info.type, info.ecu_pair.src_ecu, info.ecu_pair.dst_ecu});
+      meta_by_code.emplace(info.code, CodeMeta{info.level, info.period, info.deadline, info.type,
+                                               info.ecu_pair.src_ecu, info.ecu_pair.dst_ecu});
     }
   }
 
@@ -279,27 +283,87 @@ PackingScheme build_best_shared_initial_scheme_from_current_msgs(int restart_cou
   return best_scheme;
 }
 
-std::unordered_map<MessageCode, double> calc_best_signal_wcrt_ms(const PackingScheme& scheme) {
-  std::unordered_map<MessageCode, double> best_wcrt_ms;
-  best_wcrt_ms.reserve(MESSAGE_INFO_VEC.size());
+struct SignalArrivalSample {
+  double completion_ms = 0.0;
+  double p_fail = 1.0;
+};
+
+struct SignalWcrtStats {
+  double expected_wcrt_ms = 0.0;
+  double wcrt_p95_ms = 0.0;
+  double p_timeout = 0.0;
+};
+
+std::unordered_map<MessageCode, std::vector<SignalArrivalSample>> build_signal_arrival_samples(const PackingScheme& scheme) {
+  const auto frame_response_times = cfd::schedule::calc_frame_response_times(scheme.frame_map);
+
+  std::unordered_map<MessageCode, std::vector<SignalArrivalSample>> samples_by_code;
+  samples_by_code.reserve(MESSAGE_INFO_VEC.size());
 
   for (const auto& [frame_id, frame] : scheme.frame_map) {
     if (frame.empty()) {
       continue;
     }
 
-    const double frame_wcrt_ms = frame.get_trans_time();
+    const auto response_it = frame_response_times.find(frame_id);
+    const double completion_ms = response_it == frame_response_times.end() ? frame.get_trans_time() : response_it->second;
+    const double p_fail = clamp_probability(prob_fault_one_more(frame.get_trans_time(), LAMBDA_CONFERENCE));
+
     for (const auto& msg : frame.msg_set) {
-      auto it = best_wcrt_ms.find(msg.get_code());
-      if (it == best_wcrt_ms.end()) {
-        best_wcrt_ms.emplace(msg.get_code(), frame_wcrt_ms);
-      } else {
-        it->second = std::min(it->second, frame_wcrt_ms);
-      }
+      samples_by_code[msg.get_code()].push_back({completion_ms, p_fail});
     }
   }
 
-  return best_wcrt_ms;
+  return samples_by_code;
+}
+
+SignalWcrtStats calc_signal_probabilistic_wcrt(std::vector<SignalArrivalSample> samples, int deadline_ms) {
+  SignalWcrtStats stats{};
+  if (samples.empty()) {
+    stats.expected_wcrt_ms = deadline_ms;
+    stats.wcrt_p95_ms = deadline_ms;
+    stats.p_timeout = 1.0;
+    return stats;
+  }
+
+  std::sort(samples.begin(), samples.end(),
+            [](const SignalArrivalSample& lhs, const SignalArrivalSample& rhs) { return lhs.completion_ms < rhs.completion_ms; });
+
+  std::vector<std::pair<double, long double>> timely_outcomes;
+  timely_outcomes.reserve(samples.size());
+
+  long double remaining_fail_prob = 1.0L;
+  long double timely_prob = 0.0L;
+  for (const auto& sample : samples) {
+    const long double success_prob = remaining_fail_prob * (1.0L - static_cast<long double>(sample.p_fail));
+    if (sample.completion_ms <= static_cast<double>(deadline_ms)) {
+      timely_outcomes.emplace_back(sample.completion_ms, success_prob);
+      timely_prob += success_prob;
+    }
+    remaining_fail_prob *= static_cast<long double>(sample.p_fail);
+  }
+
+  stats.p_timeout = clamp_probability(1.0 - static_cast<double>(timely_prob));
+  if (timely_prob <= 0.0L) {
+    stats.expected_wcrt_ms = deadline_ms;
+    stats.wcrt_p95_ms = deadline_ms;
+    return stats;
+  }
+
+  long double weighted_sum = 0.0L;
+  long double cumulative_prob = 0.0L;
+  stats.wcrt_p95_ms = timely_outcomes.back().first;
+  for (const auto& [completion_ms, success_prob] : timely_outcomes) {
+    weighted_sum += static_cast<long double>(completion_ms) * success_prob;
+    cumulative_prob += success_prob / timely_prob;
+    if (cumulative_prob >= 0.95L) {
+      stats.wcrt_p95_ms = completion_ms;
+      break;
+    }
+  }
+
+  stats.expected_wcrt_ms = static_cast<double>(weighted_sum / timely_prob);
+  return stats;
 }
 
 std::unordered_map<MessageCode, int> calc_signal_instance_count(const PackingScheme& scheme) {
@@ -318,6 +382,145 @@ std::unordered_map<MessageCode, int> calc_signal_instance_count(const PackingSch
   return counts;
 }
 
+std::string build_frame_signature(const CanfdFrame& frame) {
+  std::ostringstream oss;
+  oss << frame.get_period() << '|' << frame.get_deadline() << '|' << frame.get_ecu_pair().src_ecu << '|'
+      << frame.get_ecu_pair().dst_ecu;
+  for (const auto& msg : frame.msg_set) {
+    oss << '|' << msg.get_id_message();
+  }
+  return oss.str();
+}
+
+std::unordered_map<FrameId, double> calc_zero_offset_reference_completion(const PackingScheme& scheme) {
+  PackingScheme zero_offset_scheme = scheme;
+  for (auto& [frame_id, frame] : zero_offset_scheme.frame_map) {
+    if (frame.empty()) {
+      continue;
+    }
+    frame.set_offset(0.0);
+  }
+  return cfd::schedule::calc_frame_response_times(zero_offset_scheme.frame_map);
+}
+
+void assign_staggered_offsets_to_frame_copies(PackingScheme& scheme) {
+  const auto zero_offset_response_times = calc_zero_offset_reference_completion(scheme);
+
+  std::unordered_map<std::string, std::vector<FrameId>> groups;
+  groups.reserve(scheme.frame_map.size());
+  for (const auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame.empty()) {
+      continue;
+    }
+    groups[build_frame_signature(frame)].push_back(frame_id);
+  }
+
+  for (auto& [signature, frame_ids] : groups) {
+    (void)signature;
+    if (frame_ids.size() <= 1) {
+      continue;
+    }
+
+    std::sort(frame_ids.begin(), frame_ids.end(), [&](FrameId lhs, FrameId rhs) {
+      const double left_response = zero_offset_response_times.count(lhs) ? zero_offset_response_times.at(lhs) : 0.0;
+      const double right_response = zero_offset_response_times.count(rhs) ? zero_offset_response_times.at(rhs) : 0.0;
+      if (left_response != right_response) {
+        return left_response < right_response;
+      }
+      return lhs < rhs;
+    });
+
+    double accumulated_offset = 0.0;
+    bool is_first_copy = true;
+    for (const auto frame_id : frame_ids) {
+      auto frame_it = scheme.frame_map.find(frame_id);
+      if (frame_it == scheme.frame_map.end() || frame_it->second.empty()) {
+        continue;
+      }
+
+      auto& frame = frame_it->second;
+      if (is_first_copy) {
+        frame.set_offset(0.0);
+        is_first_copy = false;
+      } else {
+        const double upper_bound = std::max(0.0, static_cast<double>(frame.get_deadline()) - frame.get_trans_time());
+        const double assigned_offset = std::min(accumulated_offset, upper_bound);
+        frame.set_offset(assigned_offset);
+      }
+
+      const double reference_completion =
+          zero_offset_response_times.count(frame_id) ? zero_offset_response_times.at(frame_id) : frame.get_trans_time();
+      accumulated_offset += reference_completion;
+    }
+  }
+}
+
+void assign_staggered_offsets_to_signal_copies(PackingScheme& scheme) {
+  const auto zero_offset_response_times = calc_zero_offset_reference_completion(scheme);
+
+  std::unordered_map<MessageCode, std::vector<FrameId>> code_to_frames;
+  code_to_frames.reserve(MESSAGE_INFO_VEC.size());
+  for (const auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame.empty()) {
+      continue;
+    }
+    for (const auto& msg : frame.msg_set) {
+      code_to_frames[msg.get_code()].push_back(frame_id);
+    }
+  }
+
+  std::unordered_map<FrameId, double> desired_offsets;
+  desired_offsets.reserve(scheme.frame_map.size());
+
+  for (auto& [code, frame_ids] : code_to_frames) {
+    (void)code;
+    std::sort(frame_ids.begin(), frame_ids.end());
+    frame_ids.erase(std::unique(frame_ids.begin(), frame_ids.end()), frame_ids.end());
+    if (frame_ids.size() <= 1) {
+      continue;
+    }
+
+    std::sort(frame_ids.begin(), frame_ids.end(), [&](FrameId lhs, FrameId rhs) {
+      const double left_response = zero_offset_response_times.count(lhs) ? zero_offset_response_times.at(lhs) : 0.0;
+      const double right_response = zero_offset_response_times.count(rhs) ? zero_offset_response_times.at(rhs) : 0.0;
+      if (left_response != right_response) {
+        return left_response < right_response;
+      }
+      return lhs < rhs;
+    });
+
+    double accumulated_offset = 0.0;
+    bool is_first_copy = true;
+    for (const auto frame_id : frame_ids) {
+      auto frame_it = scheme.frame_map.find(frame_id);
+      if (frame_it == scheme.frame_map.end() || frame_it->second.empty()) {
+        continue;
+      }
+
+      const auto& frame = frame_it->second;
+      if (is_first_copy) {
+        desired_offsets[frame_id] = std::max(desired_offsets[frame_id], 0.0);
+        is_first_copy = false;
+      } else {
+        const double upper_bound = std::max(0.0, static_cast<double>(frame.get_deadline()) - frame.get_trans_time());
+        desired_offsets[frame_id] = std::max(desired_offsets[frame_id], std::min(accumulated_offset, upper_bound));
+      }
+
+      const double reference_completion =
+          zero_offset_response_times.count(frame_id) ? zero_offset_response_times.at(frame_id) : frame.get_trans_time();
+      accumulated_offset += reference_completion;
+    }
+  }
+
+  for (auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame.empty()) {
+      continue;
+    }
+    const double desired_offset = desired_offsets.count(frame_id) ? desired_offsets.at(frame_id) : 0.0;
+    frame.set_offset(desired_offset);
+  }
+}
+
 SchemeMetrics analyze_deterministic_scheme(const std::string& name, PackingScheme& scheme,
                                            const std::unordered_map<MessageCode, CodeMeta>& meta_by_code) {
   SchemeMetrics metrics;
@@ -326,7 +529,7 @@ SchemeMetrics analyze_deterministic_scheme(const std::string& name, PackingSchem
   metrics.static_bandwidth_utilization = metrics.compare_bandwidth_utilization;
 
   const auto p_fault_map = noretry::sig_trans_fault_prob_analysis(scheme, LAMBDA_CONFERENCE);
-  const auto best_wcrt_ms = calc_best_signal_wcrt_ms(scheme);
+  const auto arrival_samples_by_code = build_signal_arrival_samples(scheme);
   const auto instance_count_map = calc_signal_instance_count(scheme);
   const auto codes = sorted_codes(meta_by_code);
 
@@ -338,20 +541,21 @@ SchemeMetrics analyze_deterministic_scheme(const std::string& name, PackingSchem
     }
 
     const auto p_fault_it = p_fault_map.find(code);
-    const auto wcrt_it = best_wcrt_ms.find(code);
-    if (p_fault_it == p_fault_map.end() || wcrt_it == best_wcrt_ms.end()) {
+    const auto arrival_it = arrival_samples_by_code.find(code);
+    if (p_fault_it == p_fault_map.end() || arrival_it == arrival_samples_by_code.end()) {
       continue;
     }
 
     const auto& meta = meta_it->second;
-    const double wcrt_ms = wcrt_it->second;
+    const auto wcrt_stats = calc_signal_probabilistic_wcrt(arrival_it->second, meta.deadline_ms);
     const int signal_instance_count = instance_count_map.count(code) ? instance_count_map.at(code) : 1;
     const int added_signal_copies = std::max(0, signal_instance_count - 1);
     const double reported_p_fault = clamp_probability(p_fault_it->second);
     metrics.total_added_signal_copies += added_signal_copies;
     metrics.signals.push_back({code, meta, signal_instance_count, added_signal_copies, reported_p_fault,
-                               threshold_per_window(meta.level, meta.period_ms), reported_p_fault, wcrt_ms, wcrt_ms,
-                               calc_ratio(wcrt_ms, meta.period_ms)});
+                               threshold_per_window(meta.level, meta.period_ms), wcrt_stats.p_timeout,
+                               wcrt_stats.expected_wcrt_ms, wcrt_stats.wcrt_p95_ms,
+                               calc_ratio(wcrt_stats.wcrt_p95_ms, meta.period_ms)});
   }
 
   return metrics;
@@ -418,6 +622,19 @@ std::string build_retry_output_path(const std::string& run_tag, const std::strin
   return cfd::storage::retry_report_path(run_tag, dataset_name);
 }
 
+void run_figure_generation_script(const std::string& run_tag) {
+  const fs::path analysis_dir = cfd::storage::analysis_batch_dir(run_tag);
+  const fs::path project_root = fs::absolute(fs::path(__FILE__)).parent_path().parent_path();
+  const fs::path script_path = project_root / "scripts" / "generate_all_figures.py";
+  const std::string command =
+      "python \"" + cfd::storage::path_string(script_path) + "\" \"" + cfd::storage::path_string(analysis_dir) + "\"";
+  DEBUG_MSG_DEBUG1(std::cout, "开始调用绘图脚本: ", command);
+  const int exit_code = std::system(command.c_str());
+  if (exit_code != 0) {
+    DEBUG_MSG_DEBUG1(std::cout, "绘图脚本执行失败, exit_code=", exit_code);
+  }
+}
+
 void write_comparison_report(const std::string& output_path, const std::vector<SchemeMetrics>& schemes,
                              const std::string& retry_report_path) {
   std::ofstream ofs(output_path, std::ios::trunc);
@@ -431,8 +648,8 @@ void write_comparison_report(const std::string& output_path, const std::vector<S
   ofs << "# static_bandwidth_utilization: 不考虑重传时，静态打包方案本身的带宽利用率。\n";
   ofs << "# signal_count: 按原始 MessageCode 去重后的信号种类数，不是副本总数。\n";
   ofs << "# total_added_signal_copies: 相比原始 1 份信号，方案中新增的信号副本总数。\n";
-  ofs << "# 对于 foundation / baseline1，WCRT 为确定性原始 WCRT；对于 baseline2，WCRT 为概率 WCRT 的统计值。\n";
-  ofs << "# ASIL 分组里的 wcrt_ratio 表示 WCRT/周期；signal_detail 里的 WCRT 列统一是原始 WCRT（单位 ms）。\n";
+  ofs << "# 三种方案的 WCRT 均按信号级统计值输出；foundation / baseline1 基于“最早成功副本到达时间”分布，baseline2 基于重传分布。\n";
+  ofs << "# 本文件中的 WCRT/周期 指标统一使用 P95（95%分位响应时间）；signal_detail 里的 WCRT 列统一是信号级统计值（单位 ms）。\n";
   ofs << '\n';
   ofs << "retry_distribution_report\t" << retry_report_path << "\n\n";
 
@@ -445,7 +662,7 @@ void write_comparison_report(const std::string& output_path, const std::vector<S
         << '\t' << scheme.signals.size() << '\t' << scheme.total_added_signal_copies << '\n';
   }
 
-  ofs << "\n# 按 ASIL 分组统计的 WCRT/周期 的 P95 结果。\n";
+  ofs << "\n# 按 ASIL 分组统计的 WCRT/周期（P95，95%分位响应时间）结果。\n";
   ofs << "\n[asil_wcrt_ratio_p95]\n";
   ofs << "scheme\tasil\tsignal_count\tavg_wcrt_ratio_p95\tmax_wcrt_ratio_p95\n";
   for (const auto& scheme : schemes) {
@@ -490,7 +707,7 @@ void write_comparison_report(const std::string& output_path, const std::vector<S
     }
   }
 
-  ofs << "\n# 每个原始信号的明细指标。WCRT 列统一为原始 WCRT（单位 ms），不是 WCRT/周期。\n";
+  ofs << "\n# 每个原始信号的明细指标。WCRT 列统一为信号级统计值（单位 ms），不是 WCRT/周期。\n";
   ofs << "\n[signal_detail]\n";
   ofs << "scheme\tcode\tasil\tlevel\ttype\tperiod_ms\tsrc_ecu\tdst_ecu\tsignal_instance_count\t"
          "added_signal_copies\tp_fault\tp_threshold\texpected_wcrt_ms\tp_wcrt_over_deadline\twcrt_p95_ms\n";
@@ -594,12 +811,14 @@ DatasetCompareSummary run_compare_experiment(const std::string& dataset_file, co
   MESSAGE_INFO_VEC = original_infos;
   PackingScheme scheme_base = shared_initial_scheme;
   scheme_base = backups::signal::homo_signal_backup(scheme_base);
+  assign_staggered_offsets_to_signal_copies(scheme_base);
   SchemeMetrics foundation_metrics = analyze_deterministic_scheme("foundation", scheme_base, meta_by_code);
 
   // baseline1：从同一个共享初始打包结果出发，按帧故障概率直接生成报文副本。
   MESSAGE_INFO_VEC = original_infos;
   PackingScheme scheme_baseline1 = shared_initial_scheme;
   scheme_baseline1 = backups::frame::homo_frame_backup(scheme_baseline1);
+  assign_staggered_offsets_to_frame_copies(scheme_baseline1);
   SchemeMetrics baseline1_metrics = analyze_deterministic_scheme("baseline1", scheme_baseline1, meta_by_code);
 
   // baseline2：不加副本，直接复用共享初始打包结果做重传分析。
@@ -627,6 +846,8 @@ int main() {
   // 默认模式复用 storage/datasets 下当前固定的 M1~M6 数据集；
   // 如需生成一套新数据，改为 true。
   const bool regenerate_datasets = false;
+  // 跑完整批实验后，自动调用 Python 绘图脚本生成图表。
+  const bool generate_figures_after_analysis = true;
 
   const std::vector<std::string> dataset_files = resolve_experiment_dataset_files(regenerate_datasets);
 
@@ -645,6 +866,10 @@ int main() {
   const std::string compare_summary_output_path = build_compare_summary_output_path(batch_run_tag);
   write_batch_compare_summary(compare_summary_output_path, dataset_summaries);
   DEBUG_MSG_DEBUG1(std::cout, "批量汇总结果已输出: ", compare_summary_output_path);
+
+  if (generate_figures_after_analysis) {
+    run_figure_generation_script(batch_run_tag);
+  }
 
   return 0;
 }

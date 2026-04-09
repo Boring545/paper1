@@ -215,6 +215,89 @@ bool assign_priority(cfd::PackingScheme& scheme) { return assign_priority(scheme
 #endif
 
 namespace cfd::schedule {
+std::unordered_map<FrameId, double> calc_frame_response_times(const CanfdFrameMap& frame_map) {
+  struct Job {
+    FrameId frame_id = 0;
+    int priority = 0;
+    double release_time = 0.0;
+    double trans_time = 0.0;
+  };
+
+  std::vector<const CanfdFrame*> frames;
+  frames.reserve(frame_map.size());
+  int hyperperiod_ms = 1;
+
+  for (const auto& [key, frame] : frame_map) {
+    if (frame.empty()) continue;
+    frames.push_back(&frame);
+    hyperperiod_ms = std::lcm(hyperperiod_ms, frame.get_period());
+  }
+
+  std::unordered_map<FrameId, double> response_times;
+  response_times.reserve(frames.size());
+  if (frames.empty()) return response_times;
+
+  std::vector<Job> jobs;
+  for (const auto* frame : frames) {
+    response_times.emplace(frame->get_id(), frame->get_trans_time());
+
+    const double offset_ms = frame->get_offset();
+    for (double release_time = offset_ms; release_time < static_cast<double>(hyperperiod_ms) - 1e-9;
+         release_time += frame->get_period()) {
+      jobs.push_back({frame->get_id(), frame->get_priority(), release_time, frame->get_trans_time()});
+    }
+  }
+
+  std::sort(jobs.begin(), jobs.end(), [](const Job& lhs, const Job& rhs) {
+    if (lhs.release_time != rhs.release_time) return lhs.release_time < rhs.release_time;
+    if (lhs.priority != rhs.priority) return lhs.priority < rhs.priority;
+    return lhs.frame_id < rhs.frame_id;
+  });
+
+  std::vector<Job> ready_jobs;
+  ready_jobs.reserve(jobs.size());
+  size_t next_job_index = 0;
+  double current_time = jobs.empty() ? 0.0 : jobs.front().release_time;
+
+  auto ready_cmp = [](const Job& lhs, const Job& rhs) {
+    if (lhs.priority != rhs.priority) return lhs.priority < rhs.priority;
+    if (lhs.release_time != rhs.release_time) return lhs.release_time < rhs.release_time;
+    return lhs.frame_id < rhs.frame_id;
+  };
+
+  while (next_job_index < jobs.size() || !ready_jobs.empty()) {
+    if (ready_jobs.empty() && next_job_index < jobs.size() && current_time < jobs[next_job_index].release_time) {
+      current_time = jobs[next_job_index].release_time;
+    }
+
+    while (next_job_index < jobs.size() && jobs[next_job_index].release_time <= current_time + 1e-9) {
+      ready_jobs.push_back(jobs[next_job_index]);
+      ++next_job_index;
+    }
+
+    if (ready_jobs.empty()) {
+      continue;
+    }
+
+    auto best_it = std::min_element(ready_jobs.begin(), ready_jobs.end(), ready_cmp);
+    const Job job = *best_it;
+    ready_jobs.erase(best_it);
+
+    const double finish_time = current_time + job.trans_time;
+    const double response_time = finish_time - job.release_time;
+    auto response_it = response_times.find(job.frame_id);
+    if (response_it == response_times.end()) {
+      response_times.emplace(job.frame_id, response_time);
+    } else {
+      response_it->second = std::max(response_it->second, response_time);
+    }
+
+    current_time = finish_time;
+  }
+
+  return response_times;
+}
+
 bool feasibility_check(const CanfdFrameMap& frame_map) {
   std::vector<const CanfdFrame*> sorted_frames;
   sorted_frames.reserve(frame_map.size());
