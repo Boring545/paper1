@@ -150,6 +150,10 @@ inline std::string compare_summary_report_path(const std::string& run_tag) {
   return path_string(analysis_batch_dir(run_tag) / "compare_summary_tab.txt");
 }
 
+inline std::string signal_frame_mapping_report_path(const std::string& run_tag) {
+  return path_string(analysis_batch_dir(run_tag) / "signal_frame_mapping_tab.txt");
+}
+
 inline std::string normalize_retry_report_output_path(const std::string& output_hint) {
   if (output_hint.empty()) {
     return retry_report_path(get_time_stamp(), "ad_hoc");

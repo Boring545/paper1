@@ -94,11 +94,48 @@ def long_dataset_label(name: str) -> str:
     return normalize_dataset_name(name)
 
 
+def dataset_dimensions(name: str) -> tuple[int | None, int | None]:
+    dataset = normalize_dataset_name(name)
+    parts = dataset.split("_")
+
+    ecu_count = None
+    signal_count = None
+    for part in parts:
+        if part.endswith("ecu") and part[:-3].isdigit():
+            ecu_count = int(part[:-3])
+        elif part.endswith("signals") and part[:-7].isdigit():
+            signal_count = int(part[:-7])
+
+    prefix = parts[0] if parts else dataset
+    if (ecu_count is None or signal_count is None) and prefix.startswith("E") and "S" in prefix:
+        ecu_part, signal_part = prefix[1:].split("S", maxsplit=1)
+        if ecu_part.isdigit() and signal_part.isdigit():
+            ecu_count = int(ecu_part)
+            signal_count = int(signal_part)
+
+    return ecu_count, signal_count
+
+
+def group_datasets_by_ecu(names: Iterable[str]) -> List[tuple[int, List[str]]]:
+    grouped: Dict[int, List[str]] = {}
+    for name in names:
+        ecu_count, _ = dataset_dimensions(name)
+        if ecu_count is None:
+            continue
+        grouped.setdefault(ecu_count, []).append(name)
+
+    return [(ecu_count, sorted(items, key=dataset_sort_key)) for ecu_count, items in sorted(grouped.items())]
+
+
 def dataset_sort_key(name: str) -> tuple:
     dataset = normalize_dataset_name(name)
+    ecu_count, signal_count = dataset_dimensions(dataset)
+    if ecu_count is not None and signal_count is not None:
+        return (0, ecu_count, signal_count, dataset)
+
     prefix = dataset.split("_")[0]
     if prefix.startswith("M") and prefix[1:].isdigit():
-        return (int(prefix[1:]), dataset)
+        return (1, int(prefix[1:]), dataset)
     return (999, dataset)
 
 

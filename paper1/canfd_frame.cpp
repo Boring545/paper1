@@ -3,6 +3,32 @@
 #include <cctype>
 
 namespace cfd {
+	namespace {
+		// Restrict 1/2/5ms signals to ECU 0/1/2 to keep bus load bounded.
+		constexpr std::array<int, 3> kRestrictedShortPeriods = {1, 2, 5};
+		constexpr size_t kRestrictedShortPeriodEcuCount = 3;
+
+		bool is_restricted_short_period(int period) {
+			return std::find(kRestrictedShortPeriods.begin(), kRestrictedShortPeriods.end(), period) !=
+				kRestrictedShortPeriods.end();
+		}
+
+		std::pair<int, int> sample_distinct_ecu_pair(std::mt19937& gen, const std::vector<int>& ecu_pool) {
+			if (ecu_pool.size() < 2) {
+				throw std::invalid_argument("ecu_pool must contain at least 2 ecus");
+			}
+
+			std::uniform_int_distribution<> dist_src(0, static_cast<int>(ecu_pool.size()) - 1);
+			std::uniform_int_distribution<> dist_dst(0, static_cast<int>(ecu_pool.size()) - 2);
+
+			auto option_ecu_copy = ecu_pool;
+			const int src_index = dist_src(gen);
+			const int src = option_ecu_copy[src_index];
+			std::swap(option_ecu_copy.back(), option_ecu_copy[src_index]);
+			const int dst = option_ecu_copy[dist_dst(gen)];
+			return {src, dst};
+		}
+	}
 	MessageInfoVec MESSAGE_INFO_VEC;//全局维护一个message info 表
 
 	int CanfdFrame::payload_size_trans(int size)
@@ -408,31 +434,25 @@ std::vector<int> build_level_sequence(size_t num, std::mt19937& gen) {
 	return build_value_sequence(OPTION_MESSAGE_LEVEL, NUM_MESSAGE_LEVEL, level_counts, gen);
 }
 
-std::array<std::vector<int>, NUM_MESSAGE_LEVEL> build_period_sequences_by_level(const std::vector<int>& levels,
-                                                                                std::mt19937& gen) {
-	const std::array<std::array<double, NUM_MESSAGE_PERIOD>, NUM_MESSAGE_LEVEL> level_period_weights = {{
-	    {{0.01, 0.02, 0.03, 0.29, 0.28, 0.07, 0.30}},
-	    {{0.03, 0.05, 0.08, 0.31, 0.28, 0.09, 0.16}},
-	    {{0.10, 0.10, 0.14, 0.32, 0.22, 0.07, 0.05}},
-	    {{0.25, 0.20, 0.18, 0.20, 0.10, 0.04, 0.03}},
-	}};
+std::vector<int> build_period_sequence(size_t num, std::mt19937& gen) {
+	const std::vector<double> period_weights(PROBABILITY_MESSAGE_PERIOD,
+	                                         PROBABILITY_MESSAGE_PERIOD + NUM_MESSAGE_PERIOD);
+	const auto period_counts = allocate_bucket_counts(num, period_weights);
+	return build_value_sequence(OPTION_MESSAGE_PERIOD, NUM_MESSAGE_PERIOD, period_counts, gen);
+}
 
-	std::array<size_t, NUM_MESSAGE_LEVEL> level_counts{};
-	for (const int level : levels) {
-		if (level >= 0 && level < NUM_MESSAGE_LEVEL) {
-			level_counts[level] += 1;
-		}
-	}
+std::vector<int> build_size_sequence(size_t num, std::mt19937& gen) {
+	const std::vector<double> size_weights(PROBABILITY_MESSAGE_SIZE,
+	                                       PROBABILITY_MESSAGE_SIZE + NUM_MESSAGE_SIZE);
+	const auto size_counts = allocate_bucket_counts(num, size_weights);
+	return build_value_sequence(OPTION_MESSAGE_SIZE, NUM_MESSAGE_SIZE, size_counts, gen);
+}
 
-	std::array<std::vector<int>, NUM_MESSAGE_LEVEL> period_sequences;
-	for (int level = 0; level < NUM_MESSAGE_LEVEL; ++level) {
-		const std::vector<double> period_weights(level_period_weights[level].begin(),
-		                                         level_period_weights[level].end());
-		const auto period_counts = allocate_bucket_counts(level_counts[level], period_weights);
-		period_sequences[level] = build_value_sequence(OPTION_MESSAGE_PERIOD, NUM_MESSAGE_PERIOD, period_counts, gen);
-	}
-
-	return period_sequences;
+std::vector<int> build_type_sequence(size_t num, std::mt19937& gen) {
+	const std::vector<double> type_weights(PROBABILITY_MESSAGE_TYPE,
+	                                       PROBABILITY_MESSAGE_TYPE + NUM_MESSAGE_TYPE);
+	const auto type_counts = allocate_bucket_counts(num, type_weights);
+	return build_value_sequence(OPTION_MESSAGE_TYPE, NUM_MESSAGE_TYPE, type_counts, gen);
 }
 
 std::vector<std::string> split_line(const std::string& line, char separator) {
@@ -871,17 +891,8 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 
 		// 生成随机的 period、 data_size、源ECU、目ECU 分布、offset、level
 
-		std::discrete_distribution<> dist_size(PROBABILITY_MESSAGE_SIZE, PROBABILITY_MESSAGE_SIZE + NUM_MESSAGE_SIZE);
-
-		std::discrete_distribution<>dist_period(PROBABILITY_MESSAGE_PERIOD, PROBABILITY_MESSAGE_PERIOD + NUM_MESSAGE_PERIOD);
-
-		std::uniform_int_distribution<>dist_ecu1(0, static_cast<int>(ecu_count) - 1);
-		std::uniform_int_distribution<>dist_ecu2(0, static_cast<int>(ecu_count) - 2);
-
-		std::discrete_distribution<>dist_level(PROBABILITY_MESSAGE_LEVEL, PROBABILITY_MESSAGE_LEVEL + NUM_MESSAGE_LEVEL);
 
 		// 0 允许同源备份；1 必须异源备份
-		std::discrete_distribution<> dist_type(PROBABILITY_MESSAGE_TYPE, PROBABILITY_MESSAGE_TYPE + NUM_MESSAGE_TYPE);
 
 
 		int size = 0, period = 0, deadline = 0, src = 0, dst = 0, offset = 0, level = 0,type=0;
@@ -892,41 +903,37 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 		for (size_t i = 0; i < ecu_count; ++i) {
 			ecu_options.push_back(OPTION_ECU[i]);
 		}
+		// If ecu_count < 3, only use the available active ECUs here.
+		const size_t restricted_ecu_count = std::min(ecu_count, kRestrictedShortPeriodEcuCount);
+		std::vector<int> restricted_ecu_options(ecu_options.begin(), ecu_options.begin() + restricted_ecu_count);
 
 		const auto levels = build_level_sequence(num, gen);
-		auto period_sequences = build_period_sequences_by_level(levels, gen);
-		std::array<size_t, NUM_MESSAGE_LEVEL> period_offsets{};
+		const auto periods = build_period_sequence(num, gen);
+		const auto sizes = build_size_sequence(num, gen);
+		const auto types = build_type_sequence(num, gen);
 
 		std::hash<std::string> hash_fn;
 
 		for (size_t i = 0; i < num; i++) {
-			size = OPTION_MESSAGE_SIZE[dist_size(gen)];
+			size = (i < sizes.size()) ? sizes[i] : OPTION_MESSAGE_SIZE[0];
 
 			level = (i < levels.size()) ? levels[i] : 0;
 			if (level < 0 || level >= NUM_MESSAGE_LEVEL) {
 				level = 0;
 			}
-			if (period_offsets[level] < period_sequences[level].size()) {
-				period = period_sequences[level][period_offsets[level]++];
-			}
-			else {
-				period = OPTION_MESSAGE_PERIOD[0];
-			}
+			period = (i < periods.size()) ? periods[i] : OPTION_MESSAGE_PERIOD[0];
 			deadline = period;
 
-			auto option_ecu_copy = ecu_options;
-			int ecu1_index = dist_ecu1(gen);
-			src = option_ecu_copy[ecu1_index];
-			std::swap(option_ecu_copy[ecu_count - 1], option_ecu_copy[ecu1_index]);
-			dst = option_ecu_copy[dist_ecu2(gen)];
+			// 1/2/5ms use ECU 0/1/2 only; other periods still use the full active ECU pool.
+			const auto& ecu_pool =
+				(is_restricted_short_period(period) && restricted_ecu_options.size() >= 2) ? restricted_ecu_options : ecu_options;
+			std::tie(src, dst) = sample_distinct_ecu_pair(gen, ecu_pool);
 
 			// offset = dist_offset(gen) * period;
 			offset = 0;	// 信号不设offset
 
 
-			level = (i < levels.size()) ? levels[i] : 0;
-
-			type = OPTION_MESSAGE_TYPE[dist_type(gen)];
+			type = (i < types.size()) ? types[i] : OPTION_MESSAGE_TYPE[0];
 
 			auto timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
 			// 拼接所有字段（包括时间戳）

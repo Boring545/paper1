@@ -1,0 +1,3 @@
+D:/document/CODE/paper1/build_codex_vs/CMakeFiles/ALL_BUILD.dir
+D:/document/CODE/paper1/build_codex_vs/CMakeFiles/ZERO_CHECK.dir
+D:/document/CODE/paper1/build_codex_vs/paper1/CMakeFiles/paper1.dir

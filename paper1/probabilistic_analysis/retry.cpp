@@ -70,14 +70,8 @@ FrameContext build_frame_context(const std::vector<CanfdFrame>& sorted_frames, i
     }
   }
 
-  const double p_threshold = threshold_per_window(max_level, sorted_frames[frame_index].get_period());
-  if (p_threshold > 0.0) {
-    // Lower the pruning resolution by two extra orders of magnitude so that
-    // extremely small timeout branches have a better chance to be explicitly enumerated.
-    ctx.prune_epsilon = std::pow(10.0, std::floor(std::log10(p_threshold)) - 2.0);
-  } else {
-    ctx.prune_epsilon = 1e-14;
-  }
+  (void)max_level;
+  ctx.prune_epsilon = 1e-31;
   ctx.single_error_cost = COST_MAX_ERROR_FRAME + ctx.max_hp_trans_time;
   return ctx;
 }

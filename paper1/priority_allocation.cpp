@@ -356,7 +356,7 @@ bool feasibility_check(const CanfdFrameMap& frame_map) {
       if (E_R > deadline + EPS) {
         DEBUG_MSG_DEBUG2(std::cout, "[Sched FAIL] frame=", frame.get_id(), " pri=", frame.get_priority(), " R=", E_R,
                          " D=", deadline, " B=", max_lp_trans_time, " C=", trans_time);
-        DEBUG_MSG_DEBUG1(std::cout, "不可行原因: 响应时间超截止期限", " frame=", frame.get_id(),
+        DEBUG_MSG_DEBUG2(std::cout, "不可行原因: 响应时间超截止期限", " frame=", frame.get_id(),
                          " pri=", frame.get_priority(), " R=", E_R, " D=", deadline, " B=", max_lp_trans_time,
                          " C=", trans_time, " period=", period, " utilization=", utilization);
 

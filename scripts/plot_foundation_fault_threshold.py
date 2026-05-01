@@ -3,39 +3,38 @@ from __future__ import annotations
 
 import argparse
 import csv
-import math
 from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import ticker as mticker
 
-from plot_utils import (
-    configure_matplotlib,
-    dataset_sort_key,
-    resolve_compare_dir,
-    short_dataset_label,
-)
+from plot_utils import configure_matplotlib, dataset_dimensions, dataset_sort_key, group_datasets_by_ecu, resolve_compare_dir
 
 
-ASIL_ORDER = ["A", "B", "C", "D"]
+ASIL_ORDER = ["B", "C", "D"]
 ASIL_COLORS = {
-    "A": "#4f5d75",
     "B": "#6b7280",
     "C": "#7c8577",
     "D": "#7a5c45",
 }
+ASIL_THRESHOLDS = {
+    "B": 1e-7,
+    "C": 1e-7,
+    "D": 1e-8,
+}
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="绘制基础方法下最坏信号故障概率与阈值对比图。")
-    parser.add_argument("input_path", type=Path, help="分析批次目录，或其中的 comparison_reports / compare 目录")
+    parser = argparse.ArgumentParser(description="Plot foundation fault probability against thresholds.")
+    parser.add_argument("input_path", type=Path, help="Analysis directory or comparison_reports directory")
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
-        help="输出目录，默认 <analysis_batch>/comparison_figures",
+        help="Output directory, defaults to <analysis_batch>/comparison_figures",
     )
     return parser.parse_args()
 
@@ -81,22 +80,12 @@ def collect_worst_points(compare_dir: Path) -> dict[str, dict[str, dict]]:
                 result[dataset_name][asil] = {"code": "", "p_fault": 0.0, "p_threshold": 0.0, "ratio": 0.0}
                 continue
 
-            best_row = None
-            best_ratio = -1.0
-            for row in asil_rows:
-                p_fault = float(row["p_fault"])
-                p_threshold = float(row["p_threshold"])
-                ratio = p_fault / p_threshold if p_threshold > 0 else math.inf
-                if ratio > best_ratio:
-                    best_ratio = ratio
-                    best_row = row
-
-            assert best_row is not None
+            best_row = max(asil_rows, key=lambda row: float(row["p_fault"]))
             result[dataset_name][asil] = {
                 "code": best_row["code"],
                 "p_fault": float(best_row["p_fault"]),
-                "p_threshold": float(best_row["p_threshold"]),
-                "ratio": best_ratio,
+                "p_threshold": ASIL_THRESHOLDS[asil],
+                "ratio": float(best_row["p_fault"]) / ASIL_THRESHOLDS[asil],
             }
 
     return result
@@ -105,77 +94,110 @@ def collect_worst_points(compare_dir: Path) -> dict[str, dict[str, dict]]:
 def write_summary_table(output_dir: Path, dataset_order: list[str], points: dict[str, dict[str, dict]]) -> Path:
     output_path = output_dir / "foundation_fault_probability_vs_threshold_tab.txt"
     with output_path.open("w", encoding="utf-8", newline="") as handle:
-        handle.write("# foundation 方法下各数据集、各 ASIL 组的最坏信号故障概率与对应阈值\n")
-        handle.write("# 最坏信号定义：在该数据集和 ASIL 组内，使 p_fault / p_threshold 最大的信号\n\n")
-        handle.write("dataset\tasil\tcode\tmax_p_fault\tp_threshold\tfault_to_threshold_ratio\n")
+        handle.write("# Worst foundation-scheme fault probability by dataset and ASIL group.\n")
+        handle.write("# Only ASIL B/C/D are shown because ASIL A does not carry a useful threshold here.\n\n")
+        handle.write("dataset\til\tcode\tmax_p_fault\tp_threshold\tfault_to_threshold_ratio\n".replace("\til\t", "\tasil\t"))
         for dataset_name in dataset_order:
             for asil in ASIL_ORDER:
                 item = points[dataset_name][asil]
                 handle.write(
-                    f"{short_dataset_label(dataset_name)}\t{asil}\t{item['code']}\t"
-                    f"{item['p_fault']}\t{item['p_threshold']}\t{item['ratio']}\n"
+                    f"{dataset_name}\t{asil}\t{item['code']}\t{item['p_fault']}\t"
+                    f"{item['p_threshold']}\t{item['ratio']}\n"
                 )
     return output_path
 
 
 def plot_fault_vs_threshold(output_dir: Path, dataset_order: list[str], points: dict[str, dict[str, dict]]) -> Path:
-    configure_matplotlib(font_size=10.5)
-    x_labels = [short_dataset_label(name) for name in dataset_order]
-    x_positions = list(range(len(dataset_order)))
+    configure_matplotlib(font_size=10.0)
+    dataset_groups = group_datasets_by_ecu(dataset_order)
 
-    fig, axes = plt.subplots(2, 2, figsize=(13.2, 8.2), constrained_layout=True, squeeze=False)
+    fig, axes = plt.subplots(
+        1,
+        len(dataset_groups),
+        figsize=(5.6 * len(dataset_groups), 4.8),
+        sharey=False,
+        squeeze=False,
+    )
+    flat_axes = list(axes[0])
+    legend_handles = []
+    legend_labels = []
 
-    positive_values = []
-    for dataset_name in dataset_order:
-        for asil in ASIL_ORDER:
-            item = points[dataset_name][asil]
-            if item["p_fault"] > 0:
-                positive_values.append(item["p_fault"])
-            if item["p_threshold"] > 0:
-                positive_values.append(item["p_threshold"])
-    log_floor = min(positive_values) / 10.0 if positive_values else 1e-20
+    bar_width = 0.18
+    offsets = [-0.22, 0.0, 0.22]
 
-    for index, asil in enumerate(ASIL_ORDER):
-        ax = axes[index // 2][index % 2]
-        fault_values = []
-        threshold_values = []
-        for dataset_name in dataset_order:
-            item = points[dataset_name][asil]
-            fault_values.append(item["p_fault"] if item["p_fault"] > 0 else log_floor)
-            threshold_values.append(item["p_threshold"] if item["p_threshold"] > 0 else log_floor)
+    for axis_index, (ecu_count, group_datasets) in enumerate(dataset_groups):
+        ax = flat_axes[axis_index]
+        threshold_ax = ax.twinx()
+        x_positions = list(range(len(group_datasets)))
+        x_labels = [str(dataset_dimensions(dataset)[1]) for dataset in group_datasets]
+        axis_fault_values = []
+        axis_threshold_values = []
 
-        ax.bar(
-            x_positions,
-            fault_values,
-            width=0.55,
-            color=ASIL_COLORS[asil],
-            edgecolor="black",
-            linewidth=0.6,
-            label="最坏信号故障概率" if index == 0 else None,
-        )
-        ax.plot(
-            x_positions,
-            threshold_values,
-            color="black",
-            linestyle="--",
-            linewidth=1.6,
-            label="对应阈值" if index == 0 else None,
-        )
+        for asil_index, asil in enumerate(ASIL_ORDER):
+            fault_values = []
+            for dataset_name in group_datasets:
+                p_fault = points[dataset_name][asil]["p_fault"]
+                if p_fault > 0:
+                    fault_values.append(p_fault)
+                    axis_fault_values.append(p_fault)
+                else:
+                    fault_values.append(1e-20)
+            axis_threshold_values.append(ASIL_THRESHOLDS[asil])
+
+            label = f"ASIL {asil} fault" if axis_index == 0 else None
+            bar = ax.bar(
+                [x + offsets[asil_index] for x in x_positions],
+                fault_values,
+                width=bar_width,
+                color=ASIL_COLORS[asil],
+                edgecolor="black",
+                linewidth=0.6,
+                label=label,
+            )
+            line = threshold_ax.hlines(
+                ASIL_THRESHOLDS[asil],
+                x_positions[0] - 0.5,
+                x_positions[-1] + 0.5,
+                color=ASIL_COLORS[asil],
+                linestyle="--",
+                linewidth=1.2,
+                label=f"ASIL {asil} threshold" if axis_index == 0 else None,
+            )
+            if axis_index == 0:
+                legend_handles.extend([line, bar[0]])
+                legend_labels.extend([f"ASIL {asil} threshold", f"ASIL {asil} fault"])
 
         ax.set_yscale("log")
-        ax.set_ylim(bottom=log_floor)
+        fault_min = min(axis_fault_values) / 3.0 if axis_fault_values else 1e-20
+        fault_max = max(axis_fault_values) * 3.0 if axis_fault_values else 1e-16
+        ax.set_ylim(bottom=fault_min, top=fault_max)
+        ax.yaxis.set_major_locator(mticker.LogLocator(base=10.0, numticks=12))
+        ax.yaxis.set_minor_locator(mticker.LogLocator(base=10.0, subs=tuple(range(2, 10)), numticks=100))
+        ax.yaxis.set_minor_formatter(mticker.NullFormatter())
+        ax.grid(True, axis="y", which="major", linestyle="--", linewidth=0.6, alpha=0.4)
+        ax.grid(True, axis="y", which="minor", linestyle=":", linewidth=0.4, alpha=0.25)
+
+        threshold_ax.set_yscale("log")
+        threshold_min = min(axis_threshold_values) / 3.0 if axis_threshold_values else 1e-9
+        threshold_max = max(axis_threshold_values) * 3.0 if axis_threshold_values else 1e-6
+        threshold_ax.set_ylim(bottom=threshold_min, top=threshold_max)
+        threshold_ax.grid(False)
+        threshold_ax.spines["top"].set_visible(False)
+        threshold_ax.set_ylabel("ASIL Threshold")
+
         ax.set_xticks(x_positions)
         ax.set_xticklabels(x_labels)
-        ax.set_xlabel("数据集")
-        ax.set_ylabel("故障概率")
-        ax.set_title(f"ASIL {asil}")
+        ax.set_title(f"{ecu_count} ECU")
+        ax.tick_params(axis="x", labelsize=9)
+        ax.set_xlabel("Signal Count")
+        ax.set_ylabel("Fault Probability")
 
-    handles, labels = axes[0][0].get_legend_handles_labels()
-    fig.legend(handles, labels, frameon=False, ncol=1, loc="upper left", bbox_to_anchor=(1.01, 0.96))
-    fig.suptitle("基础方法在不同数据集和ASIL等级下的最坏信号故障概率与阈值对比", fontsize=14)
+    fig.legend(legend_handles, legend_labels, frameon=False, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 0.03))
+    fig.suptitle("Foundation Worst-Signal Fault Probability by ECU Group", fontsize=14, y=0.96)
+    fig.subplots_adjust(top=0.82, bottom=0.24, wspace=0.08)
 
     output_path = output_dir / "foundation_fault_probability_vs_threshold.png"
-    fig.savefig(output_path, bbox_inches="tight")
+    fig.savefig(output_path)
     plt.close(fig)
     return output_path
 

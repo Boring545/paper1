@@ -1,13 +1,13 @@
-#include "../debug_tool.h"
-#include "../priority_allocation.h"
-#include "../scheme.h"
-
 #include <algorithm>
 #include <cmath>
 #include <map>
 #include <random>
 #include <unordered_map>
 #include <vector>
+
+#include "../debug_tool.h"
+#include "../priority_allocation.h"
+#include "../scheme.h"
 
 namespace cfd::packing::heuristics {
 
@@ -209,12 +209,12 @@ double simulated_annealing(PackingScheme& scheme) {
   std::uniform_real_distribution<> dist(0.0, 1.0);
 
   //----- SA参数初始化
-  constexpr double INITIAL_TEMPERATURE = 12;  // 初始温度
+  constexpr double INITIAL_TEMPERATURE = 10;  // 初始温度
   constexpr double FINAL_TEMPERATURE = 0.01;  // 收敛终止温度
-  constexpr double ALPHA = 0.997;             // 温度衰减因子，放慢降温速度
+  constexpr double ALPHA = 0.99;              // 温度衰减因子，放慢降温速度
   constexpr int NUM_MIN_MOVE = 2;             // 每次至少移动消息数
   constexpr double FACTOR_COST_SCALE =
-      200.0;  // 成本差值放大系数，值越大收敛越快，探索程度越低；值越小，收敛越慢，搜索更深
+      100.0;  // 成本差值放大系数，值越大收敛越快，探索程度越低；值越小，收敛越慢，搜索更深
 
   double current_temperature = INITIAL_TEMPERATURE;
 
@@ -233,8 +233,8 @@ double simulated_annealing(PackingScheme& scheme) {
     double temperature_ratio = current_temperature / INITIAL_TEMPERATURE;
     int max_select_num = std::max(NUM_MIN_MOVE, message_count / 10);
     int select_num = std::max(NUM_MIN_MOVE, static_cast<int>(std::ceil(max_select_num * temperature_ratio)));
-    int local_trial_count = std::max(1, static_cast<int>(std::ceil(neighborhood_trials_per_temperature *
-                                                                    (0.5 + 0.5 * temperature_ratio))));
+    int local_trial_count =
+        std::max(1, static_cast<int>(std::ceil(neighborhood_trials_per_temperature * (0.5 + 0.5 * temperature_ratio))));
 
     std::uniform_int_distribution<> msg_dist(0, message_count - 1);
 

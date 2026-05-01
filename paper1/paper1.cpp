@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -9,6 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -47,7 +49,7 @@ struct CodeMeta {
 };
 
 struct ExperimentDatasetSpec {
-  const char* name = "";
+  std::string name;
   size_t ecu_count = 0;
   size_t signal_count = 0;
 };
@@ -63,6 +65,8 @@ struct SignalMetric {
   double expected_wcrt_ms = 0.0;
   double wcrt_p95_ms = 0.0;
   double wcrt_ratio_p95 = 0.0;
+  double threshold_wcrt_ms = 0.0;
+  double threshold_wcrt_ratio = 0.0;
 };
 
 struct SchemeMetrics {
@@ -70,12 +74,40 @@ struct SchemeMetrics {
   double compare_bandwidth_utilization = 0.0;
   double static_bandwidth_utilization = 0.0;
   int total_added_signal_copies = 0;
+  bool schedulable = false;
   std::vector<SignalMetric> signals;
+};
+
+struct SignalFrameMappingRow {
+  std::string dataset_tag;
+  std::string scheme_name;
+  MessageCode code = 0;
+  MessageID message_id = 0;
+  int signal_instance_index = 1;
+  int signal_instance_count = 1;
+  int is_added_copy = 0;
+  FrameId frame_id = 0;
+  int frame_priority = -1;
+  int frame_period_ms = 0;
+  int frame_deadline_ms = 0;
+  double frame_offset_ms = 0.0;
+  double frame_trans_time_ms = 0.0;
+  int frame_payload_bytes = 0;
+  int frame_message_count = 0;
+  int signal_period_ms = 0;
+  int signal_deadline_ms = 0;
+  int level = 0;
+  int type = 0;
+  EcuId src_ecu = 0;
+  EcuId dst_ecu = 0;
 };
 
 struct DatasetCompareSummary {
   std::string dataset_tag;
+  std::string config_tag;
   std::vector<SchemeMetrics> schemes;
+  std::vector<SchemeMetrics> wcrt_schemes;
+  std::vector<SignalFrameMappingRow> signal_frame_mappings;
 };
 
 struct AsilStats {
@@ -104,33 +136,79 @@ char level_to_asil(int level) {
   }
 }
 
-const std::array<ExperimentDatasetSpec, 6> kScalingDatasetSpecs = {{
-    {"M1", 3, 75},
-    {"M2", 3, 105},
-    {"M3", 4, 135},
-    {"M4", 4, 170},
-    {"M5", 5, 200},
-    {"M6", 5, 225},
-}};
+const std::array<size_t, 3> kScalingEcuCounts = {{5, 8, 12}};
+const std::array<size_t, 6> kScalingSignalCounts = {{50, 80, 120, 150, 200, 250}};
+const std::array<size_t, 1> kSelectedRunSignalCounts = {{250}};
 
-// 默认实验输入指向 storage/datasets 下当前固定的这组 M1~M6 数据集。
-// 日常运行直接复用这些文件；如需覆盖重生成，修改下面的布尔开关即可。
-const std::array<const char*, 6> kDefaultDatasetFiles = {{
-    "msg_M1_3ecu_75signals_tab.txt",
-    "msg_M2_3ecu_105signals_tab.txt",
-    "msg_M3_4ecu_135signals_tab.txt",
-    "msg_M4_4ecu_170signals_tab.txt",
-    "msg_M5_5ecu_200signals_tab.txt",
-    "msg_M6_5ecu_225signals_tab.txt",
-}};
+const std::vector<ExperimentDatasetSpec> kScalingDatasetSpecs = [] {
+  std::vector<ExperimentDatasetSpec> specs;
+  specs.reserve(kScalingEcuCounts.size() * kScalingSignalCounts.size());
+  for (size_t ecu_count : kScalingEcuCounts) {
+    for (size_t signal_count : kScalingSignalCounts) {
+      specs.push_back({"E" + std::to_string(ecu_count) + "S" + std::to_string(signal_count), ecu_count, signal_count});
+    }
+  }
+  return specs;
+}();
 
-// 为了保证各对比方法从同一个初始打包结果出发，先对原始信号集做多次 SA，
-// 取带宽利用率最低的那个作为共享初始 scheme。
-constexpr int kInitialSchemeRestartCount = 3;
+const std::array<const char*, 3> kFocusedBatchSchemeNames = {{"foundation", "baseline1", "baseline2"}};
+const std::array<const char*, 4> kWcrtSchemeNames = {
+    {"foundation_no_offset", "baseline1_no_offset", "foundation", "baseline1"}};
+
+const ExperimentDatasetSpec* find_dataset_spec(std::string_view name) {
+  for (const auto& spec : kScalingDatasetSpecs) {
+    if (spec.name == name) {
+      return &spec;
+    }
+  }
+  return nullptr;
+}
+
+std::vector<std::string> split_csv_arg(const std::string& csv) {
+  std::vector<std::string> items;
+  std::stringstream ss(csv);
+  std::string item;
+  while (std::getline(ss, item, ',')) {
+    item.erase(std::remove_if(item.begin(), item.end(), [](unsigned char ch) { return std::isspace(ch); }), item.end());
+    if (!item.empty()) {
+      items.push_back(item);
+    }
+  }
+  return items;
+}
+
+std::string dataset_config_tag_from_dataset_tag(const std::string& dataset_tag) {
+  const size_t last_sep = dataset_tag.find_last_of('_');
+  if (last_sep == std::string::npos || last_sep + 1 >= dataset_tag.size()) {
+    return dataset_tag;
+  }
+
+  const std::string suffix = dataset_tag.substr(last_sep + 1);
+  if (!suffix.empty() &&
+      std::all_of(suffix.begin(), suffix.end(), [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
+    return dataset_tag.substr(0, last_sep);
+  }
+  return dataset_tag;
+}
+
+// 为了保证各对比方法从同一个初始打包结果出发，只构建一次共享初始 scheme。
 
 std::string scaling_dataset_filename(const ExperimentDatasetSpec& spec) {
   return "msg_" + std::string(spec.name) + "_" + std::to_string(spec.ecu_count) + "ecu_" +
          std::to_string(spec.signal_count) + "signals_tab.txt";
+}
+
+std::string batched_dataset_directory_name(const ExperimentDatasetSpec& spec) {
+  return std::string(spec.name) + "_" + std::to_string(spec.ecu_count) + "ecu_" + std::to_string(spec.signal_count) +
+         "signals";
+}
+
+std::string batched_dataset_filename(const ExperimentDatasetSpec& spec, size_t batch_index) {
+  std::ostringstream oss;
+  oss << "datasets/" << batched_dataset_directory_name(spec) << "/msg_" << spec.name << "_"
+      << std::to_string(spec.ecu_count) << "ecu_" << std::to_string(spec.signal_count) << "signals_" << std::setw(3)
+      << std::setfill('0') << batch_index << "_tab.txt";
+  return oss.str();
 }
 
 double calc_ratio(double wcrt_ms, int period_ms) {
@@ -149,8 +227,8 @@ std::unordered_map<MessageCode, CodeMeta> build_code_meta(const MessageInfoVec& 
   for (const auto& info : original_infos) {
     auto it = meta_by_code.find(info.code);
     if (it == meta_by_code.end()) {
-      meta_by_code.emplace(info.code, CodeMeta{info.level, info.period, info.deadline, info.type,
-                                               info.ecu_pair.src_ecu, info.ecu_pair.dst_ecu});
+      meta_by_code.emplace(info.code, CodeMeta{info.level, info.period, info.deadline, info.type, info.ecu_pair.src_ecu,
+                                               info.ecu_pair.dst_ecu});
     }
   }
 
@@ -197,15 +275,18 @@ std::string create_msg(const std::string& dataset_file = "", size_t message_coun
 std::vector<std::string> create_scaling_experiment_datasets() {
   std::vector<std::string> dataset_paths;
   dataset_paths.reserve(kScalingDatasetSpecs.size());
-  MessageInfoVec cumulative_infos;
-  size_t generated_signal_count = 0;
+  std::unordered_map<size_t, MessageInfoVec> cumulative_infos_by_ecu_count;
+  std::unordered_map<size_t, size_t> generated_signal_count_by_ecu_count;
 
   for (const auto& spec : kScalingDatasetSpecs) {
     if (spec.ecu_count > cfd::NUM_ECU) {
-      throw std::invalid_argument("Current config does not provide enough ECU ids for " + std::string(spec.name));
+      throw std::invalid_argument("Current config does not provide enough ECU ids for " + spec.name);
     }
+    auto& cumulative_infos = cumulative_infos_by_ecu_count[spec.ecu_count];
+    auto& generated_signal_count = generated_signal_count_by_ecu_count[spec.ecu_count];
+
     if (spec.signal_count < generated_signal_count) {
-      throw std::invalid_argument("Scaling dataset signal_count must be non-decreasing");
+      throw std::invalid_argument("Scaling dataset signal_count must be non-decreasing within the same ecu_count");
     }
 
     const size_t incremental_signal_count = spec.signal_count - generated_signal_count;
@@ -217,14 +298,90 @@ std::vector<std::string> create_scaling_experiment_datasets() {
 
     cfd::MESSAGE_INFO_VEC = cumulative_infos;
     const std::string output_path = normalize_dataset_output_path(scaling_dataset_filename(spec));
-    DEBUG_MSG_DEBUG1(std::cout, "渐进生成信号集合, 场景/新增/累计: ", spec.name, "/", incremental_signal_count, "/",
-                     cumulative_infos.size());
+    DEBUG_MSG_DEBUG1(std::cout, "渐进生成信号集合, 场景/ECU/新增/累计: ", spec.name, "/", spec.ecu_count, "/",
+                     incremental_signal_count, "/", cumulative_infos.size());
     cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
     dataset_paths.push_back(output_path);
     generated_signal_count = spec.signal_count;
   }
 
   return dataset_paths;
+}
+
+std::vector<std::string> create_random_dataset_batches(size_t batch_count_per_spec) {
+  std::vector<std::string> dataset_paths;
+  dataset_paths.reserve(kScalingDatasetSpecs.size() * batch_count_per_spec);
+
+  for (const auto& spec : kScalingDatasetSpecs) {
+    if (spec.ecu_count > cfd::NUM_ECU) {
+      throw std::invalid_argument("Current config does not provide enough ECU ids for " + spec.name);
+    }
+
+    DEBUG_MSG_DEBUG1(std::cout, "开始批量生成配置: ", spec.name, ", count=", batch_count_per_spec);
+    for (size_t batch_index = 1; batch_index <= batch_count_per_spec; ++batch_index) {
+      cfd::utils::generate_msg_info_set(cfd::MESSAGE_INFO_VEC, spec.signal_count, spec.ecu_count);
+      const std::string output_path = normalize_dataset_output_path(batched_dataset_filename(spec, batch_index));
+      cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
+      dataset_paths.push_back(output_path);
+    }
+  }
+
+  return dataset_paths;
+}
+
+std::vector<const ExperimentDatasetSpec*> resolve_selected_specs(const std::vector<std::string>& selected_spec_names) {
+  std::vector<const ExperimentDatasetSpec*> specs;
+  if (selected_spec_names.empty()) {
+    specs.reserve(kScalingDatasetSpecs.size());
+    for (const auto& spec : kScalingDatasetSpecs) {
+      specs.push_back(&spec);
+    }
+    return specs;
+  }
+
+  specs.reserve(selected_spec_names.size());
+  for (const auto& spec_name : selected_spec_names) {
+    const ExperimentDatasetSpec* spec = find_dataset_spec(spec_name);
+    if (spec == nullptr) {
+      throw std::invalid_argument("Unknown dataset spec: " + spec_name);
+    }
+    specs.push_back(spec);
+  }
+  return specs;
+}
+
+std::vector<std::string> resolve_dataset_batch_files(const std::vector<std::string>& selected_spec_names) {
+  const auto specs = resolve_selected_specs(selected_spec_names);
+  std::vector<std::string> dataset_files;
+
+  for (const auto* spec : specs) {
+    const fs::path dir = cfd::storage::dataset_root() / batched_dataset_directory_name(*spec);
+    if (!fs::exists(dir) || !fs::is_directory(dir)) {
+      throw std::runtime_error("Missing dataset batch directory: " + cfd::storage::path_string(dir));
+    }
+
+    std::vector<fs::path> paths;
+    for (const auto& entry : fs::directory_iterator(dir)) {
+      if (!entry.is_regular_file()) {
+        continue;
+      }
+      if (entry.path().extension() != ".txt") {
+        continue;
+      }
+      paths.push_back(entry.path());
+    }
+
+    std::sort(paths.begin(), paths.end());
+    if (paths.empty()) {
+      throw std::runtime_error("No dataset batch files found in: " + cfd::storage::path_string(dir));
+    }
+
+    for (const auto& path : paths) {
+      dataset_files.push_back(cfd::storage::path_string(path));
+    }
+  }
+
+  return dataset_files;
 }
 
 std::string normalize_dataset_path(const std::string& dataset_file) {
@@ -238,16 +395,40 @@ std::string normalize_dataset_output_path(const std::string& dataset_file) {
 std::string dataset_tag(const std::string& dataset_file) { return cfd::storage::dataset_tag_from_file(dataset_file); }
 
 std::vector<std::string> default_dataset_files() {
-  return std::vector<std::string>(kDefaultDatasetFiles.begin(), kDefaultDatasetFiles.end());
+  std::vector<std::string> dataset_files;
+  dataset_files.reserve(kScalingEcuCounts.size() * kSelectedRunSignalCounts.size());
+  for (const auto& spec : kScalingDatasetSpecs) {
+    if (std::find(kSelectedRunSignalCounts.begin(), kSelectedRunSignalCounts.end(), spec.signal_count) ==
+        kSelectedRunSignalCounts.end()) {
+      continue;
+    }
+    dataset_files.push_back(scaling_dataset_filename(spec));
+  }
+  return dataset_files;
+}
+
+bool dataset_file_exists(const std::string& dataset_file) {
+  return fs::exists(normalize_dataset_path(dataset_file));
 }
 
 std::vector<std::string> resolve_experiment_dataset_files(bool regenerate_datasets) {
-  // 重新生成会覆盖 storage/datasets 下当前的 M1~M6 数据集文件；
+  // 重新生成会覆盖 storage/datasets 下当前配置的实验数据文件；
   // 默认模式始终复用现有固定数据集。
   if (regenerate_datasets) {
     return create_scaling_experiment_datasets();
   }
-  return default_dataset_files();
+
+  const std::vector<std::string> dataset_files = default_dataset_files();
+  const bool all_dataset_files_exist =
+      std::all_of(dataset_files.begin(), dataset_files.end(), [](const std::string& dataset_file) {
+        return dataset_file_exists(dataset_file);
+      });
+  if (all_dataset_files_exist) {
+    return dataset_files;
+  }
+
+  DEBUG_MSG_DEBUG1(std::cout, "默认实验数据集缺失，自动重新生成当前配置所需数据集。");
+  return create_scaling_experiment_datasets();
 }
 
 // 读取某个信号集合
@@ -264,23 +445,17 @@ PackingScheme build_scheme_from_current_msgs() {
   return scheme;
 }
 
-PackingScheme build_best_shared_initial_scheme_from_current_msgs(int restart_count = kInitialSchemeRestartCount) {
-  const int actual_restart_count = std::max(1, restart_count);
+PackingScheme build_shared_initial_scheme_from_current_msgs() {
+  PackingScheme scheme = build_scheme_from_current_msgs();
+  DEBUG_MSG_DEBUG1(std::cout, "共享初始打包结果(单次打包) Utilization = ", scheme.calc_bandwidth_utilization());
+  return scheme;
+}
 
-  PackingScheme best_scheme = build_scheme_from_current_msgs();
-  double best_utilization = best_scheme.calc_bandwidth_utilization();
-
-  for (int attempt = 2; attempt <= actual_restart_count; ++attempt) {
-    PackingScheme candidate = build_scheme_from_current_msgs();
-    const double candidate_utilization = candidate.calc_bandwidth_utilization();
-    if (candidate_utilization < best_utilization) {
-      best_scheme = std::move(candidate);
-      best_utilization = candidate_utilization;
-    }
-  }
-
-  DEBUG_MSG_DEBUG1(std::cout, "共享初始打包结果(多次重启后最优) Utilization = ", best_utilization);
-  return best_scheme;
+bool log_scheme_schedulability(const std::string& scheme_name, const PackingScheme& scheme) {
+  const bool schedulable = cfd::schedule::feasibility_check(scheme.frame_map);
+  DEBUG_MSG_DEBUG1(std::cout, "最终可调度性判定, scheme=", scheme_name, ", result=",
+                   schedulable ? "schedulable" : "unschedulable");
+  return schedulable;
 }
 
 struct SignalArrivalSample {
@@ -292,9 +467,11 @@ struct SignalWcrtStats {
   double expected_wcrt_ms = 0.0;
   double wcrt_p95_ms = 0.0;
   double p_timeout = 0.0;
+  double threshold_wcrt_ms = 0.0;
 };
 
-std::unordered_map<MessageCode, std::vector<SignalArrivalSample>> build_signal_arrival_samples(const PackingScheme& scheme) {
+std::unordered_map<MessageCode, std::vector<SignalArrivalSample>> build_signal_arrival_samples(
+    const PackingScheme& scheme) {
   const auto frame_response_times = cfd::schedule::calc_frame_response_times(scheme.frame_map);
 
   std::unordered_map<MessageCode, std::vector<SignalArrivalSample>> samples_by_code;
@@ -306,7 +483,8 @@ std::unordered_map<MessageCode, std::vector<SignalArrivalSample>> build_signal_a
     }
 
     const auto response_it = frame_response_times.find(frame_id);
-    const double completion_ms = response_it == frame_response_times.end() ? frame.get_trans_time() : response_it->second;
+    const double completion_ms =
+        response_it == frame_response_times.end() ? frame.get_trans_time() : response_it->second;
     const double p_fail = clamp_probability(prob_fault_one_more(frame.get_trans_time(), LAMBDA_CONFERENCE));
 
     for (const auto& msg : frame.msg_set) {
@@ -323,11 +501,13 @@ SignalWcrtStats calc_signal_probabilistic_wcrt(std::vector<SignalArrivalSample> 
     stats.expected_wcrt_ms = deadline_ms;
     stats.wcrt_p95_ms = deadline_ms;
     stats.p_timeout = 1.0;
+    stats.threshold_wcrt_ms = deadline_ms;
     return stats;
   }
 
-  std::sort(samples.begin(), samples.end(),
-            [](const SignalArrivalSample& lhs, const SignalArrivalSample& rhs) { return lhs.completion_ms < rhs.completion_ms; });
+  std::sort(samples.begin(), samples.end(), [](const SignalArrivalSample& lhs, const SignalArrivalSample& rhs) {
+    return lhs.completion_ms < rhs.completion_ms;
+  });
 
   std::vector<std::pair<double, long double>> timely_outcomes;
   timely_outcomes.reserve(samples.size());
@@ -347,6 +527,7 @@ SignalWcrtStats calc_signal_probabilistic_wcrt(std::vector<SignalArrivalSample> 
   if (timely_prob <= 0.0L) {
     stats.expected_wcrt_ms = deadline_ms;
     stats.wcrt_p95_ms = deadline_ms;
+    stats.threshold_wcrt_ms = deadline_ms;
     return stats;
   }
 
@@ -363,7 +544,52 @@ SignalWcrtStats calc_signal_probabilistic_wcrt(std::vector<SignalArrivalSample> 
   }
 
   stats.expected_wcrt_ms = static_cast<double>(weighted_sum / timely_prob);
+  stats.threshold_wcrt_ms = deadline_ms;
   return stats;
+}
+
+double calc_signal_threshold_wcrt(std::vector<SignalArrivalSample> samples, int deadline_ms, double timeout_threshold) {
+  if (samples.empty()) {
+    return static_cast<double>(deadline_ms);
+  }
+
+  std::sort(samples.begin(), samples.end(), [](const SignalArrivalSample& lhs, const SignalArrivalSample& rhs) {
+    return lhs.completion_ms < rhs.completion_ms;
+  });
+
+  long double remaining_fail_prob = 1.0L;
+  long double timely_success_prob = 0.0L;
+  for (const auto& sample : samples) {
+    const long double success_prob = remaining_fail_prob * (1.0L - static_cast<long double>(sample.p_fail));
+    if (sample.completion_ms <= static_cast<double>(deadline_ms)) {
+      timely_success_prob += success_prob;
+      const double miss_prob = clamp_probability(1.0 - static_cast<double>(timely_success_prob));
+      if (miss_prob <= timeout_threshold + 1e-15) {
+        return sample.completion_ms;
+      }
+    }
+    remaining_fail_prob *= static_cast<long double>(sample.p_fail);
+  }
+
+  return static_cast<double>(deadline_ms);
+}
+
+double calc_response_threshold_wcrt(const std::vector<retry::ResponseDistributionPoint>& distribution, double deadline_ms,
+                                    double timeout_threshold) {
+  if (distribution.empty()) {
+    return deadline_ms;
+  }
+
+  double cumulative = 0.0;
+  for (const auto& point : distribution) {
+    cumulative += point.probability;
+    const double miss_prob = clamp_probability(1.0 - cumulative);
+    if (miss_prob <= timeout_threshold + 1e-15) {
+      return point.response_time;
+    }
+  }
+
+  return deadline_ms;
 }
 
 std::unordered_map<MessageCode, int> calc_signal_instance_count(const PackingScheme& scheme) {
@@ -527,6 +753,7 @@ SchemeMetrics analyze_deterministic_scheme(const std::string& name, PackingSchem
   metrics.name = name;
   metrics.compare_bandwidth_utilization = scheme.calc_bandwidth_utilization();
   metrics.static_bandwidth_utilization = metrics.compare_bandwidth_utilization;
+  metrics.schedulable = cfd::schedule::feasibility_check(scheme.frame_map);
 
   const auto p_fault_map = noretry::sig_trans_fault_prob_analysis(scheme, LAMBDA_CONFERENCE);
   const auto arrival_samples_by_code = build_signal_arrival_samples(scheme);
@@ -548,14 +775,21 @@ SchemeMetrics analyze_deterministic_scheme(const std::string& name, PackingSchem
 
     const auto& meta = meta_it->second;
     const auto wcrt_stats = calc_signal_probabilistic_wcrt(arrival_it->second, meta.deadline_ms);
+    const double threshold_wcrt_ms =
+        calc_signal_threshold_wcrt(arrival_it->second, meta.deadline_ms, threshold_per_window(meta.level, meta.period_ms));
     const int signal_instance_count = instance_count_map.count(code) ? instance_count_map.at(code) : 1;
     const int added_signal_copies = std::max(0, signal_instance_count - 1);
     const double reported_p_fault = clamp_probability(p_fault_it->second);
+    const double timeout_threshold = threshold_per_window(meta.level, meta.period_ms);
+    if (wcrt_stats.p_timeout > timeout_threshold + 1e-15) {
+      metrics.schedulable = false;
+    }
     metrics.total_added_signal_copies += added_signal_copies;
     metrics.signals.push_back({code, meta, signal_instance_count, added_signal_copies, reported_p_fault,
-                               threshold_per_window(meta.level, meta.period_ms), wcrt_stats.p_timeout,
+                               timeout_threshold, wcrt_stats.p_timeout,
                                wcrt_stats.expected_wcrt_ms, wcrt_stats.wcrt_p95_ms,
-                               calc_ratio(wcrt_stats.wcrt_p95_ms, meta.period_ms)});
+                               calc_ratio(wcrt_stats.wcrt_p95_ms, meta.period_ms), threshold_wcrt_ms,
+                               calc_ratio(threshold_wcrt_ms, meta.period_ms)});
   }
 
   return metrics;
@@ -568,6 +802,7 @@ SchemeMetrics analyze_retry_scheme(const std::string& name, const retry::Analysi
   // 对重传方案，直接使用期望发送次数对应的平均带宽占用。
   metrics.compare_bandwidth_utilization = report.expected_bandwidth_utilization;
   metrics.static_bandwidth_utilization = report.base_bandwidth_utilization;
+  metrics.schedulable = true;
 
   const auto codes = sorted_codes(meta_by_code);
   metrics.signals.reserve(codes.size());
@@ -581,8 +816,18 @@ SchemeMetrics analyze_retry_scheme(const std::string& name, const retry::Analysi
     const auto& meta = meta_it->second;
     const auto& signal = signal_it->second;
     const double reported_p_timeout = clamp_probability(signal.p_timeout);
+    double threshold_wcrt_ms = static_cast<double>(meta.deadline_ms);
+    const auto frame_it = report.frame_results.find(signal.frame_id);
+    if (frame_it != report.frame_results.end()) {
+      threshold_wcrt_ms = calc_response_threshold_wcrt(frame_it->second.wcrt_distribution,
+                                                       static_cast<double>(meta.deadline_ms), signal.p_threshold);
+    }
+    if (reported_p_timeout > signal.p_threshold + 1e-15) {
+      metrics.schedulable = false;
+    }
     metrics.signals.push_back({code, meta, 1, 0, reported_p_timeout, signal.p_threshold, reported_p_timeout,
-                               signal.expected_wcrt, signal.wcrt_p95, calc_ratio(signal.wcrt_p95, meta.period_ms)});
+                               signal.expected_wcrt, signal.wcrt_p95, calc_ratio(signal.wcrt_p95, meta.period_ms),
+                               threshold_wcrt_ms, calc_ratio(threshold_wcrt_ms, meta.period_ms)});
   }
 
   return metrics;
@@ -608,6 +853,84 @@ std::array<AsilStats, NUM_MESSAGE_LEVEL> calc_asil_stats(const SchemeMetrics& me
   }
 
   return stats;
+}
+
+std::vector<SignalFrameMappingRow> collect_signal_frame_mappings(const std::string& dataset_tag,
+                                                                 const std::string& scheme_name,
+                                                                 const PackingScheme& scheme) {
+  std::vector<const CanfdFrame*> frames;
+  frames.reserve(scheme.frame_map.size());
+  for (const auto& [_, frame] : scheme.frame_map) {
+    if (!frame.empty()) {
+      frames.push_back(&frame);
+    }
+  }
+
+  std::sort(frames.begin(), frames.end(), [](const CanfdFrame* lhs, const CanfdFrame* rhs) {
+    if (lhs->get_id() != rhs->get_id()) {
+      return lhs->get_id() < rhs->get_id();
+    }
+    return lhs->get_priority() < rhs->get_priority();
+  });
+
+  std::unordered_map<MessageCode, int> instance_count_by_code;
+  for (const auto* frame : frames) {
+    for (const auto& msg : frame->msg_set) {
+      instance_count_by_code[msg.get_code()] += 1;
+    }
+  }
+
+  std::unordered_map<MessageCode, int> seen_count_by_code;
+  std::vector<SignalFrameMappingRow> rows;
+  rows.reserve(scheme.message_set.size());
+  for (const auto* frame : frames) {
+    const int frame_message_count = static_cast<int>(frame->msg_set.size());
+    for (const auto& msg : frame->msg_set) {
+      const MessageCode code = msg.get_code();
+      const int signal_instance_index = ++seen_count_by_code[code];
+      const int signal_instance_count =
+          instance_count_by_code.count(code) ? instance_count_by_code.at(code) : signal_instance_index;
+      rows.push_back({dataset_tag,
+                      scheme_name,
+                      code,
+                      msg.get_id_message(),
+                      signal_instance_index,
+                      signal_instance_count,
+                      signal_instance_index > 1 ? 1 : 0,
+                      frame->get_id(),
+                      frame->get_priority(),
+                      frame->get_period(),
+                      frame->get_deadline(),
+                      frame->get_offset(),
+                      frame->get_trans_time(),
+                      frame->get_paylaod_size(),
+                      frame_message_count,
+                      msg.get_period(),
+                      msg.get_deadline(),
+                      msg.get_level(),
+                      msg.get_type(),
+                      msg.get_ecu_pair().src_ecu,
+                      msg.get_ecu_pair().dst_ecu});
+    }
+  }
+
+  std::sort(rows.begin(), rows.end(), [](const SignalFrameMappingRow& lhs, const SignalFrameMappingRow& rhs) {
+    if (lhs.dataset_tag != rhs.dataset_tag) {
+      return lhs.dataset_tag < rhs.dataset_tag;
+    }
+    if (lhs.scheme_name != rhs.scheme_name) {
+      return lhs.scheme_name < rhs.scheme_name;
+    }
+    if (lhs.code != rhs.code) {
+      return lhs.code < rhs.code;
+    }
+    if (lhs.signal_instance_index != rhs.signal_instance_index) {
+      return lhs.signal_instance_index < rhs.signal_instance_index;
+    }
+    return lhs.frame_id < rhs.frame_id;
+  });
+
+  return rows;
 }
 
 std::string build_compare_output_path(const std::string& run_tag, const std::string& dataset_name) {
@@ -648,18 +971,21 @@ void write_comparison_report(const std::string& output_path, const std::vector<S
   ofs << "# static_bandwidth_utilization: 不考虑重传时，静态打包方案本身的带宽利用率。\n";
   ofs << "# signal_count: 按原始 MessageCode 去重后的信号种类数，不是副本总数。\n";
   ofs << "# total_added_signal_copies: 相比原始 1 份信号，方案中新增的信号副本总数。\n";
-  ofs << "# 三种方案的 WCRT 均按信号级统计值输出；foundation / baseline1 基于“最早成功副本到达时间”分布，baseline2 基于重传分布。\n";
-  ofs << "# 本文件中的 WCRT/周期 指标统一使用 P95（95%分位响应时间）；signal_detail 里的 WCRT 列统一是信号级统计值（单位 ms）。\n";
+  ofs << "# 三种方案的 WCRT 均按信号级统计值输出；foundation / baseline1 基于“最早成功副本到达时间”分布，baseline2 "
+         "基于重传分布。\n";
+  ofs << "# 本文件中的 WCRT/周期 指标统一使用 P95（95%分位响应时间）；signal_detail 里的 WCRT "
+         "列统一是信号级统计值（单位 ms）。\n";
   ofs << '\n';
   ofs << "retry_distribution_report\t" << retry_report_path << "\n\n";
 
   ofs << "# 每个方案的总体指标。\n";
   ofs << "[scheme_summary]\n";
   ofs << "scheme\tcompare_bandwidth_utilization\tstatic_bandwidth_utilization\tsignal_count\t"
-         "total_added_signal_copies\n";
+         "total_added_signal_copies\tschedulable\n";
   for (const auto& scheme : schemes) {
     ofs << scheme.name << '\t' << scheme.compare_bandwidth_utilization << '\t' << scheme.static_bandwidth_utilization
-        << '\t' << scheme.signals.size() << '\t' << scheme.total_added_signal_copies << '\n';
+        << '\t' << scheme.signals.size() << '\t' << scheme.total_added_signal_copies << '\t'
+        << (scheme.schedulable ? 1 : 0) << '\n';
   }
 
   ofs << "\n# 按 ASIL 分组统计的 WCRT/周期（P95，95%分位响应时间）结果。\n";
@@ -710,17 +1036,37 @@ void write_comparison_report(const std::string& output_path, const std::vector<S
   ofs << "\n# 每个原始信号的明细指标。WCRT 列统一为信号级统计值（单位 ms），不是 WCRT/周期。\n";
   ofs << "\n[signal_detail]\n";
   ofs << "scheme\tcode\tasil\tlevel\ttype\tperiod_ms\tsrc_ecu\tdst_ecu\tsignal_instance_count\t"
-         "added_signal_copies\tp_fault\tp_threshold\texpected_wcrt_ms\tp_wcrt_over_deadline\twcrt_p95_ms\n";
+         "added_signal_copies\tp_fault\tp_threshold\texpected_wcrt_ms\tp_wcrt_over_deadline\twcrt_p95_ms\t"
+         "threshold_wcrt_ms\n";
   for (const auto& scheme : schemes) {
     for (const auto& signal : scheme.signals) {
       ofs << scheme.name << '\t' << signal.code << '\t' << level_to_asil(signal.meta.level) << '\t' << signal.meta.level
           << '\t' << signal.meta.type << '\t' << signal.meta.period_ms << '\t' << signal.meta.src_ecu << '\t'
           << signal.meta.dst_ecu << '\t' << signal.signal_instance_count << '\t' << signal.added_signal_copies << '\t'
           << signal.p_fault << '\t' << signal.p_threshold << '\t' << signal.expected_wcrt_ms << '\t'
-          << signal.p_wcrt_over_deadline << '\t' << signal.wcrt_p95_ms << '\n';
+          << signal.p_wcrt_over_deadline << '\t' << signal.wcrt_p95_ms << '\t' << signal.threshold_wcrt_ms << '\n';
     }
   }
 }
+
+const SchemeMetrics* find_scheme_metrics(const std::vector<SchemeMetrics>& schemes, std::string_view scheme_name) {
+  for (const auto& scheme : schemes) {
+    if (scheme.name == scheme_name) {
+      return &scheme;
+    }
+  }
+  return nullptr;
+}
+
+struct ConfigSchedulabilityAccumulator {
+  int dataset_count = 0;
+  int unschedulable_count = 0;
+};
+
+struct ConfigPeriodWcrtAccumulator {
+  int sample_count = 0;
+  double ratio_sum = 0.0;
+};
 
 void write_batch_compare_summary(const std::string& output_path,
                                  const std::vector<DatasetCompareSummary>& dataset_summaries) {
@@ -731,24 +1077,26 @@ void write_batch_compare_summary(const std::string& output_path,
   }
 
   ofs << std::setprecision(17);
-  ofs << "# 跨六组信号集汇总的对比结果，便于直接复制到表格或画图脚本。\n";
-  ofs << "# dataset: 数据集标签，对应 M1~M6。\n";
+  ofs << "# 跨多组信号集汇总的对比结果，便于直接复制到表格或画图脚本。\n";
+  ofs << "# dataset: 数据集标签，对应当前批量实验配置中的数据集。\n";
+  ofs << "# config: 批量配置标签；对 batched dataset 会去掉末尾的 _001 之类批次编号。\n";
   ofs << "# scheme: foundation / baseline1 / baseline2。\n";
   ofs << "# ASIL 分组指标均可直接按 dataset + scheme + asil 进行筛选或透视。\n\n";
 
   ofs << "[bandwidth_utilization]\n";
-  ofs << "dataset\tscheme\tcompare_bandwidth_utilization\tstatic_bandwidth_utilization\tsignal_count\t"
-         "total_added_signal_copies\n";
+  ofs << "dataset\tconfig\tscheme\tcompare_bandwidth_utilization\tstatic_bandwidth_utilization\tsignal_count\t"
+         "total_added_signal_copies\tschedulable\n";
   for (const auto& dataset_summary : dataset_summaries) {
     for (const auto& scheme : dataset_summary.schemes) {
-      ofs << dataset_summary.dataset_tag << '\t' << scheme.name << '\t' << scheme.compare_bandwidth_utilization << '\t'
-          << scheme.static_bandwidth_utilization << '\t' << scheme.signals.size() << '\t'
-          << scheme.total_added_signal_copies << '\n';
+      ofs << dataset_summary.dataset_tag << '\t' << dataset_summary.config_tag << '\t' << scheme.name << '\t'
+          << scheme.compare_bandwidth_utilization << '\t' << scheme.static_bandwidth_utilization << '\t'
+          << scheme.signals.size() << '\t' << scheme.total_added_signal_copies << '\t'
+          << (scheme.schedulable ? 1 : 0) << '\n';
     }
   }
 
   ofs << "\n[wcrt_ratio_p95]\n";
-  ofs << "dataset\tscheme\tasil\tsignal_count\tavg_wcrt_ratio_p95\tmax_wcrt_ratio_p95\n";
+  ofs << "dataset\tconfig\tscheme\tasil\tsignal_count\tavg_wcrt_ratio_p95\tmax_wcrt_ratio_p95\n";
   for (const auto& dataset_summary : dataset_summaries) {
     for (const auto& scheme : dataset_summary.schemes) {
       const auto stats = calc_asil_stats(scheme);
@@ -757,14 +1105,15 @@ void write_batch_compare_summary(const std::string& output_path,
         if (item.count <= 0) {
           continue;
         }
-        ofs << dataset_summary.dataset_tag << '\t' << scheme.name << '\t' << level_to_asil(level) << '\t' << item.count
-            << '\t' << (item.wcrt_ratio_p95_sum / item.count) << '\t' << item.wcrt_ratio_p95_max << '\n';
+        ofs << dataset_summary.dataset_tag << '\t' << dataset_summary.config_tag << '\t' << scheme.name << '\t'
+            << level_to_asil(level) << '\t' << item.count << '\t' << (item.wcrt_ratio_p95_sum / item.count) << '\t'
+            << item.wcrt_ratio_p95_max << '\n';
       }
     }
   }
 
   ofs << "\n[fault_probability]\n";
-  ofs << "dataset\tscheme\tasil\tsignal_count\tavg_fault_probability\tmax_fault_probability\n";
+  ofs << "dataset\tconfig\tscheme\tasil\tsignal_count\tavg_fault_probability\tmax_fault_probability\n";
   for (const auto& dataset_summary : dataset_summaries) {
     for (const auto& scheme : dataset_summary.schemes) {
       const auto stats = calc_asil_stats(scheme);
@@ -773,14 +1122,15 @@ void write_batch_compare_summary(const std::string& output_path,
         if (item.count <= 0) {
           continue;
         }
-        ofs << dataset_summary.dataset_tag << '\t' << scheme.name << '\t' << level_to_asil(level) << '\t' << item.count
-            << '\t' << (item.fault_sum / item.count) << '\t' << item.fault_max << '\n';
+        ofs << dataset_summary.dataset_tag << '\t' << dataset_summary.config_tag << '\t' << scheme.name << '\t'
+            << level_to_asil(level) << '\t' << item.count << '\t' << (item.fault_sum / item.count) << '\t'
+            << item.fault_max << '\n';
       }
     }
   }
 
   ofs << "\n[added_signal_copies]\n";
-  ofs << "dataset\tscheme\tasil\tsignal_count\tadded_signal_copies\n";
+  ofs << "dataset\tconfig\tscheme\tasil\tsignal_count\tadded_signal_copies\n";
   for (const auto& dataset_summary : dataset_summaries) {
     for (const auto& scheme : dataset_summary.schemes) {
       const auto stats = calc_asil_stats(scheme);
@@ -789,9 +1139,131 @@ void write_batch_compare_summary(const std::string& output_path,
         if (item.count <= 0) {
           continue;
         }
-        ofs << dataset_summary.dataset_tag << '\t' << scheme.name << '\t' << level_to_asil(level) << '\t' << item.count
-            << '\t' << item.added_signal_copies << '\n';
+        ofs << dataset_summary.dataset_tag << '\t' << dataset_summary.config_tag << '\t' << scheme.name << '\t'
+            << level_to_asil(level) << '\t' << item.count << '\t' << item.added_signal_copies << '\n';
       }
+    }
+  }
+
+  std::unordered_map<std::string, std::unordered_map<std::string, ConfigSchedulabilityAccumulator>> schedulability_by_config;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::unordered_map<int, ConfigPeriodWcrtAccumulator>>>
+      wcrt_ratio_by_config;
+
+  for (const auto& dataset_summary : dataset_summaries) {
+    for (const auto& scheme : dataset_summary.schemes) {
+      auto& item = schedulability_by_config[dataset_summary.config_tag][scheme.name];
+      item.dataset_count += 1;
+      if (!scheme.schedulable) {
+        item.unschedulable_count += 1;
+      }
+    }
+
+    const SchemeMetrics* baseline2_metrics = find_scheme_metrics(dataset_summary.wcrt_schemes, "baseline2");
+    if (baseline2_metrics == nullptr) {
+      continue;
+    }
+
+    std::unordered_map<int, std::pair<double, int>> baseline2_period_avg;
+    for (const auto& signal : baseline2_metrics->signals) {
+      auto& entry = baseline2_period_avg[signal.meta.period_ms];
+      entry.first += signal.threshold_wcrt_ms;
+      entry.second += 1;
+    }
+
+    std::unordered_map<int, double> baseline2_period_mean;
+    for (const auto& [period_ms, value] : baseline2_period_avg) {
+      if (value.second > 0) {
+        baseline2_period_mean[period_ms] = value.first / value.second;
+      }
+    }
+
+    for (const auto scheme_name : kWcrtSchemeNames) {
+      const SchemeMetrics* scheme = find_scheme_metrics(dataset_summary.wcrt_schemes, scheme_name);
+      if (scheme == nullptr) {
+        continue;
+      }
+
+      std::unordered_map<int, std::pair<double, int>> period_avg;
+      for (const auto& signal : scheme->signals) {
+        auto& entry = period_avg[signal.meta.period_ms];
+        entry.first += signal.threshold_wcrt_ms;
+        entry.second += 1;
+      }
+
+      for (const auto& [period_ms, value] : period_avg) {
+        if (value.second <= 0 || !baseline2_period_mean.count(period_ms) || baseline2_period_mean.at(period_ms) <= 0.0) {
+          continue;
+        }
+        const double scheme_mean = value.first / value.second;
+        const double ratio = scheme_mean / baseline2_period_mean.at(period_ms);
+        auto& acc = wcrt_ratio_by_config[dataset_summary.config_tag][scheme->name][period_ms];
+        acc.sample_count += 1;
+        acc.ratio_sum += ratio;
+      }
+    }
+  }
+
+  ofs << "\n[config_schedulability]\n";
+  ofs << "config\tscheme\tdataset_count\tunschedulable_dataset_count\tunschedulable_ratio\n";
+  for (const auto& [config_tag, scheme_map] : schedulability_by_config) {
+    for (const auto& scheme_name : kFocusedBatchSchemeNames) {
+      const auto it = scheme_map.find(scheme_name);
+      if (it == scheme_map.end() || it->second.dataset_count <= 0) {
+        continue;
+      }
+      const auto& item = it->second;
+      ofs << config_tag << '\t' << scheme_name << '\t' << item.dataset_count << '\t' << item.unschedulable_count
+          << '\t' << (static_cast<double>(item.unschedulable_count) / item.dataset_count) << '\n';
+    }
+  }
+
+  ofs << "\n[config_period_wcrt_ratio]\n";
+  ofs << "config\tscheme\tperiod_ms\tdataset_count\tavg_wcrt_ratio_to_baseline2\n";
+  for (const auto& [config_tag, scheme_map] : wcrt_ratio_by_config) {
+    for (const auto scheme_name : kWcrtSchemeNames) {
+      const auto scheme_it = scheme_map.find(scheme_name);
+      if (scheme_it == scheme_map.end()) {
+        continue;
+      }
+      for (const auto& [period_ms, item] : scheme_it->second) {
+        if (item.sample_count <= 0) {
+          continue;
+        }
+        ofs << config_tag << '\t' << scheme_name << '\t' << period_ms << '\t' << item.sample_count << '\t'
+            << (item.ratio_sum / item.sample_count) << '\n';
+      }
+    }
+  }
+}
+
+void write_batch_signal_frame_mapping_summary(const std::string& output_path,
+                                              const std::vector<DatasetCompareSummary>& dataset_summaries) {
+  std::ofstream ofs(output_path, std::ios::trunc);
+  if (!ofs) {
+    DEBUG_MSG_DEBUG1(std::cout, "无法写入信号装帧映射汇总文件: ", output_path);
+    return;
+  }
+
+  ofs << std::setprecision(17);
+  ofs << "# 跨数据集汇总的信号装帧映射表，用于查看每个信号实例被打包到哪个 CANFD 帧。\n";
+  ofs << "# 同一 code 在 foundation / baseline1 中可能出现多次，对应新增副本或同源备份。\n";
+  ofs << "# baseline2 不新增副本，因此通常每个 code 只有 1 条映射记录。\n\n";
+
+  ofs << "[signal_frame_mapping]\n";
+  ofs << "dataset\tscheme\tcode\tmessage_id\tsignal_instance_index\tsignal_instance_count\tis_added_copy\tframe_id\t"
+         "frame_priority\tframe_period_ms\tframe_deadline_ms\tframe_offset_ms\tframe_trans_time_ms\t"
+         "frame_payload_bytes\tframe_message_count\tsignal_period_ms\tsignal_deadline_ms\tasil\tlevel\ttype\t"
+         "src_ecu\tdst_ecu\n";
+
+  for (const auto& dataset_summary : dataset_summaries) {
+    for (const auto& row : dataset_summary.signal_frame_mappings) {
+      ofs << row.dataset_tag << '\t' << row.scheme_name << '\t' << row.code << '\t' << row.message_id << '\t'
+          << row.signal_instance_index << '\t' << row.signal_instance_count << '\t' << row.is_added_copy << '\t'
+          << row.frame_id << '\t' << row.frame_priority << '\t' << row.frame_period_ms << '\t' << row.frame_deadline_ms
+          << '\t' << row.frame_offset_ms << '\t' << row.frame_trans_time_ms << '\t' << row.frame_payload_bytes << '\t'
+          << row.frame_message_count << '\t' << row.signal_period_ms << '\t' << row.signal_deadline_ms << '\t'
+          << level_to_asil(row.level) << '\t' << row.level << '\t' << row.type << '\t' << row.src_ecu << '\t'
+          << row.dst_ecu << '\n';
     }
   }
 }
@@ -801,55 +1273,128 @@ DatasetCompareSummary run_compare_experiment(const std::string& dataset_file, co
   const MessageInfoVec original_infos = MESSAGE_INFO_VEC;
   const auto meta_by_code = build_code_meta(original_infos);
   const std::string dataset_name = dataset_tag(dataset_file);
+  const std::string config_tag = dataset_config_tag_from_dataset_tag(dataset_name);
   const std::string compare_output_path = build_compare_output_path(run_tag, dataset_name);
   const std::string retry_output_path = build_retry_output_path(run_tag, dataset_name);
 
   MESSAGE_INFO_VEC = original_infos;
-  const PackingScheme shared_initial_scheme = build_best_shared_initial_scheme_from_current_msgs();
+  const PackingScheme shared_initial_scheme = build_shared_initial_scheme_from_current_msgs();
 
-  // 基础方法：仅做信号同源备份。当前对比实验先关闭异源备份。
+  // 基础方法：仅做信号同源备份。先保留一份无 offset 版本，供 WCRT 对比使用。
   MESSAGE_INFO_VEC = original_infos;
-  PackingScheme scheme_base = shared_initial_scheme;
-  scheme_base = backups::signal::homo_signal_backup(scheme_base);
-  assign_staggered_offsets_to_signal_copies(scheme_base);
-  SchemeMetrics foundation_metrics = analyze_deterministic_scheme("foundation", scheme_base, meta_by_code);
+  PackingScheme scheme_foundation_no_offset = shared_initial_scheme;
+  scheme_foundation_no_offset = backups::signal::homo_signal_backup(scheme_foundation_no_offset);
+  log_scheme_schedulability("foundation_no_offset", scheme_foundation_no_offset);
+  SchemeMetrics foundation_no_offset_metrics =
+      analyze_deterministic_scheme("foundation_no_offset", scheme_foundation_no_offset, meta_by_code);
+
+  PackingScheme scheme_foundation = scheme_foundation_no_offset;
+  assign_staggered_offsets_to_signal_copies(scheme_foundation);
+  log_scheme_schedulability("foundation", scheme_foundation);
+  SchemeMetrics foundation_metrics = analyze_deterministic_scheme("foundation", scheme_foundation, meta_by_code);
+  auto foundation_signal_frame_mappings = collect_signal_frame_mappings(dataset_name, "foundation", scheme_foundation);
 
   // baseline1：从同一个共享初始打包结果出发，按帧故障概率直接生成报文副本。
   MESSAGE_INFO_VEC = original_infos;
-  PackingScheme scheme_baseline1 = shared_initial_scheme;
-  scheme_baseline1 = backups::frame::homo_frame_backup(scheme_baseline1);
+  PackingScheme scheme_baseline1_no_offset = shared_initial_scheme;
+  scheme_baseline1_no_offset = backups::frame::homo_frame_backup(scheme_baseline1_no_offset);
+  log_scheme_schedulability("baseline1_no_offset", scheme_baseline1_no_offset);
+  SchemeMetrics baseline1_no_offset_metrics =
+      analyze_deterministic_scheme("baseline1_no_offset", scheme_baseline1_no_offset, meta_by_code);
+
+  PackingScheme scheme_baseline1 = scheme_baseline1_no_offset;
   assign_staggered_offsets_to_frame_copies(scheme_baseline1);
+  log_scheme_schedulability("baseline1", scheme_baseline1);
   SchemeMetrics baseline1_metrics = analyze_deterministic_scheme("baseline1", scheme_baseline1, meta_by_code);
+  auto baseline1_signal_frame_mappings = collect_signal_frame_mappings(dataset_name, "baseline1", scheme_baseline1);
 
   // baseline2：不加副本，直接复用共享初始打包结果做重传分析。
   MESSAGE_INFO_VEC = original_infos;
   PackingScheme scheme_baseline2 = shared_initial_scheme;
+  log_scheme_schedulability("baseline2", scheme_baseline2);
   retry::AnalysisReport retry_report = retry::probabilistic_analysis_report(scheme_baseline2, retry_output_path);
   SchemeMetrics baseline2_metrics = analyze_retry_scheme("baseline2", retry_report, meta_by_code);
+  auto baseline2_signal_frame_mappings = collect_signal_frame_mappings(dataset_name, "baseline2", scheme_baseline2);
   write_comparison_report(compare_output_path, {foundation_metrics, baseline1_metrics, baseline2_metrics},
                           retry_output_path);
 
   DEBUG_MSG_DEBUG1(std::cout, "对比结果已输出: ", compare_output_path);
 
-  return {dataset_name, {foundation_metrics, baseline1_metrics, baseline2_metrics}};
+  std::vector<SignalFrameMappingRow> signal_frame_mappings;
+  signal_frame_mappings.reserve(foundation_signal_frame_mappings.size() + baseline1_signal_frame_mappings.size() +
+                                baseline2_signal_frame_mappings.size());
+  signal_frame_mappings.insert(signal_frame_mappings.end(), foundation_signal_frame_mappings.begin(),
+                               foundation_signal_frame_mappings.end());
+  signal_frame_mappings.insert(signal_frame_mappings.end(), baseline1_signal_frame_mappings.begin(),
+                               baseline1_signal_frame_mappings.end());
+  signal_frame_mappings.insert(signal_frame_mappings.end(), baseline2_signal_frame_mappings.begin(),
+                               baseline2_signal_frame_mappings.end());
+
+  return {dataset_name,
+          config_tag,
+          {foundation_metrics, baseline1_metrics, baseline2_metrics},
+          {foundation_no_offset_metrics, baseline1_no_offset_metrics, foundation_metrics, baseline1_metrics,
+           baseline2_metrics},
+          signal_frame_mappings};
 }
 
 }  // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
 #ifdef _WIN32
   // 让 Windows 控制台按 UTF-8 显示
   SetConsoleOutputCP(CP_UTF8);
   SetConsoleCP(CP_UTF8);
 #endif
 
-  // 默认模式复用 storage/datasets 下当前固定的 M1~M6 数据集；
-  // 如需生成一套新数据，改为 true。
-  const bool regenerate_datasets = false;
-  // 跑完整批实验后，自动调用 Python 绘图脚本生成图表。
-  const bool generate_figures_after_analysis = true;
+  bool regenerate_datasets = false;
+  bool generate_dataset_batches = false;
+  bool run_dataset_batches = false;
+  bool generate_figures_after_analysis = true;
+  size_t dataset_batch_count = 100;
+  std::vector<std::string> selected_spec_names;
 
-  const std::vector<std::string> dataset_files = resolve_experiment_dataset_files(regenerate_datasets);
+  for (int argi = 1; argi < argc; ++argi) {
+    const std::string arg = argv[argi];
+    if (arg == "--regenerate-datasets") {
+      regenerate_datasets = true;
+    } else if (arg == "--generate-dataset-batches") {
+      generate_dataset_batches = true;
+      if (argi + 1 < argc) {
+        const std::string next_arg = argv[argi + 1];
+        if (!next_arg.empty() && next_arg[0] != '-') {
+          dataset_batch_count = static_cast<size_t>(std::stoul(next_arg));
+          ++argi;
+        }
+      }
+    } else if (arg == "--run-dataset-batches") {
+      run_dataset_batches = true;
+    } else if (arg == "--dataset-specs") {
+      if (argi + 1 >= argc) {
+        throw std::invalid_argument("--dataset-specs requires a comma-separated value");
+      }
+      selected_spec_names = split_csv_arg(argv[++argi]);
+    } else if (arg == "--skip-figures") {
+      generate_figures_after_analysis = false;
+    }
+  }
+
+  if (generate_dataset_batches) {
+    const std::vector<std::string> dataset_paths = create_random_dataset_batches(dataset_batch_count);
+    DEBUG_MSG_DEBUG1(std::cout, "批量随机数据集已生成, total=", dataset_paths.size());
+    return 0;
+  }
+
+  std::vector<std::string> dataset_files;
+  if (run_dataset_batches) {
+    dataset_files = resolve_dataset_batch_files(selected_spec_names);
+    DEBUG_MSG_DEBUG1(std::cout, "批量实验数据集数量: ", dataset_files.size());
+  } else {
+    // 默认模式复用 storage/datasets 下当前配置的数据集；
+    // 如需生成一套新数据，改为 true。
+    // 如需重新生成默认实验数据，也可以通过命令行传入 --regenerate-datasets。
+    dataset_files = resolve_experiment_dataset_files(regenerate_datasets);
+  }
 
   const std::string batch_run_tag = get_time_stamp();
   DEBUG_MSG_DEBUG1(std::cout,
@@ -866,6 +1411,10 @@ int main() {
   const std::string compare_summary_output_path = build_compare_summary_output_path(batch_run_tag);
   write_batch_compare_summary(compare_summary_output_path, dataset_summaries);
   DEBUG_MSG_DEBUG1(std::cout, "批量汇总结果已输出: ", compare_summary_output_path);
+
+  const std::string signal_frame_mapping_output_path = cfd::storage::signal_frame_mapping_report_path(batch_run_tag);
+  write_batch_signal_frame_mapping_summary(signal_frame_mapping_output_path, dataset_summaries);
+  DEBUG_MSG_DEBUG1(std::cout, "信号装帧映射汇总已输出: ", signal_frame_mapping_output_path);
 
   if (generate_figures_after_analysis) {
     run_figure_generation_script(batch_run_tag);
