@@ -175,9 +175,9 @@ namespace cfd {
 			return false;
 		}
 
-		// 不允许存储复数个同code的消息
+		// 不允许在同一帧内放入同一功能路的多个同源副本
 		for (auto& msg : this->msg_set) {
-			if (m.get_code() == msg.get_code()) {
+			if (m.get_code() == msg.get_code() && m.get_comm_id() == msg.get_comm_id()) {
 				DEBUG_MSG_DEBUG2(std::cout, "CanfdFrame::add_message::frame内已存在messagecode");
 				return false;
 			}
@@ -310,6 +310,7 @@ namespace cfd {
 	json MessageInfo::to_json() const {
 		json j;
 		j["code"] = code;
+		j["comm_id"] = comm_id;
 		j["data_size"] = data_size;
 		j["period"] = period;
 		j["deadline"] = deadline;
@@ -326,13 +327,15 @@ namespace cfd {
 		int data_size = j.at("data_size").get<int>();
 
 		MessageCode code = j.at("code").get<MessageCode>();
+		int comm_id = j.value("comm_id", 0);
 		int period = j.at("period").get<int>();
 		int deadline = j.at("deadline").get<int>();
 		EcuPair ecu_pair = EcuPair::from_json(j.at("ecu_pair"));
 		int offset = j.at("offset").get<int>();
 		int level = j.at("level").get<int>();
 		int type = j.at("type").get<int>();
-		return MessageInfo(code, data_size, period, deadline, ecu_pair.src_ecu, ecu_pair.dst_ecu, offset, level, type);
+		return MessageInfo(code, data_size, period, deadline, ecu_pair.src_ecu, ecu_pair.dst_ecu, offset, level, type,
+		                   comm_id);
 	}
 
 }
@@ -511,13 +514,21 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 			continue;
 		}
 
-		if (fields.size() != 9) {
+		if (fields.size() != 9 && fields.size() != 10) {
 			throw std::invalid_argument("绗? " + std::to_string(line_number) + " 琛屽瓧娈垫暟涓嶆槸 9");
 		}
 
-		MessageInfo m(static_cast<MessageCode>(std::stoull(fields[0])), std::stoi(fields[1]), std::stoi(fields[2]),
-		              std::stoi(fields[3]), std::stoi(fields[4]), std::stoi(fields[5]), std::stoi(fields[6]),
-		              std::stoi(fields[7]), std::stoi(fields[8]));
+		MessageInfo m;
+		if (fields.size() == 10) {
+			m = MessageInfo(static_cast<MessageCode>(std::stoull(fields[0])), std::stoi(fields[2]), std::stoi(fields[3]),
+			                std::stoi(fields[4]), std::stoi(fields[5]), std::stoi(fields[6]), std::stoi(fields[7]),
+			                std::stoi(fields[8]), std::stoi(fields[9]), std::stoi(fields[1]));
+		}
+		else {
+			m = MessageInfo(static_cast<MessageCode>(std::stoull(fields[0])), std::stoi(fields[1]), std::stoi(fields[2]),
+			                std::stoi(fields[3]), std::stoi(fields[4]), std::stoi(fields[5]), std::stoi(fields[6]),
+			                std::stoi(fields[7]), std::stoi(fields[8]));
+		}
 		validate_message_info(m);
 		mset.emplace_back(m);
 	}
@@ -532,6 +543,7 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 		os << "\n";
 		os << std::left
 			<< std::setw(22) << "CODE"
+			<< std::setw(10) << "comm_id"
 			<< std::setw(12) << "data_size"
 			<< std::setw(10) << "period"
 			<< std::setw(10) << "deadline"
@@ -567,6 +579,7 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 		}
 		os << std::left
 			<< std::setw(22) << msg.code
+			<< std::setw(10) << msg.comm_id
 			<< std::setw(12) << msg.data_size
 			<< std::setw(10) << msg.period
 			<< std::setw(10) << msg.deadline
@@ -658,11 +671,13 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 	// 将多个 MessageInfo 对象以 TAB 分隔格式写入文本文件
 	void write_msg_table_to_stream(std::ostream& os, const MessageInfoVec& mvec, char separator) {
 		// 写表头
-		os << "code" << separator << "data_size" << separator << "period" << separator << "deadline" << separator
+		os << "code" << separator << "comm_id" << separator << "data_size" << separator << "period" << separator
+		   << "deadline" << separator
 		   << "src_ecu" << separator << "dst_ecu" << separator << "offset" << separator << "level" << separator
 		   << "type\n";
 		for (const auto& msg : mvec) {
 			os << msg.code << separator
+				<< msg.comm_id << separator
 				<< msg.data_size << separator
 				<< msg.period << separator
 				<< msg.deadline << separator

@@ -75,7 +75,8 @@ class MessageInfo {
  public:
   // 默认构造函数，便于容器默认初始化
   MessageInfo() { ; }
-  MessageCode code = 0;  // 消息的身份码
+  MessageCode code = 0;  // 功能冗余标识 q
+  int comm_id = 0;       // 通信冗余标识 g
   int data_size = 0;     // 数据长度，默认为空,单位为b，取值为[0, 512]
   int period = -1;       // 周期，单位为微秒(μs)
   int deadline = -1;     // 时限，同周期
@@ -85,8 +86,9 @@ class MessageInfo {
   int type = 0;          // 冗余类型，0 无需异源备份；1 需要异源备份
 
   MessageInfo(MessageCode _code, int _data_size, int _period, int _deadline, int _src_ecu, int _dst_ecu,
-              int _offset = 0, int _level = 0, int _type = 0)
+              int _offset = 0, int _level = 0, int _type = 0, int _comm_id = 0)
       : code(_code),
+        comm_id(_comm_id),
         data_size(_data_size),
         period(_period),
         deadline(_deadline),
@@ -95,8 +97,9 @@ class MessageInfo {
         level(_level),
         type(_type) {}
 
-  MessageInfo(const MessageInfo& minfo, int new_src_ecu, int _type = 1)
+  MessageInfo(const MessageInfo& minfo, int new_src_ecu, int _type = 1, int new_comm_id = -1)
       : code(minfo.code),
+        comm_id(new_comm_id >= 0 ? new_comm_id : minfo.comm_id),
         data_size(minfo.data_size),
         period(minfo.period),
         deadline(minfo.deadline),
@@ -153,11 +156,15 @@ class Message {
     frame_index = other.frame_index;
     return *this;
   }
-  bool operator==(const Message& other) const { return this->get_code() == other.get_code(); }
+  bool operator==(const Message& other) const {
+    return this->get_code() == other.get_code() && this->get_comm_id() == other.get_comm_id() &&
+           this->get_id_message() == other.get_id_message();
+  }
   int get_period() const { return MESSAGE_INFO_VEC[message_index].period; }
   int get_data_size() const { return MESSAGE_INFO_VEC[message_index].data_size; }
   int get_deadline() const { return MESSAGE_INFO_VEC[message_index].deadline; }
   MessageCode get_code() const { return MESSAGE_INFO_VEC[message_index].code; }
+  int get_comm_id() const { return MESSAGE_INFO_VEC[message_index].comm_id; }
   EcuPair get_ecu_pair() const { return MESSAGE_INFO_VEC[message_index].ecu_pair; }
   int get_offset() const { return MESSAGE_INFO_VEC[message_index].offset; }
   int get_level() const { return MESSAGE_INFO_VEC[message_index].level; }
@@ -166,8 +173,16 @@ class Message {
 using MessageVec = std::vector<Message>;
 
 struct ComparatorMsg {
-  bool operator()(const MessageInfo& lhs, const MessageInfo& rhs) const { return lhs.code < rhs.code; }
-  bool operator()(const Message& lhs, const Message& rhs) const { return lhs.get_code() < rhs.get_code(); }
+  bool operator()(const MessageInfo& lhs, const MessageInfo& rhs) const {
+    if (lhs.code != rhs.code) return lhs.code < rhs.code;
+    if (lhs.comm_id != rhs.comm_id) return lhs.comm_id < rhs.comm_id;
+    return lhs.ecu_pair.src_ecu < rhs.ecu_pair.src_ecu;
+  }
+  bool operator()(const Message& lhs, const Message& rhs) const {
+    if (lhs.get_code() != rhs.get_code()) return lhs.get_code() < rhs.get_code();
+    if (lhs.get_comm_id() != rhs.get_comm_id()) return lhs.get_comm_id() < rhs.get_comm_id();
+    return lhs.get_id_message() < rhs.get_id_message();
+  }
 };
 
 class CanfdFrame {

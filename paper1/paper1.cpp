@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "algorithm2/algorithm2.h"
 #include "backups/frame_backup.h"
 #include "backups/signal_backup.h"
 #include "config.h"
@@ -1375,6 +1376,7 @@ int main(int argc, char* argv[]) {
   bool regenerate_datasets = false;
   bool generate_dataset_batches = false;
   bool run_dataset_batches = false;
+  bool run_algorithm2 = false;
   bool generate_figures_after_analysis = true;
   size_t dataset_batch_count = 100;
   size_t max_batches_per_spec = 0;
@@ -1395,6 +1397,8 @@ int main(int argc, char* argv[]) {
       }
     } else if (arg == "--run-dataset-batches") {
       run_dataset_batches = true;
+    } else if (arg == "--algorithm2") {
+      run_algorithm2 = true;
     } else if (arg == "--max-batches-per-spec") {
       if (argi + 1 >= argc) {
         throw std::invalid_argument("--max-batches-per-spec requires a positive integer");
@@ -1430,6 +1434,24 @@ int main(int argc, char* argv[]) {
   const std::string batch_run_tag = get_time_stamp();
   DEBUG_MSG_DEBUG1(std::cout,
                    "批量测试输出目录: ", cfd::storage::path_string(cfd::storage::analysis_batch_dir(batch_run_tag)));
+
+  if (run_algorithm2) {
+    std::vector<cfd::algorithm2::DatasetSummary> dataset_summaries;
+    dataset_summaries.reserve(dataset_files.size());
+    for (const auto& dataset_file : dataset_files) {
+      dataset_summaries.push_back(cfd::algorithm2::run_compare_experiment(dataset_file, batch_run_tag));
+    }
+
+    cfd::algorithm2::write_batch_summary(batch_run_tag, dataset_summaries);
+    cfd::algorithm2::write_batch_signal_frame_mapping_summary(batch_run_tag, dataset_summaries);
+    DEBUG_MSG_DEBUG1(std::cout, "算法二批量汇总结果已输出: ",
+                     cfd::storage::path_string(cfd::storage::analysis_batch_dir(batch_run_tag)));
+
+    if (generate_figures_after_analysis) {
+      DEBUG_MSG_DEBUG1(std::cout, "算法二暂未接入自动绘图脚本，跳过绘图生成");
+    }
+    return 0;
+  }
 
   // 对每个数据集依次运行 4 种方案，并把该数据集的汇总结果暂存在内存中。
   std::vector<DatasetCompareSummary> dataset_summaries;

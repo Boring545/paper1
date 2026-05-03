@@ -18,6 +18,7 @@ add_executable(paper1
 
     backups/signal_backup.cpp
     backups/frame_backup.cpp
+    algorithm2/algorithm2.cpp
 )
 
 target_include_directories(paper1
