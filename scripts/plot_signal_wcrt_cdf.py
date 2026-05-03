@@ -36,10 +36,10 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def parse_signal_detail(compare_file: Path) -> list[dict]:
+def parse_signal_detail(compare_file: Path) -> list[dict[str, str]]:
     current_section = None
     header = None
-    rows: list[dict] = []
+    rows: list[dict[str, str]] = []
 
     with compare_file.open("r", encoding="utf-8", newline="") as handle:
         for raw_line in handle:
@@ -63,7 +63,36 @@ def parse_signal_detail(compare_file: Path) -> list[dict]:
     return rows
 
 
-def collect_pooled_samples(compare_dir: Path) -> dict[str, dict[str, list[float]]]:
+def load_schedulable_dataset_schemes(summary_path: Path) -> set[tuple[str, str]]:
+    allowed: set[tuple[str, str]] = set()
+    current_section = None
+    header = None
+
+    with summary_path.open("r", encoding="utf-8", newline="") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("[") and line.endswith("]"):
+                current_section = line[1:-1]
+                header = None
+                continue
+            if current_section != "bandwidth_utilization":
+                continue
+            if header is None:
+                header = line.split("\t")
+                continue
+            row = next(csv.reader([line], delimiter="\t"))
+            if len(row) != len(header):
+                raise ValueError(f"Malformed summary row in {summary_path.name}: {line}")
+            mapped = dict(zip(header, row))
+            if mapped.get("schedulable") == "1":
+                allowed.add((mapped["dataset"], mapped["scheme"]))
+
+    return allowed
+
+
+def collect_pooled_samples(compare_dir: Path, allowed_dataset_schemes: set[tuple[str, str]]) -> dict[str, dict[str, list[float]]]:
     pooled: dict[str, dict[str, list[float]]] = {}
     compare_files = sorted(compare_dir.glob("*.txt"), key=lambda path: dataset_sort_key(path.stem))
 
@@ -74,6 +103,8 @@ def collect_pooled_samples(compare_dir: Path) -> dict[str, dict[str, list[float]
         for row in parse_signal_detail(compare_file):
             scheme = row["scheme"]
             if scheme not in SCHEME_ORDER:
+                continue
+            if (compare_file.stem, scheme) not in allowed_dataset_schemes:
                 continue
             try:
                 value = float(row["threshold_wcrt_ms"])
@@ -152,7 +183,9 @@ def write_ecdf_points_table(output_dir: Path, pooled: dict[str, dict[str, list[f
     return output_path
 
 
-def plot_ecu_group_cdf(ecu_count: int, config_samples: list[tuple[str, dict[str, list[float]]]], output_dir: Path) -> Path | None:
+def plot_ecu_group_cdf(
+    ecu_count: int, config_samples: list[tuple[str, dict[str, list[float]]]], output_dir: Path
+) -> Path | None:
     if not config_samples:
         return None
 
@@ -180,16 +213,16 @@ def plot_ecu_group_cdf(ecu_count: int, config_samples: list[tuple[str, dict[str,
                 where="post",
                 linewidth=2.0,
                 color=SCHEME_COLORS[scheme],
-                label=f"{SCHEME_LABELS[scheme]} (n={len(x_values)})" if axis_index == 0 else None,
+                label=SCHEME_LABELS[scheme] if axis_index == 0 else None,
             )
             if axis_index == 0:
                 legend_handles.append(line[0])
-                legend_labels.append(f"{SCHEME_LABELS[scheme]} (n={len(x_values)})")
+                legend_labels.append(SCHEME_LABELS[scheme])
 
         _, signal_count = dataset_dimensions(config)
         ax.set_title(f"{signal_count} 个信号" if signal_count is not None else config, fontsize=11)
         ax.set_xlabel("确定性 WCRT（ms）")
-            ax.set_ylabel("累计比例")
+        ax.set_ylabel("累计比例")
         ax.set_xlim(left=0.0, right=max_x * 1.03 if max_x > 0 else 1.0)
         ax.set_ylim(0.0, 1.0)
         ax.tick_params(axis="y", labelleft=True)
@@ -206,6 +239,7 @@ def plot_ecu_group_cdf(ecu_count: int, config_samples: list[tuple[str, dict[str,
 def main() -> None:
     args = parse_args()
     compare_dir = resolve_compare_dir(args.input_path)
+    summary_path = compare_dir.parent / "compare_summary_tab.txt"
     output_dir = (
         args.output_dir.resolve()
         if args.output_dir is not None
@@ -214,7 +248,8 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     configure_matplotlib(font_size=10.0)
-    pooled = collect_pooled_samples(compare_dir)
+    allowed_dataset_schemes = load_schedulable_dataset_schemes(summary_path)
+    pooled = collect_pooled_samples(compare_dir, allowed_dataset_schemes)
     configs = sorted(pooled.keys(), key=dataset_sort_key)
 
     generated: list[Path] = [

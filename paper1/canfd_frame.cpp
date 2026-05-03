@@ -915,7 +915,8 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 		std::hash<std::string> hash_fn;
 
 		for (size_t i = 0; i < num; i++) {
-			size = (i < sizes.size()) ? sizes[i] : OPTION_MESSAGE_SIZE[0];
+			const int size_bytes = (i < sizes.size()) ? sizes[i] : OPTION_MESSAGE_SIZE[0];
+			size = size_bytes * 8;
 
 			level = (i < levels.size()) ? levels[i] : 0;
 			if (level < 0 || level >= NUM_MESSAGE_LEVEL) {

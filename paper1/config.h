@@ -35,6 +35,8 @@ constexpr int REDUNDANCY_N = 3;
 constexpr double LAMBDA_CONFERENCE = 1e-3;
 constexpr int FACTOR_M_F_PERIOD = 2;
 
+// Random dataset generation samples signal sizes in bytes; they are converted to bits before
+// being stored in MessageInfo.data_size.
 constexpr int OPTION_MESSAGE_SIZE[] = {1, 2, 4, 8, 16, 32, 64};
 constexpr int NUM_MESSAGE_SIZE = std::size(OPTION_MESSAGE_SIZE);
 constexpr double PROBABILITY_MESSAGE_SIZE[] = {0.35, 0.49, 0.13, 0.008, 0.013, 0.005, 0.004};

@@ -104,6 +104,8 @@ def safe_average(values: list[float]) -> float:
 def aggregate_bandwidth(rows: list[dict]) -> dict[int, dict[int, dict[str, float]]]:
     grouped: dict[int, dict[int, dict[str, list[float]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     for row in rows:
+        if int(row.get("schedulable", 1)) != 1:
+            continue
         ecu_count, signal_count = dataset_dimensions(row["config"])
         if ecu_count is None or signal_count is None:
             continue
