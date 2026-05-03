@@ -365,3 +365,8 @@ FodyWeavers.xsd
 build/
 
 .codex/
+
+.mypaper/
+
+build_codex_vs/
+build_codex_nmake/
