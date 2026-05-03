@@ -116,6 +116,14 @@ def dataset_dimensions(name: str) -> tuple[int | None, int | None]:
     return ecu_count, signal_count
 
 
+def dataset_config_name(name: str) -> str:
+    dataset = normalize_dataset_name(name)
+    parts = dataset.rsplit("_", maxsplit=1)
+    if len(parts) == 2 and parts[1].isdigit():
+        return parts[0]
+    return dataset
+
+
 def group_datasets_by_ecu(names: Iterable[str]) -> List[tuple[int, List[str]]]:
     grouped: Dict[int, List[str]] = {}
     for name in names:

@@ -305,6 +305,24 @@ double calc_response_cdf(const std::vector<ResponseDistributionPoint>& distribut
   return clamp_probability(cumulative);
 }
 
+double calc_response_threshold_wcrt(const std::vector<ResponseDistributionPoint>& distribution, double deadline_ms,
+                                    double timeout_threshold) {
+  if (distribution.empty()) {
+    return deadline_ms;
+  }
+
+  double cumulative = 0.0;
+  for (const auto& point : distribution) {
+    cumulative += point.probability;
+    const double miss_prob = clamp_probability(1.0 - cumulative);
+    if (miss_prob <= timeout_threshold + 1e-15) {
+      return point.response_time;
+    }
+  }
+
+  return deadline_ms;
+}
+
 void add_probability_gap(FrameProbData& result, const CanfdFrame& frame, double single_error_cost) {
   const double total_probability = sum_response_probability(result.wcrt_distribution);
   const double probability_gap = 1.0 - total_probability;
@@ -560,12 +578,12 @@ void save_prob_result(const std::string& address, const AnalysisReport& report) 
 
   ofs << "\n[signal_summary]\n";
   ofs << "code\tframe_id\tperiod_ms\tlevel\ttype\tp_timeout\texpected_wcrt_ms\twcrt_p95_ms\t"
-         "expected_retry_count\tp_threshold\n";
+         "threshold_wcrt_ms\texpected_retry_count\tp_threshold\n";
   for (const auto code : codes) {
     const auto& signal = report.signal_results.at(code);
     ofs << code << '\t' << signal.frame_id << '\t' << signal.period << '\t' << signal.level << '\t' << signal.type
         << '\t' << signal.p_timeout << '\t' << signal.expected_wcrt << '\t' << signal.wcrt_p95 << '\t'
-        << signal.expected_retry_count << '\t' << signal.p_threshold << '\n';
+        << signal.threshold_wcrt << '\t' << signal.expected_retry_count << '\t' << signal.p_threshold << '\n';
   }
 }
 
@@ -602,19 +620,34 @@ AnalysisReport probabilistic_analysis_report(PackingScheme& scheme, std::string 
 
     for (const auto& msg : frame.msg_set) {
       const auto code = msg.get_code();
+      const double p_threshold = threshold_per_window(msg.get_level(), msg.get_period());
+      const double threshold_wcrt =
+          calc_response_threshold_wcrt(frame_result.wcrt_distribution, static_cast<double>(msg.get_deadline()),
+                                       p_threshold);
       auto signal_it = report.signal_results.find(code);
       if (signal_it == report.signal_results.end()) {
         report.signal_results[code] = {msg.get_id_message(),   frame.get_id(),
                                        msg.get_period(),       msg.get_level(),
-                                       msg.get_type(),         threshold_per_window(msg.get_level(), msg.get_period()),
+                                       msg.get_type(),         p_threshold,
                                        frame_result.p_timeout, frame_result.expected_response_time,
-                                       frame_result.wcrt_p95,  frame_result.expected_retry_count};
+                                       frame_result.wcrt_p95,  threshold_wcrt,
+                                       frame_result.expected_retry_count};
       } else {
         signal_it->second.p_timeout = multiply_probability_precise(signal_it->second.p_timeout, frame_result.p_timeout);
-        if (frame_result.wcrt_p95 < signal_it->second.wcrt_p95) {
+        const auto current_frame_it = report.frame_results.find(signal_it->second.frame_id);
+        const int current_priority =
+            current_frame_it == report.frame_results.end() ? -1 : current_frame_it->second.priority;
+        const bool is_lower_actual_priority = frame.get_priority() > current_priority;
+        const bool same_priority_but_larger_wcrt =
+            frame.get_priority() == current_priority && frame_result.wcrt_p95 > signal_it->second.wcrt_p95;
+        const bool same_priority_and_wcrt_but_larger_id =
+            frame.get_priority() == current_priority && frame_result.wcrt_p95 == signal_it->second.wcrt_p95 &&
+            frame.get_id() > signal_it->second.frame_id;
+        if (is_lower_actual_priority || same_priority_but_larger_wcrt || same_priority_and_wcrt_but_larger_id) {
           signal_it->second.frame_id = frame.get_id();
           signal_it->second.expected_wcrt = frame_result.expected_response_time;
           signal_it->second.wcrt_p95 = frame_result.wcrt_p95;
+          signal_it->second.threshold_wcrt = threshold_wcrt;
           signal_it->second.expected_retry_count = frame_result.expected_retry_count;
         }
       }

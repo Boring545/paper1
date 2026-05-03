@@ -52,6 +52,7 @@ def main() -> None:
 
     run_python_script(scripts_dir / "plot_compare_summary.py", str(compare_summary))
     run_python_script(scripts_dir / "plot_foundation_fault_threshold.py", str(analysis_dir))
+    run_python_script(scripts_dir / "plot_signal_wcrt_cdf.py", str(analysis_dir))
 
     if args.skip_retry:
         print("Skip retry figures.")

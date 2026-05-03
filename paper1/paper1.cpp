@@ -350,7 +350,8 @@ std::vector<const ExperimentDatasetSpec*> resolve_selected_specs(const std::vect
   return specs;
 }
 
-std::vector<std::string> resolve_dataset_batch_files(const std::vector<std::string>& selected_spec_names) {
+std::vector<std::string> resolve_dataset_batch_files(const std::vector<std::string>& selected_spec_names,
+                                                     size_t max_batches_per_spec = 0) {
   const auto specs = resolve_selected_specs(selected_spec_names);
   std::vector<std::string> dataset_files;
 
@@ -374,6 +375,10 @@ std::vector<std::string> resolve_dataset_batch_files(const std::vector<std::stri
     std::sort(paths.begin(), paths.end());
     if (paths.empty()) {
       throw std::runtime_error("No dataset batch files found in: " + cfd::storage::path_string(dir));
+    }
+
+    if (max_batches_per_spec > 0 && paths.size() > max_batches_per_spec) {
+      paths.resize(max_batches_per_spec);
     }
 
     for (const auto& path : paths) {
@@ -469,6 +474,29 @@ struct SignalWcrtStats {
   double p_timeout = 0.0;
   double threshold_wcrt_ms = 0.0;
 };
+
+std::unordered_map<MessageCode, double> build_signal_group_max_wcrt_map(const PackingScheme& scheme) {
+  const auto frame_response_times = cfd::schedule::calc_frame_response_times(scheme.frame_map);
+
+  std::unordered_map<MessageCode, double> max_wcrt_by_code;
+  max_wcrt_by_code.reserve(MESSAGE_INFO_VEC.size());
+
+  for (const auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame.empty()) {
+      continue;
+    }
+
+    const double response_time_ms =
+        frame_response_times.count(frame_id) ? frame_response_times.at(frame_id) : frame.get_trans_time();
+
+    for (const auto& msg : frame.msg_set) {
+      auto& current = max_wcrt_by_code[msg.get_code()];
+      current = std::max(current, response_time_ms);
+    }
+  }
+
+  return max_wcrt_by_code;
+}
 
 std::unordered_map<MessageCode, std::vector<SignalArrivalSample>> build_signal_arrival_samples(
     const PackingScheme& scheme) {
@@ -757,6 +785,7 @@ SchemeMetrics analyze_deterministic_scheme(const std::string& name, PackingSchem
 
   const auto p_fault_map = noretry::sig_trans_fault_prob_analysis(scheme, LAMBDA_CONFERENCE);
   const auto arrival_samples_by_code = build_signal_arrival_samples(scheme);
+  const auto max_wcrt_by_code = build_signal_group_max_wcrt_map(scheme);
   const auto instance_count_map = calc_signal_instance_count(scheme);
   const auto codes = sorted_codes(meta_by_code);
 
@@ -769,27 +798,27 @@ SchemeMetrics analyze_deterministic_scheme(const std::string& name, PackingSchem
 
     const auto p_fault_it = p_fault_map.find(code);
     const auto arrival_it = arrival_samples_by_code.find(code);
-    if (p_fault_it == p_fault_map.end() || arrival_it == arrival_samples_by_code.end()) {
+    const auto max_wcrt_it = max_wcrt_by_code.find(code);
+    if (p_fault_it == p_fault_map.end() || arrival_it == arrival_samples_by_code.end() ||
+        max_wcrt_it == max_wcrt_by_code.end()) {
       continue;
     }
 
     const auto& meta = meta_it->second;
     const auto wcrt_stats = calc_signal_probabilistic_wcrt(arrival_it->second, meta.deadline_ms);
-    const double threshold_wcrt_ms =
-        calc_signal_threshold_wcrt(arrival_it->second, meta.deadline_ms, threshold_per_window(meta.level, meta.period_ms));
+    const double group_wcrt_ms = max_wcrt_it->second;
     const int signal_instance_count = instance_count_map.count(code) ? instance_count_map.at(code) : 1;
     const int added_signal_copies = std::max(0, signal_instance_count - 1);
     const double reported_p_fault = clamp_probability(p_fault_it->second);
     const double timeout_threshold = threshold_per_window(meta.level, meta.period_ms);
-    if (wcrt_stats.p_timeout > timeout_threshold + 1e-15) {
+    if (wcrt_stats.p_timeout > timeout_threshold + 1e-15 || group_wcrt_ms > static_cast<double>(meta.deadline_ms)) {
       metrics.schedulable = false;
     }
     metrics.total_added_signal_copies += added_signal_copies;
     metrics.signals.push_back({code, meta, signal_instance_count, added_signal_copies, reported_p_fault,
                                timeout_threshold, wcrt_stats.p_timeout,
-                               wcrt_stats.expected_wcrt_ms, wcrt_stats.wcrt_p95_ms,
-                               calc_ratio(wcrt_stats.wcrt_p95_ms, meta.period_ms), threshold_wcrt_ms,
-                               calc_ratio(threshold_wcrt_ms, meta.period_ms)});
+                               group_wcrt_ms, group_wcrt_ms, calc_ratio(group_wcrt_ms, meta.period_ms), group_wcrt_ms,
+                               calc_ratio(group_wcrt_ms, meta.period_ms)});
   }
 
   return metrics;
@@ -816,12 +845,7 @@ SchemeMetrics analyze_retry_scheme(const std::string& name, const retry::Analysi
     const auto& meta = meta_it->second;
     const auto& signal = signal_it->second;
     const double reported_p_timeout = clamp_probability(signal.p_timeout);
-    double threshold_wcrt_ms = static_cast<double>(meta.deadline_ms);
-    const auto frame_it = report.frame_results.find(signal.frame_id);
-    if (frame_it != report.frame_results.end()) {
-      threshold_wcrt_ms = calc_response_threshold_wcrt(frame_it->second.wcrt_distribution,
-                                                       static_cast<double>(meta.deadline_ms), signal.p_threshold);
-    }
+    const double threshold_wcrt_ms = signal.threshold_wcrt;
     if (reported_p_timeout > signal.p_threshold + 1e-15) {
       metrics.schedulable = false;
     }
@@ -971,10 +995,10 @@ void write_comparison_report(const std::string& output_path, const std::vector<S
   ofs << "# static_bandwidth_utilization: 不考虑重传时，静态打包方案本身的带宽利用率。\n";
   ofs << "# signal_count: 按原始 MessageCode 去重后的信号种类数，不是副本总数。\n";
   ofs << "# total_added_signal_copies: 相比原始 1 份信号，方案中新增的信号副本总数。\n";
-  ofs << "# 三种方案的 WCRT 均按信号级统计值输出；foundation / baseline1 基于“最早成功副本到达时间”分布，baseline2 "
-         "基于重传分布。\n";
-  ofs << "# 本文件中的 WCRT/周期 指标统一使用 P95（95%分位响应时间）；signal_detail 里的 WCRT "
-         "列统一是信号级统计值（单位 ms）。\n";
+  ofs << "# foundation / baseline1 中，同一 code 的多个副本视为一个信号组；WCRT 直接取该组对应报文中最大的帧响应时间。"
+         "baseline2 基于重传分布。\n";
+  ofs << "# foundation / baseline1 的 expected_wcrt_ms、wcrt_p95_ms、threshold_wcrt_ms 在当前口径下相同，"
+         "都等于对应信号组的最大帧响应时间（单位 ms）。\n";
   ofs << '\n';
   ofs << "retry_distribution_report\t" << retry_report_path << "\n\n";
 
@@ -988,7 +1012,8 @@ void write_comparison_report(const std::string& output_path, const std::vector<S
         << (scheme.schedulable ? 1 : 0) << '\n';
   }
 
-  ofs << "\n# 按 ASIL 分组统计的 WCRT/周期（P95，95%分位响应时间）结果。\n";
+  ofs << "\n# 按 ASIL 分组统计的 WCRT/周期结果。字段名沿用 wcrt_ratio_p95 以兼容现有脚本；"
+         "foundation / baseline1 实际填入的是信号组最大帧响应时间比值。\n";
   ofs << "\n[asil_wcrt_ratio_p95]\n";
   ofs << "scheme\tasil\tsignal_count\tavg_wcrt_ratio_p95\tmax_wcrt_ratio_p95\n";
   for (const auto& scheme : schemes) {
@@ -1081,6 +1106,8 @@ void write_batch_compare_summary(const std::string& output_path,
   ofs << "# dataset: 数据集标签，对应当前批量实验配置中的数据集。\n";
   ofs << "# config: 批量配置标签；对 batched dataset 会去掉末尾的 _001 之类批次编号。\n";
   ofs << "# scheme: foundation / baseline1 / baseline2。\n";
+  ofs << "# wcrt_ratio_p95 / threshold_wcrt_ms 等字段名为兼容旧脚本保留；foundation / baseline1 的实际含义为"
+         "同 code 信号组对应报文中的最大帧响应时间。\n";
   ofs << "# ASIL 分组指标均可直接按 dataset + scheme + asil 进行筛选或透视。\n\n";
 
   ofs << "[bandwidth_utilization]\n";
@@ -1280,7 +1307,7 @@ DatasetCompareSummary run_compare_experiment(const std::string& dataset_file, co
   MESSAGE_INFO_VEC = original_infos;
   const PackingScheme shared_initial_scheme = build_shared_initial_scheme_from_current_msgs();
 
-  // 基础方法：仅做信号同源备份。先保留一份无 offset 版本，供 WCRT 对比使用。
+  // 基础方法：仅做信号同源备份。当前版本不再分配 offset，所有方案均保持 offset=0。
   MESSAGE_INFO_VEC = original_infos;
   PackingScheme scheme_foundation_no_offset = shared_initial_scheme;
   scheme_foundation_no_offset = backups::signal::homo_signal_backup(scheme_foundation_no_offset);
@@ -1289,7 +1316,6 @@ DatasetCompareSummary run_compare_experiment(const std::string& dataset_file, co
       analyze_deterministic_scheme("foundation_no_offset", scheme_foundation_no_offset, meta_by_code);
 
   PackingScheme scheme_foundation = scheme_foundation_no_offset;
-  assign_staggered_offsets_to_signal_copies(scheme_foundation);
   log_scheme_schedulability("foundation", scheme_foundation);
   SchemeMetrics foundation_metrics = analyze_deterministic_scheme("foundation", scheme_foundation, meta_by_code);
   auto foundation_signal_frame_mappings = collect_signal_frame_mappings(dataset_name, "foundation", scheme_foundation);
@@ -1303,7 +1329,6 @@ DatasetCompareSummary run_compare_experiment(const std::string& dataset_file, co
       analyze_deterministic_scheme("baseline1_no_offset", scheme_baseline1_no_offset, meta_by_code);
 
   PackingScheme scheme_baseline1 = scheme_baseline1_no_offset;
-  assign_staggered_offsets_to_frame_copies(scheme_baseline1);
   log_scheme_schedulability("baseline1", scheme_baseline1);
   SchemeMetrics baseline1_metrics = analyze_deterministic_scheme("baseline1", scheme_baseline1, meta_by_code);
   auto baseline1_signal_frame_mappings = collect_signal_frame_mappings(dataset_name, "baseline1", scheme_baseline1);
@@ -1352,6 +1377,7 @@ int main(int argc, char* argv[]) {
   bool run_dataset_batches = false;
   bool generate_figures_after_analysis = true;
   size_t dataset_batch_count = 100;
+  size_t max_batches_per_spec = 0;
   std::vector<std::string> selected_spec_names;
 
   for (int argi = 1; argi < argc; ++argi) {
@@ -1369,6 +1395,11 @@ int main(int argc, char* argv[]) {
       }
     } else if (arg == "--run-dataset-batches") {
       run_dataset_batches = true;
+    } else if (arg == "--max-batches-per-spec") {
+      if (argi + 1 >= argc) {
+        throw std::invalid_argument("--max-batches-per-spec requires a positive integer");
+      }
+      max_batches_per_spec = static_cast<size_t>(std::stoul(argv[++argi]));
     } else if (arg == "--dataset-specs") {
       if (argi + 1 >= argc) {
         throw std::invalid_argument("--dataset-specs requires a comma-separated value");
@@ -1387,7 +1418,7 @@ int main(int argc, char* argv[]) {
 
   std::vector<std::string> dataset_files;
   if (run_dataset_batches) {
-    dataset_files = resolve_dataset_batch_files(selected_spec_names);
+    dataset_files = resolve_dataset_batch_files(selected_spec_names, max_batches_per_spec);
     DEBUG_MSG_DEBUG1(std::cout, "批量实验数据集数量: ", dataset_files.size());
   } else {
     // 默认模式复用 storage/datasets 下当前配置的数据集；

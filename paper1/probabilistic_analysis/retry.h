@@ -37,6 +37,7 @@ struct ProbData {
   double p_timeout = 1.0;
   double expected_wcrt = 0.0;
   double wcrt_p95 = 0.0;
+  double threshold_wcrt = 0.0;
   double expected_retry_count = 0.0;
 };
 

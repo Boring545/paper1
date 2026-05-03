@@ -1,0 +1,246 @@
+# 跨多组信号集汇总的对比结果，便于直接复制到表格或画图脚本。
+# dataset: 数据集标签，对应当前批量实验配置中的数据集。
+# config: 批量配置标签；对 batched dataset 会去掉末尾的 _001 之类批次编号。
+# scheme: foundation / baseline1 / baseline2。
+# wcrt_ratio_p95 / threshold_wcrt_ms 等字段名为兼容旧脚本保留；foundation / baseline1 的实际含义为同 code 信号组对应报文中的最大帧响应时间。
+# ASIL 分组指标均可直接按 dataset + scheme + asil 进行筛选或透视。
+
+[bandwidth_utilization]
+dataset	config	scheme	compare_bandwidth_utilization	static_bandwidth_utilization	signal_count	total_added_signal_copies	schedulable
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	0.56458199999999981	0.56458199999999981	250	60	1
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	0.58590599999999993	0.58590599999999993	250	180	1
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	0.34806655390813385	0.34806639999999994	250	0	1
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	0.71107279999999917	0.71107279999999917	250	60	1
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	0.75071279999999985	0.75071279999999985	250	138	1
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	0.48715325579677549	0.48715280000000027	250	0	1
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	0.76304599999999723	0.76304599999999723	250	60	1
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	0.79096599999999728	0.79096599999999728	250	100	1
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	0.58973251002008331	0.5897315999999988	250	0	1
+
+[wcrt_ratio_p95]
+dataset	config	scheme	asil	signal_count	avg_wcrt_ratio_p95	max_wcrt_ratio_p95
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	A	190	0.1012723452631946	0.35440000000028249
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	B	25	0.11971536000004013	0.26496000000005893
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	C	25	0.10317094400004934	0.26100000000005819
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	D	10	0.14336320000007405	0.3148000000002753
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	A	190	0.12711786947374287	0.3612000000007356
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	B	25	0.14565728000007064	0.3612000000007356
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	C	25	0.11281417600005852	0.3612000000007356
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	D	10	0.12309640000015831	0.28200000000072123
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	A	190	0.058611486315789496	0.24559999999999998
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	B	25	0.055824639999999988	0.14499999999999993
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	C	25	0.050170031999999996	0.1426
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	D	10	0.073977600000000004	0.20600000000000002
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	A	190	0.15032162105272565	0.40116000000007263
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	B	25	0.2095945600001265	0.39720000000007188
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	C	25	0.25513248000009042	0.39720000000007188
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	D	10	0.2037368000000371	0.3932400000000712
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	A	190	0.17636297684221872	0.46792000000010037
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	B	25	0.22900976000013787	0.45584000000009722
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	C	25	0.25596656000009715	0.39644000000008645
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	D	10	0.19188120000008349	0.44000000000009437
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	A	190	0.091164557894736833	0.28320000000000001
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	B	25	0.090590400000000043	0.20400000000000001
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	C	25	0.13221136000000006	0.28320000000000001
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	D	10	0.11189120000000001	0.24872000000000019
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	A	190	0.20552760421075936	0.47496000000029426
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	B	25	0.20185321600014408	0.45912000000029141
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	C	25	0.19483788800020271	0.38572000000007733
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	D	10	0.21069200000010202	0.38764000000027748
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	A	190	0.21094497473718044	0.49516000000029975
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	B	25	0.31705192000017174	0.49912000000030049
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	C	25	0.22778323200027523	0.4436800000002904
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	D	10	0.24118080000011927	0.37616000000027727
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	A	190	0.13882596000000016	0.33820000000000017
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	B	25	0.12356969600000001	0.26276000000000022
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	C	25	0.1214625280000001	0.25058000000000036
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	D	10	0.1428428000000001	0.28256000000000026
+
+[fault_probability]
+dataset	config	scheme	asil	signal_count	avg_fault_probability	max_fault_probability
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	A	190	4.0736841273953585e-08	4.5599998960320021e-08
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	B	25	1.6432639332498325e-15	1.988159911328067e-15
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	C	25	1.6141119350372375e-15	1.988159911328067e-15
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	D	10	1.6251999343890902e-15	1.813759922733826e-15
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	A	190	1.5210527126157833e-08	4.5599998960320021e-08
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	B	25	1.7687999253037466e-15	2.0793599051811871e-15
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	C	25	1.6944639300195606e-15	2.0793599051811871e-15
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	D	10	1.7353599274000658e-15	2.0793599051811871e-15
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	A	190	2.7463411661780187e-17	1.1102230246251565e-16
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	B	25	3.552713678800501e-17	1.1102230246251565e-16
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	C	25	3.552713678800501e-17	1.1102230246251565e-16
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	D	10	3.3306690738754695e-17	1.1102230246251565e-16
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	A	190	4.0115788668178835e-08	4.5599998960320021e-08
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	B	25	1.5744959375118359e-15	1.7265599281751066e-15
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	C	25	1.5744959375181718e-15	1.6473599331171859e-15
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	D	10	1.5681599379008662e-15	1.5681599379008662e-15
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	A	190	2.3806315980031099e-08	4.5599998960320021e-08
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	B	25	1.6074559354868118e-15	1.9009599171181472e-15
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	C	25	1.6006399359224341e-15	1.7305599280087053e-15
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	D	10	1.6168799349332182e-15	1.7305599280087053e-15
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	A	190	3.1553707015662343e-17	2.2204460492503131e-16
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	B	25	3.552713678800501e-17	2.2204460492503131e-16
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	C	25	2.2204460492503132e-17	1.1102230246251565e-16
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	D	10	3.3306690738754695e-17	1.1102230246251565e-16
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	A	190	3.9715788684881984e-08	4.3599999049520024e-08
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	B	25	1.5713279377095189e-15	1.6473599331171859e-15
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	C	25	1.5979519360469014e-15	1.9009599171181472e-15
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	D	10	1.5843999369116501e-15	1.7305599280087053e-15
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	A	190	3.1336841817715678e-08	4.1599999134720006e-08
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	B	25	1.5746559375051796e-15	1.7305599280087053e-15
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	C	25	1.6012799358425623e-15	1.9009599171181472e-15
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	D	10	1.5843999369116501e-15	1.7305599280087053e-15
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	A	190	9.9335744308566638e-18	1.1102230246251565e-16
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	B	25	4.4408920985006263e-18	1.1102230246251565e-16
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	C	25	8.8817841970012525e-18	1.1102230246251565e-16
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	D	10	3.3306690738754695e-17	1.1102230246251565e-16
+
+[added_signal_copies]
+dataset	config	scheme	asil	signal_count	added_signal_copies
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	A	190	0
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	B	25	25
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	C	25	25
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	foundation	D	10	10
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	A	190	120
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	B	25	25
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	C	25	25
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline1	D	10	10
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	A	190	0
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	B	25	0
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	C	25	0
+E5S250_5ecu_250signals	E5S250_5ecu_250signals	baseline2	D	10	0
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	A	190	0
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	B	25	25
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	C	25	25
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	foundation	D	10	10
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	A	190	78
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	B	25	25
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	C	25	25
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline1	D	10	10
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	A	190	0
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	B	25	0
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	C	25	0
+E8S250_8ecu_250signals	E8S250_8ecu_250signals	baseline2	D	10	0
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	A	190	0
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	B	25	25
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	C	25	25
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	foundation	D	10	10
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	A	190	40
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	B	25	25
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	C	25	25
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline1	D	10	10
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	A	190	0
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	B	25	0
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	C	25	0
+E12S250_12ecu_250signals	E12S250_12ecu_250signals	baseline2	D	10	0
+
+[config_schedulability]
+config	scheme	dataset_count	unschedulable_dataset_count	unschedulable_ratio
+E12S250_12ecu_250signals	foundation	1	0	0
+E12S250_12ecu_250signals	baseline1	1	0	0
+E12S250_12ecu_250signals	baseline2	1	0	0
+E5S250_5ecu_250signals	foundation	1	0	0
+E5S250_5ecu_250signals	baseline1	1	0	0
+E5S250_5ecu_250signals	baseline2	1	0	0
+E8S250_8ecu_250signals	foundation	1	0	0
+E8S250_8ecu_250signals	baseline1	1	0	0
+E8S250_8ecu_250signals	baseline2	1	0	0
+
+[config_period_wcrt_ratio]
+config	scheme	period_ms	dataset_count	avg_wcrt_ratio_to_baseline2
+E12S250_12ecu_250signals	foundation_no_offset	10	1	1.4790766768273009
+E12S250_12ecu_250signals	foundation_no_offset	2	1	1.2287687931816145
+E12S250_12ecu_250signals	foundation_no_offset	50	1	1.6545597440147004
+E12S250_12ecu_250signals	foundation_no_offset	20	1	1.7045772862178215
+E12S250_12ecu_250signals	foundation_no_offset	100	1	1.9627922716873427
+E12S250_12ecu_250signals	foundation_no_offset	1	1	1.1398453970569675
+E12S250_12ecu_250signals	foundation_no_offset	1000	1	2.3280997285461629
+E12S250_12ecu_250signals	foundation_no_offset	5	1	1.1106639839086476
+E12S250_12ecu_250signals	baseline1_no_offset	10	1	1.7149341109931679
+E12S250_12ecu_250signals	baseline1_no_offset	2	1	1.2525396180545876
+E12S250_12ecu_250signals	baseline1_no_offset	50	1	1.7246610716594797
+E12S250_12ecu_250signals	baseline1_no_offset	20	1	1.7866392528709558
+E12S250_12ecu_250signals	baseline1_no_offset	100	1	2.1774247473461363
+E12S250_12ecu_250signals	baseline1_no_offset	1	1	1.1131412508951386
+E12S250_12ecu_250signals	baseline1_no_offset	1000	1	2.4393958023967408
+E12S250_12ecu_250signals	baseline1_no_offset	5	1	1.1670020120802307
+E12S250_12ecu_250signals	foundation	10	1	1.4790766768273009
+E12S250_12ecu_250signals	foundation	2	1	1.2287687931816145
+E12S250_12ecu_250signals	foundation	50	1	1.6545597440147004
+E12S250_12ecu_250signals	foundation	20	1	1.7045772862178215
+E12S250_12ecu_250signals	foundation	100	1	1.9627922716873427
+E12S250_12ecu_250signals	foundation	1	1	1.1398453970569675
+E12S250_12ecu_250signals	foundation	1000	1	2.3280997285461629
+E12S250_12ecu_250signals	foundation	5	1	1.1106639839086476
+E12S250_12ecu_250signals	baseline1	10	1	1.7149341109931679
+E12S250_12ecu_250signals	baseline1	2	1	1.2525396180545876
+E12S250_12ecu_250signals	baseline1	50	1	1.7246610716594797
+E12S250_12ecu_250signals	baseline1	20	1	1.7866392528709558
+E12S250_12ecu_250signals	baseline1	100	1	2.1774247473461363
+E12S250_12ecu_250signals	baseline1	1	1	1.1131412508951386
+E12S250_12ecu_250signals	baseline1	1000	1	2.4393958023967408
+E12S250_12ecu_250signals	baseline1	5	1	1.1670020120802307
+E5S250_5ecu_250signals	foundation_no_offset	1	1	1.1565343258905023
+E5S250_5ecu_250signals	foundation_no_offset	1000	1	2.0919614647537181
+E5S250_5ecu_250signals	foundation_no_offset	10	1	1.7979200000004139
+E5S250_5ecu_250signals	foundation_no_offset	50	1	1.9377337394460159
+E5S250_5ecu_250signals	foundation_no_offset	2	1	1.2526564344768001
+E5S250_5ecu_250signals	foundation_no_offset	20	1	1.923220405153786
+E5S250_5ecu_250signals	foundation_no_offset	100	1	2.0694860999548412
+E5S250_5ecu_250signals	foundation_no_offset	5	1	1.3829906124276086
+E5S250_5ecu_250signals	baseline1_no_offset	1	1	1.4772539288705593
+E5S250_5ecu_250signals	baseline1_no_offset	1000	1	2.1136634381312476
+E5S250_5ecu_250signals	baseline1_no_offset	10	1	2.3170311111116013
+E5S250_5ecu_250signals	baseline1_no_offset	50	1	1.9910166942981624
+E5S250_5ecu_250signals	baseline1_no_offset	2	1	1.4937032664333987
+E5S250_5ecu_250signals	baseline1_no_offset	20	1	2.2308864356053806
+E5S250_5ecu_250signals	baseline1_no_offset	100	1	2.1010361962278616
+E5S250_5ecu_250signals	baseline1_no_offset	5	1	1.4533974072421743
+E5S250_5ecu_250signals	foundation	1	1	1.1565343258905023
+E5S250_5ecu_250signals	foundation	1000	1	2.0919614647537181
+E5S250_5ecu_250signals	foundation	10	1	1.7979200000004139
+E5S250_5ecu_250signals	foundation	50	1	1.9377337394460159
+E5S250_5ecu_250signals	foundation	2	1	1.2526564344768001
+E5S250_5ecu_250signals	foundation	20	1	1.923220405153786
+E5S250_5ecu_250signals	foundation	100	1	2.0694860999548412
+E5S250_5ecu_250signals	foundation	5	1	1.3829906124276086
+E5S250_5ecu_250signals	baseline1	1	1	1.4772539288705593
+E5S250_5ecu_250signals	baseline1	1000	1	2.1136634381312476
+E5S250_5ecu_250signals	baseline1	10	1	2.3170311111116013
+E5S250_5ecu_250signals	baseline1	50	1	1.9910166942981624
+E5S250_5ecu_250signals	baseline1	2	1	1.4937032664333987
+E5S250_5ecu_250signals	baseline1	20	1	2.2308864356053806
+E5S250_5ecu_250signals	baseline1	100	1	2.1010361962278616
+E5S250_5ecu_250signals	baseline1	5	1	1.4533974072421743
+E8S250_8ecu_250signals	foundation_no_offset	5	1	1.2226939405637105
+E8S250_8ecu_250signals	foundation_no_offset	10	1	1.7455042875528943
+E8S250_8ecu_250signals	foundation_no_offset	50	1	1.9383762132186604
+E8S250_8ecu_250signals	foundation_no_offset	2	1	1.2593639576032603
+E8S250_8ecu_250signals	foundation_no_offset	20	1	2.00350972468196
+E8S250_8ecu_250signals	foundation_no_offset	100	1	2.0183136451181456
+E8S250_8ecu_250signals	foundation_no_offset	1	1	0.93433975991789109
+E8S250_8ecu_250signals	foundation_no_offset	1000	1	2.0727739536530856
+E8S250_8ecu_250signals	baseline1_no_offset	5	1	1.3564260903152112
+E8S250_8ecu_250signals	baseline1_no_offset	10	1	2.0267778294427838
+E8S250_8ecu_250signals	baseline1_no_offset	50	1	2.0190456016026466
+E8S250_8ecu_250signals	baseline1_no_offset	2	1	1.2954063604299393
+E8S250_8ecu_250signals	baseline1_no_offset	20	1	2.1333637605765698
+E8S250_8ecu_250signals	baseline1_no_offset	100	1	2.1626105852914481
+E8S250_8ecu_250signals	baseline1_no_offset	1	1	1.3233903237592017
+E8S250_8ecu_250signals	baseline1_no_offset	1000	1	2.1521878665810861
+E8S250_8ecu_250signals	foundation	5	1	1.2226939405637105
+E8S250_8ecu_250signals	foundation	10	1	1.7455042875528943
+E8S250_8ecu_250signals	foundation	50	1	1.9383762132186604
+E8S250_8ecu_250signals	foundation	2	1	1.2593639576032603
+E8S250_8ecu_250signals	foundation	20	1	2.00350972468196
+E8S250_8ecu_250signals	foundation	100	1	2.0183136451181456
+E8S250_8ecu_250signals	foundation	1	1	0.93433975991789109
+E8S250_8ecu_250signals	foundation	1000	1	2.0727739536530856
+E8S250_8ecu_250signals	baseline1	5	1	1.3564260903152112
+E8S250_8ecu_250signals	baseline1	10	1	2.0267778294427838
+E8S250_8ecu_250signals	baseline1	50	1	2.0190456016026466
+E8S250_8ecu_250signals	baseline1	2	1	1.2954063604299393
+E8S250_8ecu_250signals	baseline1	20	1	2.1333637605765698
+E8S250_8ecu_250signals	baseline1	100	1	2.1626105852914481
+E8S250_8ecu_250signals	baseline1	1	1	1.3233903237592017
+E8S250_8ecu_250signals	baseline1	1000	1	2.1521878665810861

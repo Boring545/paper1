@@ -17,9 +17,9 @@ from plot_utils import configure_matplotlib, convert_numeric_rows, dataset_dimen
 
 SCHEME_ORDER = ["foundation", "baseline1", "baseline2"]
 SCHEME_LABELS = {
-    "foundation": "Signal Backup",
-    "baseline1": "Frame Backup",
-    "baseline2": "Retry",
+    "foundation": "信号备份",
+    "baseline1": "报文备份",
+    "baseline2": "重传",
 }
 SCHEME_COLORS = {
     "foundation": "#1b6ca8",
@@ -65,6 +65,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Output directory, defaults to <summary_parent>/comparison_figures",
+    )
+    parser.add_argument(
+        "--only",
+        choices=["all", "bandwidth", "bandwidth-line", "bandwidth-bar"],
+        default="all",
+        help="Restrict generated outputs to a subset.",
     )
     return parser.parse_args()
 
@@ -112,6 +118,25 @@ def aggregate_bandwidth(rows: list[dict]) -> dict[int, dict[int, dict[str, float
     return aggregated
 
 
+def write_bandwidth_table(rows: list[dict], output_dir: Path) -> Path:
+    aggregated = aggregate_bandwidth(rows)
+    output_path = output_dir / "bandwidth_utilization_plot_tab.txt"
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        handle.write("# Average bandwidth-utilization data used for plotting.\n\n")
+        handle.write("config\tecu_count\tsignal_count\tscheme\tavg_bandwidth_utilization\n")
+        for ecu_count in sorted(aggregated.keys()):
+            for signal_count in sorted(aggregated[ecu_count].keys()):
+                config = f"E{ecu_count}S{signal_count}_{ecu_count}ecu_{signal_count}signals"
+                for scheme in SCHEME_ORDER:
+                    if scheme not in aggregated[ecu_count][signal_count]:
+                        continue
+                    handle.write(
+                        f"{config}\t{ecu_count}\t{signal_count}\t{scheme}\t"
+                        f"{aggregated[ecu_count][signal_count][scheme]}\n"
+                    )
+    return output_path
+
+
 def aggregate_fault_probability(rows: list[dict]) -> dict[str, dict[str, dict[str, float]]]:
     grouped: dict[str, dict[str, dict[str, list[float]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(list))
@@ -147,7 +172,7 @@ def collect_schedulability(rows: list[dict]) -> dict[int, dict[int, dict[str, fl
 
 def build_bandwidth_line_figure(rows: list[dict], output_dir: Path) -> Path:
     aggregated = aggregate_bandwidth(rows)
-    ecu_groups = sorted(aggregated.items())
+    ecu_groups = [(ecu_count, signal_map) for ecu_count, signal_map in sorted(aggregated.items()) if ecu_count in {5, 8}]
 
     fig, axes = plt.subplots(
         1,
@@ -183,14 +208,13 @@ def build_bandwidth_line_figure(rows: list[dict], output_dir: Path) -> Path:
 
         ax.set_xticks(x_positions)
         ax.set_xticklabels([str(count) for count in signal_counts])
-        ax.set_xlabel("Signal Count")
-        ax.set_ylabel("Average Bandwidth Utilization")
-        ax.set_title(f"{ecu_count} ECU")
+        ax.set_xlabel("信号数量")
+        ax.set_ylabel("平均带宽利用率")
+        ax.set_title(f"{ecu_count} 个 ECU")
         ax.set_ylim(0.0, y_top)
 
     handles, labels = flat_axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, frameon=False, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 0.03))
-    fig.suptitle("Average Bandwidth Utilization", fontsize=14, y=0.96)
     fig.subplots_adjust(top=0.84, bottom=0.22, wspace=0.10)
 
     output_path = output_dir / "bandwidth_utilization_line.png"
@@ -462,16 +486,20 @@ def main() -> None:
     configure_matplotlib()
     sections = load_sections(summary_path)
 
-    generated = [
-        build_bandwidth_line_figure(sections["bandwidth_utilization"], output_dir),
-        build_bandwidth_bar_figure(sections["bandwidth_utilization"], output_dir),
-        build_fault_probability_grid(sections["fault_probability"], output_dir),
-        build_wcrt_ratio_grid(sections["config_period_wcrt_ratio"], output_dir),
-    ]
+    generated = [write_bandwidth_table(sections["bandwidth_utilization"], output_dir)]
 
-    sched_path = build_schedulability_figure(sections.get("config_schedulability", []), output_dir)
-    if sched_path is not None:
-        generated.append(sched_path)
+    if args.only in {"all", "bandwidth", "bandwidth-line"}:
+        generated.append(build_bandwidth_line_figure(sections["bandwidth_utilization"], output_dir))
+    if args.only in {"all", "bandwidth", "bandwidth-bar"}:
+        generated.append(build_bandwidth_bar_figure(sections["bandwidth_utilization"], output_dir))
+
+    if args.only == "all":
+        generated.append(build_fault_probability_grid(sections["fault_probability"], output_dir))
+        generated.append(build_wcrt_ratio_grid(sections["config_period_wcrt_ratio"], output_dir))
+
+        sched_path = build_schedulability_figure(sections.get("config_schedulability", []), output_dir)
+        if sched_path is not None:
+            generated.append(sched_path)
 
     print(f"Summary file: {summary_path}")
     print(f"Output dir: {output_dir}")
