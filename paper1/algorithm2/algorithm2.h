@@ -31,6 +31,22 @@ struct ClusterMetric {
   double p_threshold = 0.0;
 };
 
+struct ClusterWcrtMetric {
+  MessageCode code = 0;
+  int period_ms = 0;
+  int deadline_ms = 0;
+  double normal_main_route_wcrt_ms = 0.0;
+  double fault_main_route_wcrt_ms = 0.0;
+  double tmr_all_route_wcrt_ms = 0.0;
+  double activation_wcrt_ms = 0.0;
+  double backup_route_wcrt_ms = 0.0;
+  double compare_time_ms = 0.0;
+  double backup_compute_time_ms = 0.0;
+  double end_to_end_normal_wcrt_ms = 0.0;
+  double end_to_end_fault_wcrt_ms = 0.0;
+  bool meets_deadline = false;
+};
+
 struct SchemeMetrics {
   std::string name;
   double normal_bandwidth_utilization = 0.0;
@@ -39,6 +55,7 @@ struct SchemeMetrics {
   bool schedulable = false;
   std::vector<RouteMetric> routes;
   std::vector<ClusterMetric> clusters;
+  std::vector<ClusterWcrtMetric> cluster_wcrts;
 };
 
 struct SignalFrameMappingRow {
@@ -69,11 +86,32 @@ struct SignalFrameMappingRow {
 struct DatasetSummary {
   std::string dataset_tag;
   std::string config_tag;
-  SchemeMetrics scheme;
+  std::vector<SchemeMetrics> schemes;
   std::vector<SignalFrameMappingRow> signal_frame_mappings;
 };
 
+struct FoundationQuickMetrics {
+  double bandwidth_utilization = 0.0;
+  double max_wcrt_ms = 0.0;
+  int total_added_signal_copies = 0;
+  bool schedulable = false;
+};
+
+struct QuickCompareResult {
+  FoundationQuickMetrics homo_only_foundation;
+  SchemeMetrics on_demand_tmr;
+  SchemeMetrics always_on_tmr;
+  double on_demand_fault_periodic_bandwidth_utilization = 0.0;
+  double on_demand_max_normal_end_to_end_wcrt_ms = 0.0;
+  double on_demand_max_fault_end_to_end_wcrt_ms = 0.0;
+  double always_on_end_to_end_wcrt_ms = 0.0;
+};
+
 DatasetSummary run_compare_experiment(const std::string& dataset_file, const std::string& run_tag);
+
+QuickCompareResult quick_compare_signal_set(const MessageInfoVec& signal_infos);
+
+QuickCompareResult quick_compare_dataset_file(const std::string& dataset_file);
 
 void write_batch_summary(const std::string& run_tag, const std::vector<DatasetSummary>& dataset_summaries);
 
