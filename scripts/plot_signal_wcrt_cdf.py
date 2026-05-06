@@ -221,7 +221,7 @@ def plot_ecu_group_cdf(
 
         _, signal_count = dataset_dimensions(config)
         ax.set_title(f"{signal_count} 个信号" if signal_count is not None else config, fontsize=11)
-        ax.set_xlabel("确定性 WCRT（ms）")
+        ax.set_xlabel("WCRT（ms）")
         ax.set_ylabel("累计比例")
         ax.set_xlim(left=0.0, right=max_x * 1.03 if max_x > 0 else 1.0)
         ax.set_ylim(0.0, 1.0)

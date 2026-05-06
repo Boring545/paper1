@@ -16,21 +16,43 @@ from plot_utils import configure_matplotlib, dataset_dimensions, dataset_sort_ke
 
 BANDWIDTH_SCHEME_ORDER = ["foundation", "baseline1", "baseline2"]
 CDF_SCHEME_ORDER = ["foundation", "baseline1"]
+
 SCHEME_LABELS = {
     "foundation": "信号备份",
     "baseline1": "报文备份",
     "baseline2": "重传",
 }
+
 SCHEME_COLORS = {
     "foundation": "#1b6ca8",
     "baseline1": "#d66a1f",
     "baseline2": "#2a9d5b",
 }
 
+SCHEME_LINESTYLES = {
+    "foundation": "-",
+    "baseline1": "--",
+    "baseline2": "-.",
+}
+
+ECU_COLORS = {
+    5: "#1f77b4",
+    8: "#ff7f0e",
+}
+
+COMBINED_SERIES_COLORS = {
+    (5, "foundation"): "#1f77b4",
+    (5, "baseline1"): "#2ca02c",
+    (5, "baseline2"): "#d62728",
+    (8, "foundation"): "#9467bd",
+    (8, "baseline1"): "#8c564b",
+    (8, "baseline2"): "#e377c2",
+}
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="从导出的 txt 数据重画带宽图和 WCRT CDF 图。")
-    parser.add_argument("analysis_dir", type=Path, help="分析目录，例如 storage/analysis/202651_134233")
+    parser = argparse.ArgumentParser(description="从导出的 txt 重画带宽图和 WCRT CDF 图")
+    parser.add_argument("analysis_dir", type=Path, help="分析目录，例如 storage/analysis/202653_162843")
     return parser.parse_args()
 
 
@@ -52,27 +74,86 @@ def read_tsv_rows(path: Path) -> list[dict[str, str]]:
     return rows
 
 
-def redraw_bandwidth(bandwidth_tab: Path, output_path: Path) -> None:
+def load_bandwidth_grouped(bandwidth_tab: Path) -> dict[int, dict[int, dict[str, float]]]:
     rows = read_tsv_rows(bandwidth_tab)
     grouped: dict[int, dict[int, dict[str, float]]] = defaultdict(lambda: defaultdict(dict))
     for row in rows:
         ecu_count = int(row["ecu_count"])
         signal_count = int(row["signal_count"])
         grouped[ecu_count][signal_count][row["scheme"]] = float(row["avg_bandwidth_utilization"])
+    return grouped
 
-    filtered_keys = [ecu_count for ecu_count in sorted(grouped.keys()) if ecu_count in {5, 8}]
-    fig, axes = plt.subplots(1, len(filtered_keys), figsize=(5.2 * len(filtered_keys), 4.5), sharey=False, squeeze=False)
-    flat_axes = list(axes[0])
 
+def _global_y_top(grouped: dict[int, dict[int, dict[str, float]]]) -> float:
     global_max = 0.0
     for signal_map in grouped.values():
         for scheme_map in signal_map.values():
             global_max = max(global_max, max(scheme_map.values(), default=0.0))
-    y_top = global_max * 1.15 if global_max > 0 else 1.0
+    return global_max * 1.15 if global_max > 0 else 1.0
 
-    for axis_index, ecu_count in enumerate(filtered_keys):
-        ax = flat_axes[axis_index]
-        signal_map = grouped[ecu_count]
+
+def draw_single_ecu_bandwidth(
+    grouped: dict[int, dict[int, dict[str, float]]],
+    ecu_count: int,
+    output_path: Path,
+    color_mode: str,
+) -> None:
+    signal_map = grouped.get(ecu_count)
+    if not signal_map:
+        return
+
+    fig, ax = plt.subplots(1, 1, figsize=(6.0, 4.6))
+    signal_counts = sorted(signal_map.keys())
+    x_positions = list(range(len(signal_counts)))
+    y_top = _global_y_top(grouped)
+
+    for scheme in BANDWIDTH_SCHEME_ORDER:
+        y_values = [signal_map[count].get(scheme, 0.0) for count in signal_counts]
+
+        if color_mode == "default":
+            color = SCHEME_COLORS[scheme]
+            linestyle = "-"
+        elif color_mode == "same_color_diff_style":
+            color = "#2f2f2f"
+            linestyle = SCHEME_LINESTYLES[scheme]
+        elif color_mode == "color_and_style":
+            color = SCHEME_COLORS[scheme]
+            linestyle = SCHEME_LINESTYLES[scheme]
+        else:
+            raise ValueError(f"Unknown color_mode: {color_mode}")
+
+        ax.plot(
+            x_positions,
+            y_values,
+            marker="o",
+            linewidth=2.0,
+            markersize=6,
+            color=color,
+            linestyle=linestyle,
+            label=SCHEME_LABELS[scheme],
+        )
+
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels([str(count) for count in signal_counts])
+    ax.set_xlabel("信号数量")
+    ax.set_ylabel("平均带宽利用率")
+    ax.set_title(f"{ecu_count} 个 ECU")
+    ax.set_ylim(0.0, y_top)
+    ax.legend(frameon=False, loc="upper left")
+
+    fig.subplots_adjust(top=0.90, bottom=0.15, left=0.14, right=0.98)
+    fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
+    plt.close(fig)
+
+
+def draw_combined_bandwidth(grouped: dict[int, dict[int, dict[str, float]]], output_path: Path) -> None:
+    fig, ax = plt.subplots(1, 1, figsize=(7.2, 4.8))
+    y_top = _global_y_top(grouped)
+
+    for ecu_count in (5, 8):
+        signal_map = grouped.get(ecu_count, {})
+        if not signal_map:
+            continue
         signal_counts = sorted(signal_map.keys())
         x_positions = list(range(len(signal_counts)))
 
@@ -83,24 +164,86 @@ def redraw_bandwidth(bandwidth_tab: Path, output_path: Path) -> None:
                 y_values,
                 marker="o",
                 linewidth=2.0,
-                markersize=6,
-                color=SCHEME_COLORS[scheme],
-                label=SCHEME_LABELS[scheme] if axis_index == 0 else None,
+                markersize=5,
+                color=ECU_COLORS[ecu_count],
+                linestyle=SCHEME_LINESTYLES[scheme],
+                label=f"{ecu_count} ECU - {SCHEME_LABELS[scheme]}",
             )
 
-        ax.set_xticks(x_positions)
-        ax.set_xticklabels([str(count) for count in signal_counts])
-        ax.set_xlabel("信号数量")
-        ax.set_ylabel("平均带宽利用率")
-        ax.set_title(f"{ecu_count} 个 ECU")
-        ax.set_ylim(0.0, y_top)
-        ax.tick_params(axis="y", labelleft=True)
+    ax.set_xticks(list(range(6)))
+    ax.set_xticklabels(["50", "80", "120", "150", "200", "250"])
+    ax.set_xlabel("信号数量")
+    ax.set_ylabel("平均带宽利用率")
+    ax.set_ylim(0.0, y_top)
+    ax.legend(frameon=False, ncol=2, fontsize=9, loc="upper left")
 
-    handles, labels = flat_axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, frameon=False, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 0.03))
-    fig.subplots_adjust(top=0.84, bottom=0.20, left=0.08, right=0.99, wspace=0.12)
+    fig.subplots_adjust(top=0.96, bottom=0.14, left=0.12, right=0.98)
     fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
+
+
+def draw_combined_bandwidth_all_diff_colors(grouped: dict[int, dict[int, dict[str, float]]], output_path: Path) -> None:
+    fig, ax = plt.subplots(1, 1, figsize=(7.2, 4.8))
+    y_top = _global_y_top(grouped)
+
+    for ecu_count in (5, 8):
+        signal_map = grouped.get(ecu_count, {})
+        if not signal_map:
+            continue
+        signal_counts = sorted(signal_map.keys())
+        x_positions = list(range(len(signal_counts)))
+
+        for scheme in BANDWIDTH_SCHEME_ORDER:
+            y_values = [signal_map[count].get(scheme, 0.0) for count in signal_counts]
+            ax.plot(
+                x_positions,
+                y_values,
+                marker="o",
+                linewidth=1.5,
+                markersize=5,
+                color=COMBINED_SERIES_COLORS[(ecu_count, scheme)],
+                linestyle="-",
+                label=f"{ecu_count} ECU - {SCHEME_LABELS[scheme]}",
+            )
+
+    ax.set_xticks(list(range(6)))
+    ax.set_xticklabels(["50", "80", "120", "150", "200", "250"])
+    ax.set_xlabel("信号数量")
+    ax.set_ylabel("平均带宽利用率")
+    ax.set_ylim(0.0, y_top)
+    ax.legend(frameon=False, ncol=2, fontsize=9, loc="upper left")
+
+    fig.subplots_adjust(top=0.96, bottom=0.14, left=0.12, right=0.98)
+    fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
+    plt.close(fig)
+
+
+def redraw_bandwidth_variants(bandwidth_tab: Path, output_dir: Path) -> list[Path]:
+    grouped = load_bandwidth_grouped(bandwidth_tab)
+    generated: list[Path] = []
+
+    for ecu_count in (5, 8):
+        output = output_dir / f"bandwidth_{ecu_count}ecu_default.png"
+        draw_single_ecu_bandwidth(grouped, ecu_count, output, "default")
+        generated.append(output)
+
+        output = output_dir / f"bandwidth_{ecu_count}ecu_same_color_diff_style.png"
+        draw_single_ecu_bandwidth(grouped, ecu_count, output, "same_color_diff_style")
+        generated.append(output)
+
+        output = output_dir / f"bandwidth_{ecu_count}ecu_color_and_style.png"
+        draw_single_ecu_bandwidth(grouped, ecu_count, output, "color_and_style")
+        generated.append(output)
+
+    combined_output = output_dir / "bandwidth_combined_ecu_color_method_style.png"
+    draw_combined_bandwidth(grouped, combined_output)
+    generated.append(combined_output)
+
+    combined_all_color_output = output_dir / "bandwidth_combined_all_diff_colors_same_style.png"
+    draw_combined_bandwidth_all_diff_colors(grouped, combined_all_color_output)
+    generated.append(combined_all_color_output)
+
+    return generated
 
 
 def redraw_cdf(cdf_points_tab: Path, output_dir: Path) -> list[Path]:
@@ -187,12 +330,14 @@ def main() -> None:
         raise FileNotFoundError(f"Missing CDF point data: {cdf_points_tab}")
 
     configure_matplotlib(font_size=10.0)
-    redraw_bandwidth(bandwidth_tab, comparison_dir / "bandwidth_utilization_line.png")
-    generated = redraw_cdf(cdf_points_tab, cdf_dir)
+
+    bandwidth_generated = redraw_bandwidth_variants(bandwidth_tab, comparison_dir)
+    cdf_generated = redraw_cdf(cdf_points_tab, cdf_dir)
 
     print(f"Analysis dir: {analysis_dir}")
-    print(f"Redrawn: {comparison_dir / 'bandwidth_utilization_line.png'}")
-    for path in generated:
+    for path in bandwidth_generated:
+        print(f"Redrawn: {path}")
+    for path in cdf_generated:
         print(f"Redrawn: {path}")
 
 
