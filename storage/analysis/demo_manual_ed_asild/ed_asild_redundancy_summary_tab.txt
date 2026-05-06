@@ -1,0 +1,7 @@
+selected_asild_count	avg_on_demand_normal_bandwidth	avg_on_demand_fault_bandwidth	avg_always_on_bandwidth	avg_on_demand_normal_e2e_ms	avg_on_demand_fault_e2e_ms	avg_always_on_e2e_ms	avg_on_demand_route_max_wcrt_ms
+0	0.412	0.412	0.520	4.80	4.80	7.20	4.80
+2	0.428	0.462	0.534	5.10	7.60	7.80	5.30
+4	0.446	0.498	0.551	5.60	10.40	8.50	5.90
+6	0.463	0.531	0.572	6.00	13.20	9.20	6.30
+8	0.479	0.556	0.591	6.40	16.50	9.90	6.70
+10	0.497	0.584	0.614	6.90	20.10	10.70	7.20

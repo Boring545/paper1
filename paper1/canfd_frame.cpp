@@ -448,7 +448,11 @@ std::vector<int> build_size_sequence(size_t num, std::mt19937& gen) {
 	const std::vector<double> size_weights(PROBABILITY_MESSAGE_SIZE,
 	                                       PROBABILITY_MESSAGE_SIZE + NUM_MESSAGE_SIZE);
 	const auto size_counts = allocate_bucket_counts(num, size_weights);
-	return build_value_sequence(OPTION_MESSAGE_SIZE, NUM_MESSAGE_SIZE, size_counts, gen);
+	auto sizes = build_value_sequence(OPTION_MESSAGE_SIZE, NUM_MESSAGE_SIZE, size_counts, gen);
+	for (auto& size : sizes) {
+		size *= 8;
+	}
+	return sizes;
 }
 
 std::vector<int> build_type_sequence(size_t num, std::mt19937& gen) {
@@ -930,7 +934,7 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 		std::hash<std::string> hash_fn;
 
 		for (size_t i = 0; i < num; i++) {
-			size = (i < sizes.size()) ? sizes[i] : OPTION_MESSAGE_SIZE[0];
+			size = (i < sizes.size()) ? sizes[i] : OPTION_MESSAGE_SIZE[0] * 8;
 
 			level = (i < levels.size()) ? levels[i] : 0;
 			if (level < 0 || level >= NUM_MESSAGE_LEVEL) {
