@@ -105,8 +105,8 @@ constexpr int kActEventVirtualPriorityPeriodMs = 2;
 constexpr int kMaxRouteBackupIterations = 50;
 constexpr size_t kKeepNumerator = 2;
 constexpr size_t kKeepDenominator = 3;
-constexpr double kCompareTimeMs = 1.0;
-constexpr double kBackupComputeTimeMs = 1.0;
+constexpr double kCompareTimeMs = 0.01;
+constexpr double kBackupComputeTimeMs = 0.0;
 constexpr double kOuterSaInitialTemperature = 1.0;
 constexpr double kOuterSaFinalTemperature = 0.2;
 constexpr double kOuterSaAlpha = 0.5;
@@ -612,7 +612,7 @@ std::vector<ClusterWcrtMetric> calc_cluster_wcrts_on_demand(
     }
 
     if (has_fault_primary && has_fault_second_main && has_backup && has_activation) {
-      metric.end_to_end_fault_wcrt_ms = metric.fault_main_route_wcrt_ms + metric.compare_time_ms +
+      metric.end_to_end_fault_wcrt_ms = metric.fault_main_route_wcrt_ms + 2.0 * metric.compare_time_ms +
                                         metric.activation_wcrt_ms + metric.backup_compute_time_ms +
                                         metric.backup_route_wcrt_ms;
       metric.meets_deadline = metric.end_to_end_normal_wcrt_ms <= static_cast<double>(metric.deadline_ms) &&

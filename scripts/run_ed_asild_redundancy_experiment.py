@@ -36,7 +36,7 @@ class ExperimentPoint:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "ED experiment: ECU=5, signals=200, 1 dataset; select 0/2/4/6/8/10 ASIL-D signals as ECU-redundant "
+            "ED experiment: ECU=5, signals=200, 1 dataset; select 0/2/4/6/8/10 periodic-20ms signals as ECU-redundant "
             "and plot average bandwidth/E2E delay."
         )
     )
@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--selected-counts",
         default="0,2,4,6,8,10",
-        help="Comma separated ASIL-D selected counts",
+        help="Comma separated selected counts for period==20ms signals",
     )
     parser.add_argument(
         "--exe",
@@ -126,8 +126,8 @@ def enforce_asild_selected_count(path: Path, selected_count: int) -> int:
     primary_rows: list[tuple[int, int]] = []
     for row_index, row in enumerate(rows):
         comm_id = int(row.get("comm_id", "0"))
-        level = int(row["level"])
-        if comm_id == 0 and level == 3:
+        period = int(row["period"])
+        if comm_id == 0 and period == 20:
             primary_rows.append((int(row["code"]), row_index))
 
     primary_rows.sort(key=lambda item: item[0])
@@ -154,17 +154,21 @@ def run_algorithm2_batch(project_root: Path, exe_path: Path, dataset_spec: str, 
         "--skip-figures",
     ]
 
-    result = subprocess.run(
+    process = subprocess.Popen(
         cmd,
         cwd=project_root,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
         encoding="utf-8",
         errors="replace",
-        check=True,
     )
 
-    match = re.search(r"批量测试输出目录:\s*(.+)", result.stdout)
+    stdout_text = process.communicate()[0] or ""
+    print(stdout_text, end="")
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(process.returncode, cmd)
+    match = re.search(r"批量测试输出目录:\s*(.+)", stdout_text)
     if match is None:
         raise RuntimeError("Cannot find analysis output dir in algorithm2 stdout")
     return Path(match.group(1).strip())
