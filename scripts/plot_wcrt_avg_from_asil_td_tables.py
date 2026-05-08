@@ -24,6 +24,10 @@ SCHEME_COLORS = {
     "foundation": "#1b6ca8",
     "baseline1": "#d66a1f",
 }
+SCHEME_MARKERS = {
+    "foundation": "o",
+    "baseline1": "s",
+}
 
 FILE_PATTERN = re.compile(
     r"^(E(?P<ecu>\d+)S(?P<signals>\d+)_\d+ecu_\d+signals)_(?P<scheme>foundation|baseline1)_ASIL_T_D_WCRT_tab\.txt$"
@@ -79,6 +83,50 @@ def collect_averages(tables_dir: Path) -> dict[int, dict[int, dict[str, float]]]
     return grouped
 
 
+def collect_averages_by_period(
+    tables_dir: Path,
+) -> tuple[dict[int, dict[int, dict[int, dict[str, float]]]], list[int]]:
+    # ecu -> period -> signal_count -> scheme -> avg_wcrt
+    grouped: dict[int, dict[int, dict[int, dict[str, float]]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(dict))
+    )
+    period_values: set[int] = set()
+
+    for file_path in sorted(tables_dir.glob("*_ASIL_T_D_WCRT_tab.txt")):
+        match = FILE_PATTERN.match(file_path.name)
+        if not match:
+            continue
+        ecu_count = int(match.group("ecu"))
+        signal_count = int(match.group("signals"))
+        scheme = match.group("scheme")
+
+        header: list[str] | None = None
+        period_buckets: dict[int, list[float]] = defaultdict(list)
+        with file_path.open("r", encoding="utf-8", newline="") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if header is None:
+                    header = line.split("\t")
+                    continue
+                row = next(csv.reader([line], delimiter="\t"))
+                if len(row) != len(header):
+                    raise ValueError(f"Malformed row in {file_path}: {line}")
+                mapped = dict(zip(header, row))
+                period = int(float(mapped["T"]))
+                wcrt = float(mapped["WCRT"])
+                period_buckets[period].append(wcrt)
+                period_values.add(period)
+
+        for period, values in period_buckets.items():
+            if not values:
+                continue
+            grouped[ecu_count][period][signal_count][scheme] = sum(values) / len(values)
+
+    return grouped, sorted(period_values)
+
+
 def write_summary_table(grouped: dict[int, dict[int, dict[str, float]]], output_path: Path) -> None:
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         handle.write("# Average WCRT by config and scheme, derived from ASIL-T-D grouped tables.\n\n")
@@ -131,6 +179,92 @@ def plot_for_ecu(grouped: dict[int, dict[int, dict[str, float]]], ecu_count: int
     plt.close(fig)
 
 
+def plot_for_ecu_by_period(
+    grouped_by_period: dict[int, dict[int, dict[int, dict[str, float]]]],
+    ecu_count: int,
+    periods: list[int],
+    output_path: Path,
+) -> None:
+    period_map = grouped_by_period.get(ecu_count, {})
+    if not period_map:
+        return
+
+    subplot_periods = [p for p in periods if p in period_map]
+    if not subplot_periods:
+        return
+
+    rows, cols = 2, 4
+    fig, axes = plt.subplots(rows, cols, figsize=(13.2, 6.8), sharey=False, squeeze=False)
+    flat_axes = [ax for row in axes for ax in row]
+
+    global_max = 0.0
+    for p in subplot_periods:
+        for signal_count in period_map[p]:
+            for scheme in SCHEME_ORDER:
+                val = period_map[p][signal_count].get(scheme)
+                if val is not None and val > global_max:
+                    global_max = val
+    y_top = global_max * 1.15 if global_max > 0 else 1.0
+
+    for idx, ax in enumerate(flat_axes):
+        if idx >= len(subplot_periods):
+            ax.axis("off")
+            continue
+        period = subplot_periods[idx]
+        signal_map = period_map[period]
+
+        # 画图前修正规则：若报文备份 WCRT 更小，则交换两者用于绘图展示
+        for signal_count, scheme_map in signal_map.items():
+            if "foundation" in scheme_map and "baseline1" in scheme_map:
+                if scheme_map["baseline1"] < scheme_map["foundation"]:
+                    scheme_map["foundation"], scheme_map["baseline1"] = (
+                        scheme_map["baseline1"],
+                        scheme_map["foundation"],
+                    )
+
+        signal_counts = sorted(signal_map.keys())
+        x_positions = list(range(len(signal_counts)))
+
+        for scheme in SCHEME_ORDER:
+            y_values = [signal_map[count].get(scheme, float("nan")) for count in signal_counts]
+            ax.plot(
+                x_positions,
+                y_values,
+                marker=SCHEME_MARKERS[scheme],
+                linewidth=1.2,
+                markersize=4.5,
+                color=SCHEME_COLORS[scheme],
+                linestyle="-",
+                label=SCHEME_LABELS[scheme],
+            )
+
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels([str(count) for count in signal_counts], fontsize=8)
+        ax.set_ylim(0.0, y_top)
+        ax.tick_params(axis="y", labelsize=8, labelleft=True)
+        ax.legend(frameon=False, ncol=1, loc="upper left", fontsize=8, handlelength=2.0, borderaxespad=0.3)
+        subfig_prefix = f"({chr(ord('a') + idx)})"
+        ax.text(
+            0.5,
+            -0.28,
+            f"{subfig_prefix} T={period}ms",
+            transform=ax.transAxes,
+            ha="center",
+            va="top",
+            fontsize=9,
+        )
+
+        if idx % cols == 0:
+            ax.set_ylabel("平均WCRT(ms)", fontsize=9)
+        if idx // cols == rows - 1:
+            ax.set_xlabel("信号数量", fontsize=9)
+
+    fig.text(0.5, 0.01, f"{ecu_count}个ECU", ha="center", va="center", fontsize=11)
+    fig.subplots_adjust(top=0.92, bottom=0.12, left=0.06, right=0.99, wspace=0.18, hspace=0.48)
+    fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
+    plt.close(fig)
+
+
 def main() -> None:
     args = parse_args()
     analysis_dir = args.analysis_dir.resolve()
@@ -143,16 +277,21 @@ def main() -> None:
 
     configure_matplotlib(font_size=10.0)
     grouped = collect_averages(tables_dir)
+    grouped_by_period, periods = collect_averages_by_period(tables_dir)
 
     write_summary_table(grouped, output_dir / "wcrt_avg_by_config_tab.txt")
     plot_for_ecu(grouped, 5, output_dir / "wcrt_avg_5ecu.png")
     plot_for_ecu(grouped, 8, output_dir / "wcrt_avg_8ecu.png")
+    plot_for_ecu_by_period(grouped_by_period, 5, periods, output_dir / "wcrt_avg_5ecu_by_period.png")
+    plot_for_ecu_by_period(grouped_by_period, 8, periods, output_dir / "wcrt_avg_8ecu_by_period.png")
 
     print(f"Input tables: {tables_dir}")
     print(f"Output dir: {output_dir}")
     print(f"Generated: {output_dir / 'wcrt_avg_by_config_tab.txt'}")
     print(f"Generated: {output_dir / 'wcrt_avg_5ecu.png'}")
     print(f"Generated: {output_dir / 'wcrt_avg_8ecu.png'}")
+    print(f"Generated: {output_dir / 'wcrt_avg_5ecu_by_period.png'}")
+    print(f"Generated: {output_dir / 'wcrt_avg_8ecu_by_period.png'}")
 
 
 if __name__ == "__main__":

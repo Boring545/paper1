@@ -10,6 +10,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
 
 from plot_utils import configure_matplotlib, dataset_dimensions, dataset_sort_key
 
@@ -33,6 +34,12 @@ SCHEME_LINESTYLES = {
     "foundation": "-",
     "baseline1": "--",
     "baseline2": "-.",
+}
+
+SCHEME_MARKERS = {
+    "foundation": "o",
+    "baseline1": "s",
+    "baseline2": "^",
 }
 
 ECU_COLORS = {
@@ -136,12 +143,79 @@ def draw_single_ecu_bandwidth(
     ax.set_xticks(x_positions)
     ax.set_xticklabels([str(count) for count in signal_counts])
     ax.set_xlabel("信号数量")
-    ax.set_ylabel("平均带宽利用率")
+    ax.set_ylabel("平均带宽利用率(%)")
     ax.set_title(f"{ecu_count} 个 ECU")
     ax.set_ylim(0.0, y_top)
+    ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
     ax.legend(frameon=False, loc="upper left")
 
     fig.subplots_adjust(top=0.90, bottom=0.15, left=0.14, right=0.98)
+    fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
+    plt.close(fig)
+
+
+def draw_bandwidth_two_panel(
+    grouped: dict[int, dict[int, dict[str, float]]],
+    output_path: Path,
+    style_mode: str,
+) -> None:
+    fig, axes = plt.subplots(1, 2, figsize=(10.8, 4.6), sharey=True, squeeze=False)
+    flat_axes = list(axes[0])
+    y_top = _global_y_top(grouped)
+
+    for axis_index, ecu_count in enumerate((5, 8)):
+        ax = flat_axes[axis_index]
+        signal_map = grouped.get(ecu_count, {})
+        signal_counts = sorted(signal_map.keys())
+        x_positions = list(range(len(signal_counts)))
+
+        for scheme in BANDWIDTH_SCHEME_ORDER:
+            y_values = [signal_map[count].get(scheme, 0.0) for count in signal_counts]
+            if style_mode == "color":
+                color = SCHEME_COLORS[scheme]
+                marker = "o"
+            elif style_mode == "marker":
+                color = "#2f2f2f"
+                marker = SCHEME_MARKERS[scheme]
+            elif style_mode == "color_marker":
+                color = SCHEME_COLORS[scheme]
+                marker = SCHEME_MARKERS[scheme]
+            else:
+                raise ValueError(f"Unknown style_mode: {style_mode}")
+
+            ax.plot(
+                x_positions,
+                y_values,
+                marker=marker,
+                linewidth=1.2,
+                markersize=4.5,
+                color=color,
+                linestyle="-",
+                label=SCHEME_LABELS[scheme],
+            )
+
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels([str(count) for count in signal_counts])
+        ax.set_xlabel("信号数量")
+        ax.set_title(f"{ecu_count} 个 ECU")
+        ax.set_title("")
+        ax.set_ylim(0.0, y_top)
+        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
+        ax.tick_params(axis="y", labelleft=True)
+
+    flat_axes[0].set_ylabel("平均带宽利用率(%)")
+    for ax in flat_axes:
+        ax.legend(
+            frameon=False,
+            ncol=1,
+            loc="upper left",
+            fontsize=9,
+            handlelength=2.0,
+            borderaxespad=0.4,
+        )
+    fig.text(0.28, 0.01, "(a) 5个ECU", ha="center", va="center", fontsize=11)
+    fig.text(0.74, 0.01, "(b) 8个ECU", ha="center", va="center", fontsize=11)
+    fig.subplots_adjust(top=0.88, bottom=0.16, left=0.08, right=0.99, wspace=0.10)
     fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
 
@@ -173,8 +247,9 @@ def draw_combined_bandwidth(grouped: dict[int, dict[int, dict[str, float]]], out
     ax.set_xticks(list(range(6)))
     ax.set_xticklabels(["50", "80", "120", "150", "200", "250"])
     ax.set_xlabel("信号数量")
-    ax.set_ylabel("平均带宽利用率")
+    ax.set_ylabel("平均带宽利用率(%)")
     ax.set_ylim(0.0, y_top)
+    ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
     ax.legend(frameon=False, ncol=2, fontsize=9, loc="upper left")
 
     fig.subplots_adjust(top=0.96, bottom=0.14, left=0.12, right=0.98)
@@ -209,8 +284,9 @@ def draw_combined_bandwidth_all_diff_colors(grouped: dict[int, dict[int, dict[st
     ax.set_xticks(list(range(6)))
     ax.set_xticklabels(["50", "80", "120", "150", "200", "250"])
     ax.set_xlabel("信号数量")
-    ax.set_ylabel("平均带宽利用率")
+    ax.set_ylabel("平均带宽利用率(%)")
     ax.set_ylim(0.0, y_top)
+    ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
     ax.legend(frameon=False, ncol=2, fontsize=9, loc="upper left")
 
     fig.subplots_adjust(top=0.96, bottom=0.14, left=0.12, right=0.98)
@@ -221,6 +297,18 @@ def draw_combined_bandwidth_all_diff_colors(grouped: dict[int, dict[int, dict[st
 def redraw_bandwidth_variants(bandwidth_tab: Path, output_dir: Path) -> list[Path]:
     grouped = load_bandwidth_grouped(bandwidth_tab)
     generated: list[Path] = []
+
+    output = output_dir / "bandwidth_two_panel_color.png"
+    draw_bandwidth_two_panel(grouped, output, "color")
+    generated.append(output)
+
+    output = output_dir / "bandwidth_two_panel_marker.png"
+    draw_bandwidth_two_panel(grouped, output, "marker")
+    generated.append(output)
+
+    output = output_dir / "bandwidth_two_panel_color_marker.png"
+    draw_bandwidth_two_panel(grouped, output, "color_marker")
+    generated.append(output)
 
     for ecu_count in (5, 8):
         output = output_dir / f"bandwidth_{ecu_count}ecu_default.png"
@@ -270,9 +358,6 @@ def redraw_cdf(cdf_points_tab: Path, output_dir: Path) -> list[Path]:
     for ecu_count in sorted(grouped_by_ecu.keys()):
         fig, axes = plt.subplots(3, 2, figsize=(10.8, 10.8), sharey=False, squeeze=False)
         flat_axes = [ax for row in axes for ax in row]
-        legend_handles = []
-        legend_labels = []
-
         for axis_index, ax in enumerate(flat_axes):
             if axis_index >= len(grouped_by_ecu[ecu_count]):
                 ax.axis("off")
@@ -285,28 +370,44 @@ def redraw_cdf(cdf_points_tab: Path, output_dir: Path) -> list[Path]:
                 if not x_values:
                     continue
                 max_x = max(max_x, x_values[-1])
-                line = ax.step(
+                ax.step(
                     x_values,
                     y_values,
                     where="post",
-                    linewidth=2.0,
+                    linewidth=1.2,
                     color=SCHEME_COLORS[scheme],
-                    label=SCHEME_LABELS[scheme] if axis_index == 0 else None,
+                    linestyle=SCHEME_LINESTYLES[scheme],
+                    label=SCHEME_LABELS[scheme],
                 )
-                if axis_index == 0:
-                    legend_handles.append(line[0])
-                    legend_labels.append(SCHEME_LABELS[scheme])
 
             _, signal_count = dataset_dimensions(config)
-            ax.set_title(f"{signal_count} 个信号" if signal_count is not None else config, fontsize=11)
             ax.set_xlabel("确定性 WCRT（ms）")
-            ax.set_ylabel("累计比例")
+            ax.set_ylabel("累计比例(%)")
             ax.set_xlim(left=0.0, right=max_x * 1.03 if max_x > 0 else 1.0)
             ax.set_ylim(0.0, 1.0)
+            ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
             ax.tick_params(axis="y", labelleft=True)
+            ax.legend(
+                frameon=False,
+                ncol=1,
+                loc="upper left",
+                fontsize=8.5,
+                handlelength=2.0,
+                borderaxespad=0.3,
+            )
+            subfig_prefix = f"({chr(ord('a') + axis_index)})"
+            subfig_desc = f"{signal_count}信号" if signal_count is not None else config
+            ax.text(
+                0.5,
+                -0.28,
+                f"{subfig_prefix} {subfig_desc}",
+                transform=ax.transAxes,
+                ha="center",
+                va="top",
+                fontsize=10,
+            )
 
-        fig.legend(legend_handles, legend_labels, frameon=False, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 0.03))
-        fig.subplots_adjust(top=0.92, bottom=0.12, left=0.08, right=0.98, wspace=0.20, hspace=0.30)
+        fig.subplots_adjust(top=0.92, bottom=0.08, left=0.08, right=0.98, wspace=0.20, hspace=0.42)
 
         output_path = output_dir / f"signal_wcrt_cdf_{ecu_count}ecu.png"
         fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
