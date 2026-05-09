@@ -330,25 +330,75 @@ def plot_bandwidth(points: list[ExperimentPoint], output_dir: Path, homogeneous_
     y_always_on = [p.avg_always_on_bandwidth for p in filtered]
 
     fig, ax = plt.subplots(figsize=(7.0, 4.8), constrained_layout=True)
-    ax.plot(x, y_on_demand_normal, marker="o", linewidth=2.0, label="按需三模冗余-正常态", color="#1b6ca8")
-    ax.plot(x, y_on_demand_fault, marker="o", linewidth=2.0, label="按需三模冗余-最坏故障态", color="#d66a1f")
-    ax.plot(x, y_always_on, marker="o", linewidth=2.0, label="三模冗余", color="#2a9d5b")
+
+    ax.plot(
+        x,
+        y_on_demand_normal,
+        marker="s",
+        markersize=6.0,
+        markerfacecolor="white",
+        markeredgecolor="black",
+        markeredgewidth=1.0,
+        linewidth=1.2,
+        linestyle="-",
+        color="black",
+        label="按需三模冗余-正常态",
+    )
+    ax.plot(
+        x,
+        y_on_demand_fault,
+        marker="^",
+        markersize=6.5,
+        markerfacecolor="white",
+        markeredgecolor="black",
+        markeredgewidth=1.0,
+        linewidth=1.2,
+        linestyle="--",
+        color="black",
+        label="按需三模冗余-最坏故障态",
+    )
+    ax.plot(
+        x,
+        y_always_on,
+        marker="x",
+        markersize=6.5,
+        markeredgewidth=1.0,
+        linewidth=1.2,
+        linestyle="-.",
+        color="black",
+        label="三模冗余",
+    )
+
     if homogeneous_bandwidth is not None:
         ax.plot(
             x,
             [homogeneous_bandwidth] * len(x),
-            linewidth=2.0,
-            linestyle="--",
-            color="#666666",
+            marker="D",
+            markersize=5.5,
+            markerfacecolor="white",
+            markeredgecolor="black",
+            markeredgewidth=1.0,
+            linewidth=1.2,
+            linestyle=":",
+            color="black",
             label="无节点冗余",
         )
+
     ax.set_xlabel("节点冗余信号数量")
     ax.set_ylabel("平均带宽利用率")
     ax.set_xticks(x)
-    ax.legend(frameon=False)
+
+    ax.legend(
+        frameon=True,
+        fancybox=False,
+        edgecolor="black",
+        facecolor="white",
+        framealpha=1.0,
+        fontsize=9.0,
+    )
 
     output_path = output_dir / "ed_bandwidth.png"
-    fig.savefig(output_path)
+    fig.savefig(output_path, dpi=300)
     plt.close(fig)
     return output_path
 
@@ -362,16 +412,60 @@ def plot_e2e(points: list[ExperimentPoint], output_dir: Path, homogeneous_e2e_ms
     y_always_on = [p.avg_always_on_e2e_ms for p in filtered]
 
     fig, ax = plt.subplots(figsize=(7.0, 4.8), constrained_layout=True)
-    ax.plot(x, y_on_demand_normal, marker="o", linewidth=2.0, label="按需三模冗余-正常态", color="#1b6ca8")
-    ax.plot(x, y_on_demand_fault, marker="o", linewidth=2.0, label="按需三模冗余-最坏故障态", color="#d66a1f")
-    ax.plot(x, y_always_on, marker="o", linewidth=2.0, label="三模冗余", color="#2a9d5b")
+
+    ax.plot(
+        x,
+        y_on_demand_normal,
+        marker="s",
+        markersize=6.0,
+        markerfacecolor="white",
+        markeredgecolor="black",
+        markeredgewidth=1.0,
+        linewidth=1.2,
+        linestyle="-",
+        color="black",
+        label="按需三模冗余-正常态",
+    )
+    ax.plot(
+        x,
+        y_on_demand_fault,
+        marker="^",
+        markersize=6.5,
+        markerfacecolor="white",
+        markeredgecolor="black",
+        markeredgewidth=1.0,
+        linewidth=1.2,
+        linestyle="--",
+        color="black",
+        label="按需三模冗余-最坏故障态",
+    )
+    ax.plot(
+        x,
+        y_always_on,
+        marker="x",
+        markersize=6.5,
+        markeredgewidth=1.0,
+        linewidth=1.2,
+        linestyle="-.",
+        color="black",
+        label="三模冗余",
+    )
+
     ax.set_xlabel("节点冗余信号数量")
     ax.set_ylabel("平均最坏响应时间")
     ax.set_xticks(x)
-    ax.legend(frameon=False)
+
+    ax.legend(
+        frameon=True,
+        fancybox=False,
+        edgecolor="black",
+        facecolor="white",
+        framealpha=1.0,
+        fontsize=9.0,
+    )
 
     output_path = output_dir / "ed_e2e_delay.png"
-    fig.savefig(output_path)
+    fig.savefig(output_path, dpi=300)
     plt.close(fig)
     return output_path
 
