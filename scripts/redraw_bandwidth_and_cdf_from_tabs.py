@@ -24,10 +24,11 @@ SCHEME_LABELS = {
     "baseline2": "重传",
 }
 
+# 论文黑白图风格：不依赖颜色，主要通过线型和节点形状区分曲线。
 SCHEME_COLORS = {
-    "foundation": "#1b6ca8",
-    "baseline1": "#d66a1f",
-    "baseline2": "#2a9d5b",
+    "foundation": "black",
+    "baseline1": "black",
+    "baseline2": "black",
 }
 
 SCHEME_LINESTYLES = {
@@ -37,23 +38,15 @@ SCHEME_LINESTYLES = {
 }
 
 SCHEME_MARKERS = {
-    "foundation": "o",
-    "baseline1": "s",
-    "baseline2": "^",
+    "foundation": "s",
+    "baseline1": "^",
+    "baseline2": "x",
 }
 
-ECU_COLORS = {
-    5: "#1f77b4",
-    8: "#ff7f0e",
-}
-
-COMBINED_SERIES_COLORS = {
-    (5, "foundation"): "#1f77b4",
-    (5, "baseline1"): "#2ca02c",
-    (5, "baseline2"): "#d62728",
-    (8, "foundation"): "#9467bd",
-    (8, "baseline1"): "#8c564b",
-    (8, "baseline2"): "#e377c2",
+# 合并图中用于区分 ECU 数量；两面板图不使用颜色区分。
+ECU_MARKER_FACE = {
+    5: "white",
+    8: "0.75",
 }
 
 
@@ -99,12 +92,61 @@ def _global_y_top(grouped: dict[int, dict[int, dict[str, float]]]) -> float:
     return global_max * 1.15 if global_max > 0 else 1.0
 
 
+def _marker_facecolor(marker: str, facecolor: str = "white") -> str:
+    if marker in {"x", "+", "*"}:
+        return "none"
+    return facecolor
+
+
+def _plot_paper_line(
+    ax: plt.Axes,
+    x_values: list[int] | list[float],
+    y_values: list[float],
+    scheme: str,
+    label: str,
+    *,
+    linewidth: float = 1.2,
+    markersize: float = 5.5,
+    markerfacecolor: str = "white",
+) -> None:
+    marker = SCHEME_MARKERS[scheme]
+    ax.plot(
+        x_values,
+        y_values,
+        marker=marker,
+        markersize=markersize,
+        markerfacecolor=_marker_facecolor(marker, markerfacecolor),
+        markeredgecolor="black",
+        markeredgewidth=1.0,
+        linewidth=linewidth,
+        color="black",
+        linestyle=SCHEME_LINESTYLES[scheme],
+        label=label,
+    )
+
+
+def _apply_paper_legend(ax: plt.Axes, *, fontsize: float = 9.0, ncol: int = 1) -> None:
+    ax.legend(
+        frameon=True,
+        fancybox=False,
+        edgecolor="black",
+        facecolor="white",
+        framealpha=1.0,
+        ncol=ncol,
+        loc="upper left",
+        fontsize=fontsize,
+        handlelength=2.0,
+        borderaxespad=0.4,
+    )
+
+
 def draw_single_ecu_bandwidth(
     grouped: dict[int, dict[int, dict[str, float]]],
     ecu_count: int,
     output_path: Path,
     color_mode: str,
 ) -> None:
+    # color_mode 保留是为了不改原来的函数接口；当前统一输出黑白论文风格。
     signal_map = grouped.get(ecu_count)
     if not signal_map:
         return
@@ -116,28 +158,14 @@ def draw_single_ecu_bandwidth(
 
     for scheme in BANDWIDTH_SCHEME_ORDER:
         y_values = [signal_map[count].get(scheme, 0.0) for count in signal_counts]
-
-        if color_mode == "default":
-            color = SCHEME_COLORS[scheme]
-            linestyle = "-"
-        elif color_mode == "same_color_diff_style":
-            color = "#2f2f2f"
-            linestyle = SCHEME_LINESTYLES[scheme]
-        elif color_mode == "color_and_style":
-            color = SCHEME_COLORS[scheme]
-            linestyle = SCHEME_LINESTYLES[scheme]
-        else:
-            raise ValueError(f"Unknown color_mode: {color_mode}")
-
-        ax.plot(
+        _plot_paper_line(
+            ax,
             x_positions,
             y_values,
-            marker="o",
-            linewidth=2.0,
-            markersize=6,
-            color=color,
-            linestyle=linestyle,
-            label=SCHEME_LABELS[scheme],
+            scheme,
+            SCHEME_LABELS[scheme],
+            linewidth=1.2,
+            markersize=6.0,
         )
 
     ax.set_xticks(x_positions)
@@ -147,10 +175,10 @@ def draw_single_ecu_bandwidth(
     ax.set_title(f"{ecu_count} 个 ECU")
     ax.set_ylim(0.0, y_top)
     ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
-    ax.legend(frameon=False, loc="upper left")
+    _apply_paper_legend(ax, fontsize=9.0)
 
     fig.subplots_adjust(top=0.90, bottom=0.15, left=0.14, right=0.98)
-    fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
+    fig.savefig(output_path, dpi=300, bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
 
 
@@ -159,6 +187,7 @@ def draw_bandwidth_two_panel(
     output_path: Path,
     style_mode: str,
 ) -> None:
+    # style_mode 保留是为了不改原来的函数接口；当前统一输出黑白论文风格。
     fig, axes = plt.subplots(1, 2, figsize=(10.8, 4.6), sharey=True, squeeze=False)
     flat_axes = list(axes[0])
     y_top = _global_y_top(grouped)
@@ -171,33 +200,19 @@ def draw_bandwidth_two_panel(
 
         for scheme in BANDWIDTH_SCHEME_ORDER:
             y_values = [signal_map[count].get(scheme, 0.0) for count in signal_counts]
-            if style_mode == "color":
-                color = SCHEME_COLORS[scheme]
-                marker = "o"
-            elif style_mode == "marker":
-                color = "#2f2f2f"
-                marker = SCHEME_MARKERS[scheme]
-            elif style_mode == "color_marker":
-                color = SCHEME_COLORS[scheme]
-                marker = SCHEME_MARKERS[scheme]
-            else:
-                raise ValueError(f"Unknown style_mode: {style_mode}")
-
-            ax.plot(
+            _plot_paper_line(
+                ax,
                 x_positions,
                 y_values,
-                marker=marker,
+                scheme,
+                SCHEME_LABELS[scheme],
                 linewidth=1.2,
-                markersize=4.5,
-                color=color,
-                linestyle="-",
-                label=SCHEME_LABELS[scheme],
+                markersize=5.5,
             )
 
         ax.set_xticks(x_positions)
         ax.set_xticklabels([str(count) for count in signal_counts])
         ax.set_xlabel("信号数量")
-        ax.set_title(f"{ecu_count} 个 ECU")
         ax.set_title("")
         ax.set_ylim(0.0, y_top)
         ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
@@ -205,18 +220,12 @@ def draw_bandwidth_two_panel(
 
     flat_axes[0].set_ylabel("平均带宽利用率(%)")
     for ax in flat_axes:
-        ax.legend(
-            frameon=False,
-            ncol=1,
-            loc="upper left",
-            fontsize=9,
-            handlelength=2.0,
-            borderaxespad=0.4,
-        )
+        _apply_paper_legend(ax, fontsize=9.0)
+
     fig.text(0.28, 0.01, "(a) 5个ECU", ha="center", va="center", fontsize=11)
     fig.text(0.74, 0.01, "(b) 8个ECU", ha="center", va="center", fontsize=11)
     fig.subplots_adjust(top=0.88, bottom=0.16, left=0.08, right=0.99, wspace=0.10)
-    fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
+    fig.savefig(output_path, dpi=300, bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
 
 
@@ -233,15 +242,15 @@ def draw_combined_bandwidth(grouped: dict[int, dict[int, dict[str, float]]], out
 
         for scheme in BANDWIDTH_SCHEME_ORDER:
             y_values = [signal_map[count].get(scheme, 0.0) for count in signal_counts]
-            ax.plot(
+            _plot_paper_line(
+                ax,
                 x_positions,
                 y_values,
-                marker="o",
-                linewidth=2.0,
-                markersize=5,
-                color=ECU_COLORS[ecu_count],
-                linestyle=SCHEME_LINESTYLES[scheme],
-                label=f"{ecu_count} ECU - {SCHEME_LABELS[scheme]}",
+                scheme,
+                f"{ecu_count} ECU - {SCHEME_LABELS[scheme]}",
+                linewidth=1.2,
+                markersize=5.5,
+                markerfacecolor=ECU_MARKER_FACE.get(ecu_count, "white"),
             )
 
     ax.set_xticks(list(range(6)))
@@ -250,48 +259,16 @@ def draw_combined_bandwidth(grouped: dict[int, dict[int, dict[str, float]]], out
     ax.set_ylabel("平均带宽利用率(%)")
     ax.set_ylim(0.0, y_top)
     ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
-    ax.legend(frameon=False, ncol=2, fontsize=9, loc="upper left")
+    _apply_paper_legend(ax, fontsize=8.5, ncol=2)
 
     fig.subplots_adjust(top=0.96, bottom=0.14, left=0.12, right=0.98)
-    fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
+    fig.savefig(output_path, dpi=300, bbox_inches="tight", pad_inches=0.04)
     plt.close(fig)
 
 
 def draw_combined_bandwidth_all_diff_colors(grouped: dict[int, dict[int, dict[str, float]]], output_path: Path) -> None:
-    fig, ax = plt.subplots(1, 1, figsize=(7.2, 4.8))
-    y_top = _global_y_top(grouped)
-
-    for ecu_count in (5, 8):
-        signal_map = grouped.get(ecu_count, {})
-        if not signal_map:
-            continue
-        signal_counts = sorted(signal_map.keys())
-        x_positions = list(range(len(signal_counts)))
-
-        for scheme in BANDWIDTH_SCHEME_ORDER:
-            y_values = [signal_map[count].get(scheme, 0.0) for count in signal_counts]
-            ax.plot(
-                x_positions,
-                y_values,
-                marker="o",
-                linewidth=1.5,
-                markersize=5,
-                color=COMBINED_SERIES_COLORS[(ecu_count, scheme)],
-                linestyle="-",
-                label=f"{ecu_count} ECU - {SCHEME_LABELS[scheme]}",
-            )
-
-    ax.set_xticks(list(range(6)))
-    ax.set_xticklabels(["50", "80", "120", "150", "200", "250"])
-    ax.set_xlabel("信号数量")
-    ax.set_ylabel("平均带宽利用率(%)")
-    ax.set_ylim(0.0, y_top)
-    ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
-    ax.legend(frameon=False, ncol=2, fontsize=9, loc="upper left")
-
-    fig.subplots_adjust(top=0.96, bottom=0.14, left=0.12, right=0.98)
-    fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
-    plt.close(fig)
+    # 保留原函数名，避免影响主流程；当前不再使用彩色曲线。
+    draw_combined_bandwidth(grouped, output_path)
 
 
 def redraw_bandwidth_variants(bandwidth_tab: Path, output_dir: Path) -> list[Path]:
@@ -369,13 +346,17 @@ def redraw_cdf(cdf_points_tab: Path, output_dir: Path) -> list[Path]:
                 x_values, y_values = config_group.get(scheme, ([], []))
                 if not x_values:
                     continue
-                max_x = max(max_x, x_values[-1])
+
+                pairs = sorted(zip(x_values, y_values), key=lambda item: item[0])
+                x_sorted = [item[0] for item in pairs]
+                y_sorted = [item[1] for item in pairs]
+                max_x = max(max_x, x_sorted[-1])
                 ax.step(
-                    x_values,
-                    y_values,
+                    x_sorted,
+                    y_sorted,
                     where="post",
                     linewidth=1.2,
-                    color=SCHEME_COLORS[scheme],
+                    color="black",
                     linestyle=SCHEME_LINESTYLES[scheme],
                     label=SCHEME_LABELS[scheme],
                 )
@@ -387,14 +368,8 @@ def redraw_cdf(cdf_points_tab: Path, output_dir: Path) -> list[Path]:
             ax.set_ylim(0.0, 1.0)
             ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
             ax.tick_params(axis="y", labelleft=True)
-            ax.legend(
-                frameon=False,
-                ncol=1,
-                loc="upper left",
-                fontsize=8.5,
-                handlelength=2.0,
-                borderaxespad=0.3,
-            )
+            _apply_paper_legend(ax, fontsize=8.5)
+
             subfig_prefix = f"({chr(ord('a') + axis_index)})"
             subfig_desc = f"{signal_count}信号" if signal_count is not None else config
             ax.text(
@@ -410,7 +385,7 @@ def redraw_cdf(cdf_points_tab: Path, output_dir: Path) -> list[Path]:
         fig.subplots_adjust(top=0.92, bottom=0.08, left=0.08, right=0.98, wspace=0.20, hspace=0.42)
 
         output_path = output_dir / f"signal_wcrt_cdf_{ecu_count}ecu.png"
-        fig.savefig(output_path, bbox_inches="tight", pad_inches=0.04)
+        fig.savefig(output_path, dpi=300, bbox_inches="tight", pad_inches=0.04)
         plt.close(fig)
         generated.append(output_path)
 
