@@ -36,7 +36,7 @@ class ExperimentPoint:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "ED experiment: ECU=5, signals=200, 1 dataset; select 0/2/4/6/8/10 periodic-20ms signals as ECU-redundant "
+            "ED experiment: select 0/2/4/6/8/10 primary signals as ECU-node-redundant "
             "and plot average bandwidth/E2E delay."
         )
     )
@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--selected-counts",
         default="0,2,4,6,8,10",
-        help="Comma separated selected counts for period==20ms signals",
+        help="Comma separated ECU-node-redundant signal counts",
     )
     parser.add_argument(
         "--exe",
@@ -120,23 +120,43 @@ def write_dataset_rows(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
+def remaining_signal_level_for_rank(rank: int, total: int) -> int:
+    count_a = int(round(total * 0.83))
+    count_b = int(round(total * 0.11))
+    if count_a + count_b > total:
+        count_b = max(0, total - count_a)
+
+    if rank < count_a:
+        return 0
+    if rank < count_a + count_b:
+        return 1
+    return 2
+
+
 def enforce_asild_selected_count(path: Path, selected_count: int) -> int:
     rows = read_dataset_rows(path)
 
     primary_rows: list[tuple[int, int]] = []
     for row_index, row in enumerate(rows):
         comm_id = int(row.get("comm_id", "0"))
-        period = int(row["period"])
-        if comm_id == 0 and period == 20:
+        if comm_id == 0:
             primary_rows.append((int(row["code"]), row_index))
 
     primary_rows.sort(key=lambda item: item[0])
     chosen_indices = {row_index for _, row_index in primary_rows[:selected_count]}
+    remaining_indices = [row_index for _, row_index in primary_rows if row_index not in chosen_indices]
 
     for row_index, row in enumerate(rows):
         if int(row.get("comm_id", "0")) != 0:
             continue
-        row["type"] = "1" if row_index in chosen_indices else "0"
+        if row_index in chosen_indices:
+            row["level"] = "3"
+            row["type"] = "1"
+        else:
+            row["type"] = "0"
+
+    for rank, row_index in enumerate(remaining_indices):
+        rows[row_index]["level"] = str(remaining_signal_level_for_rank(rank, len(remaining_indices)))
 
     write_dataset_rows(path, rows)
     return len(chosen_indices)
@@ -164,11 +184,18 @@ def run_algorithm2_batch(project_root: Path, exe_path: Path, dataset_spec: str, 
         errors="replace",
     )
 
-    stdout_text = process.communicate()[0] or ""
-    print(stdout_text, end="")
-    if process.returncode != 0:
-        raise subprocess.CalledProcessError(process.returncode, cmd)
-    match = re.search(r"批量测试输出目录:\s*(.+)", stdout_text)
+    output_lines: list[str] = []
+    assert process.stdout is not None
+    for line in process.stdout:
+        print(line, end="")
+        output_lines.append(line)
+
+    return_code = process.wait()
+    if return_code != 0:
+        raise subprocess.CalledProcessError(return_code, cmd)
+
+    stdout_text = "".join(output_lines)
+    match = re.search(r"(?:批量测试输出目录|鎵归噺娴嬭瘯杈撳嚭鐩綍):\s*(.+)", stdout_text)
     if match is None:
         raise RuntimeError("Cannot find analysis output dir in algorithm2 stdout")
     return Path(match.group(1).strip())
@@ -338,15 +365,6 @@ def plot_e2e(points: list[ExperimentPoint], output_dir: Path, homogeneous_e2e_ms
     ax.plot(x, y_on_demand_normal, marker="o", linewidth=2.0, label="按需三模冗余-正常态", color="#1b6ca8")
     ax.plot(x, y_on_demand_fault, marker="o", linewidth=2.0, label="按需三模冗余-最坏故障态", color="#d66a1f")
     ax.plot(x, y_always_on, marker="o", linewidth=2.0, label="三模冗余", color="#2a9d5b")
-    if homogeneous_e2e_ms is not None:
-        ax.plot(
-            x,
-            [homogeneous_e2e_ms] * len(x),
-            linewidth=2.0,
-            linestyle="--",
-            color="#666666",
-            label="无节点冗余",
-        )
     ax.set_xlabel("节点冗余信号数量")
     ax.set_ylabel("平均最坏响应时间")
     ax.set_xticks(x)
