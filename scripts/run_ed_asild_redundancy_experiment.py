@@ -31,12 +31,16 @@ class ExperimentPoint:
     avg_on_demand_route_max_wcrt_ms: float
     no_redundancy_bandwidth: float
     no_redundancy_e2e_ms: float
+    on_demand_valid_count: int = 0
+    on_demand_failed_count: int = 0
+    always_on_valid_count: int = 0
+    always_on_failed_count: int = 0
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "ED experiment: select 0/2/4/6/8/10 primary signals as ECU-node-redundant "
+            "ED experiment: select 2/4/6/8/10 primary signals as ECU-node-redundant "
             "and plot average bandwidth/E2E delay."
         )
     )
@@ -53,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--selected-counts",
-        default="0,2,4,6,8,10",
+        default="2,4,6,8,10",
         help="Comma separated ECU-node-redundant signal counts",
     )
     parser.add_argument(
@@ -133,7 +137,7 @@ def remaining_signal_level_for_rank(rank: int, total: int) -> int:
     return 2
 
 
-def enforce_asild_selected_count(path: Path, selected_count: int) -> int:
+def enforce_asild_selected_count(path: Path, selected_count: int, candidate_count: int = 10) -> int:
     rows = read_dataset_rows(path)
 
     primary_rows: list[tuple[int, int]] = []
@@ -143,20 +147,22 @@ def enforce_asild_selected_count(path: Path, selected_count: int) -> int:
             primary_rows.append((int(row["code"]), row_index))
 
     primary_rows.sort(key=lambda item: item[0])
+    selected_count = min(selected_count, candidate_count, len(primary_rows))
+    candidate_indices = {row_index for _, row_index in primary_rows[:candidate_count]}
     chosen_indices = {row_index for _, row_index in primary_rows[:selected_count]}
-    remaining_indices = [row_index for _, row_index in primary_rows if row_index not in chosen_indices]
+    non_candidate_indices = [row_index for _, row_index in primary_rows if row_index not in candidate_indices]
 
     for row_index, row in enumerate(rows):
         if int(row.get("comm_id", "0")) != 0:
             continue
-        if row_index in chosen_indices:
+        if row_index in candidate_indices:
             row["level"] = "3"
-            row["type"] = "1"
+            row["type"] = "1" if row_index in chosen_indices else "0"
         else:
             row["type"] = "0"
 
-    for rank, row_index in enumerate(remaining_indices):
-        rows[row_index]["level"] = str(remaining_signal_level_for_rank(rank, len(remaining_indices)))
+    for rank, row_index in enumerate(non_candidate_indices):
+        rows[row_index]["level"] = str(remaining_signal_level_for_rank(rank, len(non_candidate_indices)))
 
     write_dataset_rows(path, rows)
     return len(chosen_indices)
@@ -205,25 +211,46 @@ def safe_average(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
-def parse_algorithm2_point(analysis_dir: Path) -> tuple[float, float, float, float, float, float, float]:
+def parse_algorithm2_point(
+    analysis_dir: Path,
+) -> tuple[float, float, float, float, float, float, float, float, float, int, int, int, int]:
     summary_path = analysis_dir / "algorithm2_summary_tab.txt"
     sections = parse_sectioned_tsv(summary_path)
 
     scheme_rows = convert_numeric_rows(sections.get("scheme_summary", []), {"dataset", "config", "scheme"})
+    foundation_rows = convert_numeric_rows(sections.get("foundation_summary", []), {"dataset", "config", "scheme"})
     cluster_rows = convert_numeric_rows(sections.get("cluster_wcrt_summary", []), {"dataset", "config", "scheme"})
     route_rows = convert_numeric_rows(sections.get("route_summary", []), {"dataset", "config", "scheme"})
 
     on_demand_normal: list[float] = []
     on_demand_fault: list[float] = []
     always_on_bandwidth: list[float] = []
+    no_redundancy_bandwidth: list[float] = []
+    no_redundancy_e2e: list[float] = []
+    on_demand_datasets: set[str] = set()
+    always_on_datasets: set[str] = set()
+    on_demand_failed_count = 0
+    always_on_failed_count = 0
 
     for row in scheme_rows:
         scheme = row["scheme"]
+        dataset = str(row["dataset"])
+        schedulable = int(row.get("schedulable", 1)) == 1
         if scheme == "on_demand_tmr":
+            if not schedulable:
+                on_demand_failed_count += 1
+            on_demand_datasets.add(dataset)
             on_demand_normal.append(float(row["normal_bandwidth_utilization"]))
             on_demand_fault.append(float(row["fault_bandwidth_utilization"]))
         elif scheme == "always_on_tmr":
+            if not schedulable:
+                always_on_failed_count += 1
+            always_on_datasets.add(dataset)
             always_on_bandwidth.append(float(row["normal_bandwidth_utilization"]))
+
+    for row in foundation_rows:
+        no_redundancy_bandwidth.append(float(row["bandwidth_utilization"]))
+        no_redundancy_e2e.append(float(row["max_wcrt_ms"]))
 
     on_demand_normal_e2e_by_dataset: dict[str, float] = {}
     on_demand_fault_e2e_by_dataset: dict[str, float] = {}
@@ -250,6 +277,8 @@ def parse_algorithm2_point(analysis_dir: Path) -> tuple[float, float, float, flo
         route_wcrt = float(row["max_wcrt_ms"])
         on_demand_route_wcrt_by_dataset[dataset] = max(on_demand_route_wcrt_by_dataset.get(dataset, 0.0), route_wcrt)
 
+    on_demand_valid_count = max(0, len(on_demand_datasets) - on_demand_failed_count)
+    always_on_valid_count = max(0, len(always_on_datasets) - always_on_failed_count)
     return (
         safe_average(on_demand_normal),
         safe_average(on_demand_fault),
@@ -258,6 +287,12 @@ def parse_algorithm2_point(analysis_dir: Path) -> tuple[float, float, float, flo
         safe_average(list(on_demand_fault_e2e_by_dataset.values())),
         safe_average(list(always_on_e2e_by_dataset.values())),
         safe_average(list(on_demand_route_wcrt_by_dataset.values())),
+        safe_average(no_redundancy_bandwidth),
+        safe_average(no_redundancy_e2e),
+        on_demand_valid_count,
+        on_demand_failed_count,
+        always_on_valid_count,
+        always_on_failed_count,
     )
 
 
@@ -267,14 +302,17 @@ def write_summary(points: list[ExperimentPoint], output_dir: Path) -> Path:
         handle.write(
             "selected_asild_count\tavg_on_demand_normal_bandwidth\tavg_on_demand_fault_bandwidth\t"
             "avg_always_on_bandwidth\tavg_on_demand_normal_e2e_ms\tavg_on_demand_fault_e2e_ms\tavg_always_on_e2e_ms\t"
-            "avg_on_demand_route_max_wcrt_ms\tno_redundancy_bandwidth\tno_redundancy_e2e_ms\n"
+            "avg_on_demand_route_max_wcrt_ms\tno_redundancy_bandwidth\tno_redundancy_e2e_ms\t"
+            "on_demand_valid_count\ton_demand_failed_count\talways_on_valid_count\talways_on_failed_count\n"
         )
         for p in points:
             handle.write(
                 f"{p.selected_asild_count}\t{p.avg_on_demand_normal_bandwidth}\t{p.avg_on_demand_fault_bandwidth}\t"
                 f"{p.avg_always_on_bandwidth}\t{p.avg_on_demand_normal_e2e_ms}\t"
                 f"{p.avg_on_demand_fault_e2e_ms}\t{p.avg_always_on_e2e_ms}\t"
-                f"{p.avg_on_demand_route_max_wcrt_ms}\t{p.no_redundancy_bandwidth}\t{p.no_redundancy_e2e_ms}\n"
+                f"{p.avg_on_demand_route_max_wcrt_ms}\t{p.no_redundancy_bandwidth}\t{p.no_redundancy_e2e_ms}\t"
+                f"{p.on_demand_valid_count}\t{p.on_demand_failed_count}\t"
+                f"{p.always_on_valid_count}\t{p.always_on_failed_count}\n"
             )
     return summary_path
 
@@ -299,6 +337,10 @@ def read_summary_points(path: Path) -> tuple[list[ExperimentPoint], float | None
                 avg_on_demand_route_max_wcrt_ms=float(row.get("avg_on_demand_route_max_wcrt_ms", "0") or "0"),
                 no_redundancy_bandwidth=float(row.get("no_redundancy_bandwidth", "0") or "0"),
                 no_redundancy_e2e_ms=float(row.get("no_redundancy_e2e_ms", "0") or "0"),
+                on_demand_valid_count=int(row.get("on_demand_valid_count", "0") or "0"),
+                on_demand_failed_count=int(row.get("on_demand_failed_count", "0") or "0"),
+                always_on_valid_count=int(row.get("always_on_valid_count", "0") or "0"),
+                always_on_failed_count=int(row.get("always_on_failed_count", "0") or "0"),
             )
             points.append(point)
 
@@ -328,6 +370,7 @@ def plot_bandwidth(points: list[ExperimentPoint], output_dir: Path, homogeneous_
     y_on_demand_normal = [p.avg_on_demand_normal_bandwidth for p in filtered]
     y_on_demand_fault = [p.avg_on_demand_fault_bandwidth for p in filtered]
     y_always_on = [p.avg_always_on_bandwidth for p in filtered]
+    y_no_redundancy = [p.no_redundancy_bandwidth for p in filtered]
 
     fig, ax = plt.subplots(figsize=(7.0, 4.8), constrained_layout=True)
 
@@ -369,10 +412,10 @@ def plot_bandwidth(points: list[ExperimentPoint], output_dir: Path, homogeneous_
         label="三模冗余",
     )
 
-    if homogeneous_bandwidth is not None:
+    if any(value > 0 for value in y_no_redundancy):
         ax.plot(
             x,
-            [homogeneous_bandwidth] * len(x),
+            y_no_redundancy,
             marker="D",
             markersize=5.5,
             markerfacecolor="white",
@@ -549,11 +592,13 @@ def main() -> int:
                 avg_on_demand_fault_e2e_ms,
                 avg_always_on_e2e_ms,
                 avg_on_demand_route_max_wcrt_ms,
+                no_redundancy_bandwidth,
+                no_redundancy_e2e_ms,
+                on_demand_valid_count,
+                on_demand_failed_count,
+                always_on_valid_count,
+                always_on_failed_count,
             ) = parse_algorithm2_point(analysis_dir)
-
-            if selected_count == 0:
-                homogeneous_bandwidth = avg_on_demand_normal_bandwidth
-                homogeneous_e2e_ms = avg_on_demand_route_max_wcrt_ms
 
             points.append(
                 ExperimentPoint(
@@ -565,8 +610,12 @@ def main() -> int:
                     avg_on_demand_fault_e2e_ms=avg_on_demand_fault_e2e_ms,
                     avg_always_on_e2e_ms=avg_always_on_e2e_ms,
                     avg_on_demand_route_max_wcrt_ms=avg_on_demand_route_max_wcrt_ms,
-                    no_redundancy_bandwidth=homogeneous_bandwidth or 0.0,
-                    no_redundancy_e2e_ms=homogeneous_e2e_ms or 0.0,
+                    no_redundancy_bandwidth=no_redundancy_bandwidth,
+                    no_redundancy_e2e_ms=no_redundancy_e2e_ms,
+                    on_demand_valid_count=on_demand_valid_count,
+                    on_demand_failed_count=on_demand_failed_count,
+                    always_on_valid_count=always_on_valid_count,
+                    always_on_failed_count=always_on_failed_count,
                 )
             )
 
@@ -581,10 +630,12 @@ def main() -> int:
             if backup_path.exists():
                 shutil.copy2(backup_path, file_path)
 
+    no_redundancy_bandwidth_values = [p.no_redundancy_bandwidth for p in points if p.no_redundancy_bandwidth > 0]
+    no_redundancy_e2e_values = [p.no_redundancy_e2e_ms for p in points if p.no_redundancy_e2e_ms > 0]
     if homogeneous_bandwidth is None:
-        homogeneous_bandwidth = 0.0
+        homogeneous_bandwidth = min(no_redundancy_bandwidth_values) if no_redundancy_bandwidth_values else 0.0
     if homogeneous_e2e_ms is None:
-        homogeneous_e2e_ms = 0.0
+        homogeneous_e2e_ms = min(no_redundancy_e2e_values) if no_redundancy_e2e_values else 0.0
     points = [
         ExperimentPoint(
             selected_asild_count=p.selected_asild_count,
@@ -597,6 +648,10 @@ def main() -> int:
             avg_on_demand_route_max_wcrt_ms=p.avg_on_demand_route_max_wcrt_ms,
             no_redundancy_bandwidth=homogeneous_bandwidth,
             no_redundancy_e2e_ms=homogeneous_e2e_ms,
+            on_demand_valid_count=p.on_demand_valid_count,
+            on_demand_failed_count=p.on_demand_failed_count,
+            always_on_valid_count=p.always_on_valid_count,
+            always_on_failed_count=p.always_on_failed_count,
         )
         for p in points
     ]

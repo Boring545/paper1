@@ -83,18 +83,19 @@ struct SignalFrameMappingRow {
   EcuId dst_ecu = 0;
 };
 
-struct DatasetSummary {
-  std::string dataset_tag;
-  std::string config_tag;
-  std::vector<SchemeMetrics> schemes;
-  std::vector<SignalFrameMappingRow> signal_frame_mappings;
-};
-
 struct FoundationQuickMetrics {
   double bandwidth_utilization = 0.0;
   double max_wcrt_ms = 0.0;
   int total_added_signal_copies = 0;
   bool schedulable = false;
+};
+
+struct DatasetSummary {
+  std::string dataset_tag;
+  std::string config_tag;
+  FoundationQuickMetrics homo_only_foundation;
+  std::vector<SchemeMetrics> schemes;
+  std::vector<SignalFrameMappingRow> signal_frame_mappings;
 };
 
 struct QuickCompareResult {

@@ -101,7 +101,7 @@ constexpr int kIsoEventCommId = 1002;
 constexpr int kHangEventCommId = 1003;
 constexpr int kEventMessageType = -1;
 constexpr int kEventPayloadBytes = 1;
-constexpr int kActEventVirtualPriorityPeriodMs = 2;
+constexpr int kEventPriorityPeriodMs = 2;
 constexpr int kMaxRouteBackupIterations = 50;
 constexpr size_t kKeepNumerator = 2;
 constexpr size_t kKeepDenominator = 3;
@@ -126,18 +126,17 @@ bool is_event_info(const MessageInfo& info) { return info.type == kEventMessageT
 
 bool is_event_message(const Message& msg) { return is_event_info(MESSAGE_INFO_VEC[msg.get_id_message()]); }
 
-bool is_act_event_message(const Message& msg) { return is_event_message(msg) && msg.get_comm_id() == kActEventCommId; }
-
-int calc_priority_period_for_frame(const CanfdFrame& frame) {
+int calc_priority_period_for_frame(const CanfdFrame& frame, const SchemeAnalysisConfig& config) {
+  (void)config;
   for (const auto& msg : frame.msg_set) {
-    if (is_act_event_message(msg)) {
-      return kActEventVirtualPriorityPeriodMs;
+    if (is_event_message(msg)) {
+      return kEventPriorityPeriodMs;
     }
   }
   return frame.get_period();
 }
 
-bool assign_algorithm2_priority(CanfdFrameMap& frame_map) {
+bool assign_algorithm2_priority(CanfdFrameMap& frame_map, const SchemeAnalysisConfig& config) {
   std::vector<CanfdFrame*> frames;
   frames.reserve(frame_map.size());
 
@@ -149,9 +148,9 @@ bool assign_algorithm2_priority(CanfdFrameMap& frame_map) {
     frames.push_back(&frame);
   }
 
-  std::sort(frames.begin(), frames.end(), [](const CanfdFrame* lhs, const CanfdFrame* rhs) {
-    const int lhs_period = calc_priority_period_for_frame(*lhs);
-    const int rhs_period = calc_priority_period_for_frame(*rhs);
+  std::sort(frames.begin(), frames.end(), [&](const CanfdFrame* lhs, const CanfdFrame* rhs) {
+    const int lhs_period = calc_priority_period_for_frame(*lhs, config);
+    const int rhs_period = calc_priority_period_for_frame(*rhs, config);
     if (lhs_period != rhs_period) return lhs_period < rhs_period;
     if (lhs->get_deadline() != rhs->get_deadline()) return lhs->get_deadline() < rhs->get_deadline();
     return lhs->get_id() < rhs->get_id();
@@ -364,7 +363,7 @@ void append_event_frame(CanfdFrameMap& frame_map, const EventClusterMeta& cluste
   frame_map.emplace(next_frame_id, CanfdFrame(next_frame_id, event_message));
 }
 
-CanfdFrameMap build_fault_state_frame_map(const PackingScheme& scheme) {
+CanfdFrameMap build_fault_state_frame_map(const PackingScheme& scheme, const SchemeAnalysisConfig& config) {
   CanfdFrameMap frame_map = scheme.frame_map;
   for (const auto& cluster : build_event_cluster_meta()) {
     append_event_frame(frame_map, cluster, kActEventCommId, EcuPair(cluster.dst_ecu, cluster.backup_src_ecu));
@@ -372,24 +371,25 @@ CanfdFrameMap build_fault_state_frame_map(const PackingScheme& scheme) {
     append_event_frame(frame_map, cluster, kHangEventCommId, EcuPair(cluster.dst_ecu, cluster.backup_src_ecu));
   }
 
-  assign_algorithm2_priority(frame_map);
+  assign_algorithm2_priority(frame_map, config);
   return frame_map;
 }
 
-CanfdFrameMap build_full_tmr_frame_map(const PackingScheme& scheme) {
+CanfdFrameMap build_full_tmr_frame_map(const PackingScheme& scheme, const SchemeAnalysisConfig& config) {
   CanfdFrameMap frame_map = scheme.frame_map;
-  assign_algorithm2_priority(frame_map);
+  assign_algorithm2_priority(frame_map, config);
   return frame_map;
 }
 
 CanfdFrameMap build_analysis_frame_map(const PackingScheme& scheme, const SchemeAnalysisConfig& config) {
   if (config.include_event_frames_in_fault_mode) {
-    return build_fault_state_frame_map(scheme);
+    return build_fault_state_frame_map(scheme, config);
   }
-  return build_full_tmr_frame_map(scheme);
+  return build_full_tmr_frame_map(scheme, config);
 }
 
-CanfdFrameMap filter_active_frame_map(const CanfdFrameMap& frame_map, bool include_backup_routes, bool include_event_frames) {
+CanfdFrameMap filter_active_frame_map(const CanfdFrameMap& frame_map, bool include_backup_routes, bool include_event_frames,
+                                      const SchemeAnalysisConfig& config) {
   CanfdFrameMap filtered;
   for (const auto& [frame_id, frame] : frame_map) {
     if (frame.empty()) {
@@ -417,7 +417,7 @@ CanfdFrameMap filter_active_frame_map(const CanfdFrameMap& frame_map, bool inclu
     }
   }
 
-  assign_algorithm2_priority(filtered);
+  assign_algorithm2_priority(filtered, config);
   return filtered;
 }
 
@@ -1133,7 +1133,7 @@ BuiltSchemeResult build_scheme_result(const MessageInfoVec& functional_infos, co
   PackingScheme scheme = std::move(optimized.scheme);
   const double periodic_bandwidth_utilization = scheme.calc_bandwidth_utilization();
   const CanfdFrameMap fault_frame_map =
-      build_fault_state_with_events ? build_fault_state_frame_map(scheme) : build_full_tmr_frame_map(scheme);
+      build_fault_state_with_events ? build_fault_state_frame_map(scheme, config) : build_full_tmr_frame_map(scheme, config);
   SchemeMetrics metrics = analyze_scheme(config, scheme, fault_frame_map);
   return {MESSAGE_INFO_VEC, std::move(scheme), std::move(metrics), periodic_bandwidth_utilization};
 }
@@ -1153,7 +1153,7 @@ SchemeMetrics analyze_scheme(const SchemeAnalysisConfig& config, PackingScheme& 
   const auto route_fault_probabilities = calc_route_fault_probabilities(scheme, LAMBDA_CONFERENCE);
   const auto route_wcrt = calc_route_max_wcrt(fault_frame_map);
   const auto normal_frame_map =
-      filter_active_frame_map(scheme.frame_map, config.include_backup_routes_in_normal_mode, false);
+      filter_active_frame_map(scheme.frame_map, config.include_backup_routes_in_normal_mode, false, config);
   const auto normal_route_wcrt = calc_route_max_wcrt(normal_frame_map);
   const auto route_instance_count = calc_route_instance_count(scheme.frame_map);
   PackingScheme fault_scheme(fault_frame_map);
@@ -1313,6 +1313,13 @@ void write_dataset_report(const std::string& output_path, const DatasetSummary& 
   }
   ofs << '\n';
 
+  ofs << "[foundation_summary]\n";
+  ofs << "scheme\tbandwidth_utilization\tmax_wcrt_ms\ttotal_added_signal_copies\tschedulable\n";
+  ofs << "homo_only_foundation\t" << summary.homo_only_foundation.bandwidth_utilization << '\t'
+      << summary.homo_only_foundation.max_wcrt_ms << '\t' << summary.homo_only_foundation.total_added_signal_copies
+      << '\t' << (summary.homo_only_foundation.schedulable ? 1 : 0) << '\n';
+  ofs << '\n';
+
   ofs << "[cluster_summary]\n";
   ofs << "scheme\tcode\troute_count\tp_function_fault\tp_threshold\n";
   for (const auto& scheme : summary.schemes) {
@@ -1358,7 +1365,7 @@ void append_scheme_result(DatasetSummary& summary, const MessageInfoVec& functio
   MESSAGE_INFO_VEC = optimized.infos;
   PackingScheme scheme = std::move(optimized.scheme);
   const CanfdFrameMap fault_frame_map =
-      build_fault_state_with_events ? build_fault_state_frame_map(scheme) : build_full_tmr_frame_map(scheme);
+      build_fault_state_with_events ? build_fault_state_frame_map(scheme, config) : build_full_tmr_frame_map(scheme, config);
 
   summary.schemes.push_back(analyze_scheme(config, scheme, fault_frame_map));
   MESSAGE_INFO_VEC.resize(optimized.infos.size());
@@ -1382,6 +1389,7 @@ DatasetSummary run_compare_experiment(const std::string& dataset_file, const std
   DatasetSummary summary;
   summary.dataset_tag = cfd::storage::dataset_tag_from_file(dataset_file);
   summary.config_tag = dataset_config_tag_from_dataset_tag(summary.dataset_tag);
+  summary.homo_only_foundation = build_foundation_quick_metrics(original_infos);
   append_scheme_result(summary, functional_infos, on_demand_config, true);
   append_scheme_result(summary, functional_infos, always_on_config, false);
 
@@ -1442,6 +1450,16 @@ void write_batch_summary(const std::string& run_tag, const std::vector<DatasetSu
           << scheme.normal_bandwidth_utilization << '\t' << scheme.fault_bandwidth_utilization << '\t'
           << scheme.total_added_signal_copies << '\t' << (scheme.schedulable ? 1 : 0) << '\n';
     }
+  }
+  ofs << '\n';
+
+  ofs << "[foundation_summary]\n";
+  ofs << "dataset\tconfig\tscheme\tbandwidth_utilization\tmax_wcrt_ms\ttotal_added_signal_copies\tschedulable\n";
+  for (const auto& summary : dataset_summaries) {
+    ofs << summary.dataset_tag << '\t' << summary.config_tag << "\thomo_only_foundation\t"
+        << summary.homo_only_foundation.bandwidth_utilization << '\t' << summary.homo_only_foundation.max_wcrt_ms
+        << '\t' << summary.homo_only_foundation.total_added_signal_copies << '\t'
+        << (summary.homo_only_foundation.schedulable ? 1 : 0) << '\n';
   }
   ofs << '\n';
 
