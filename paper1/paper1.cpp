@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -155,6 +157,8 @@ const std::vector<ExperimentDatasetSpec> kScalingDatasetSpecs = [] {
 const std::array<const char*, 3> kFocusedBatchSchemeNames = {{"foundation", "baseline1", "baseline2"}};
 const std::array<const char*, 4> kWcrtSchemeNames = {
     {"foundation_no_offset", "baseline1_no_offset", "foundation", "baseline1"}};
+constexpr size_t kEdAsildCandidateCount = 10;
+constexpr int kEdAsildMinPeriodMs = 2;
 
 const ExperimentDatasetSpec* find_dataset_spec(std::string_view name) {
   for (const auto& spec : kScalingDatasetSpecs) {
@@ -211,6 +215,8 @@ std::string batched_dataset_filename(const ExperimentDatasetSpec& spec, size_t b
       << std::setfill('0') << batch_index << "_tab.txt";
   return oss.str();
 }
+
+std::vector<const ExperimentDatasetSpec*> resolve_selected_specs(const std::vector<std::string>& selected_spec_names);
 
 double calc_ratio(double wcrt_ms, int period_ms) {
   if (period_ms <= 0) {
@@ -322,6 +328,88 @@ std::vector<std::string> create_random_dataset_batches(size_t batch_count_per_sp
     for (size_t batch_index = 1; batch_index <= batch_count_per_spec; ++batch_index) {
       cfd::utils::generate_msg_info_set(cfd::MESSAGE_INFO_VEC, spec.signal_count, spec.ecu_count);
       const std::string output_path = normalize_dataset_output_path(batched_dataset_filename(spec, batch_index));
+      cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
+      dataset_paths.push_back(output_path);
+    }
+  }
+
+  return dataset_paths;
+}
+
+int remaining_ed_signal_level_for_rank(size_t rank, size_t total) {
+  size_t count_a = static_cast<size_t>(std::llround(static_cast<double>(total) * 0.83));
+  size_t count_b = static_cast<size_t>(std::llround(static_cast<double>(total) * 0.11));
+  if (count_a + count_b > total) {
+    count_b = total - count_a;
+  }
+
+  if (rank < count_a) return 0;
+  if (rank < count_a + count_b) return 1;
+  return 2;
+}
+
+void apply_ed_asild_candidate_distribution(MessageInfoVec& infos, size_t candidate_count = kEdAsildCandidateCount) {
+  std::vector<size_t> eligible_indices;
+  eligible_indices.reserve(infos.size());
+  for (size_t index = 0; index < infos.size(); ++index) {
+    const auto& info = infos[index];
+    if (info.comm_id == 0 && info.period >= kEdAsildMinPeriodMs) {
+      eligible_indices.push_back(index);
+    }
+  }
+  if (eligible_indices.size() < candidate_count) {
+    throw std::runtime_error("ED dataset needs " + std::to_string(candidate_count) +
+                             " ASIL D candidates with period >= " + std::to_string(kEdAsildMinPeriodMs) +
+                             "ms, but only found " + std::to_string(eligible_indices.size()));
+  }
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::shuffle(eligible_indices.begin(), eligible_indices.end(), gen);
+  eligible_indices.resize(candidate_count);
+  std::sort(eligible_indices.begin(), eligible_indices.end());
+
+  std::set<size_t> candidate_indices(eligible_indices.begin(), eligible_indices.end());
+  std::vector<size_t> remaining_primary_indices;
+  remaining_primary_indices.reserve(infos.size() - candidate_indices.size());
+  for (size_t index = 0; index < infos.size(); ++index) {
+    if (infos[index].comm_id != 0) continue;
+    if (candidate_indices.find(index) == candidate_indices.end()) {
+      remaining_primary_indices.push_back(index);
+    }
+  }
+
+  for (auto& info : infos) {
+    if (info.comm_id == 0) {
+      info.type = 0;
+    }
+  }
+  for (const size_t index : candidate_indices) {
+    infos[index].level = 3;
+    infos[index].type = 0;
+  }
+  for (size_t rank = 0; rank < remaining_primary_indices.size(); ++rank) {
+    infos[remaining_primary_indices[rank]].level =
+        remaining_ed_signal_level_for_rank(rank, remaining_primary_indices.size());
+  }
+}
+
+std::vector<std::string> create_ed_asild_dataset_batches(size_t batch_count_per_spec,
+                                                         const std::vector<std::string>& selected_spec_names) {
+  const auto specs = resolve_selected_specs(selected_spec_names);
+  std::vector<std::string> dataset_paths;
+  dataset_paths.reserve(specs.size() * batch_count_per_spec);
+
+  for (const auto* spec : specs) {
+    if (spec->ecu_count > cfd::NUM_ECU) {
+      throw std::invalid_argument("Current config does not provide enough ECU ids for " + spec->name);
+    }
+
+    DEBUG_MSG_DEBUG1(std::cout, "开始生成ED专用ASIL D候选数据集: ", spec->name, ", count=", batch_count_per_spec);
+    for (size_t batch_index = 1; batch_index <= batch_count_per_spec; ++batch_index) {
+      cfd::utils::generate_msg_info_set(cfd::MESSAGE_INFO_VEC, spec->signal_count, spec->ecu_count);
+      apply_ed_asild_candidate_distribution(cfd::MESSAGE_INFO_VEC);
+      const std::string output_path = normalize_dataset_output_path(batched_dataset_filename(*spec, batch_index));
       cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
       dataset_paths.push_back(output_path);
     }
@@ -1375,12 +1463,16 @@ int main(int argc, char* argv[]) {
 
   bool regenerate_datasets = false;
   bool generate_dataset_batches = false;
+  bool generate_ed_asild_dataset_batches = false;
   bool run_dataset_batches = false;
   bool run_algorithm2 = false;
   bool generate_figures_after_analysis = true;
+  bool algorithm2_route_source_perturbation_enabled = true;
+  bool algorithm2_skip_foundation = false;
   size_t dataset_batch_count = 100;
   size_t max_batches_per_spec = 0;
   std::vector<std::string> selected_spec_names;
+  std::vector<std::string> explicit_dataset_files;
 
   for (int argi = 1; argi < argc; ++argi) {
     const std::string arg = argv[argi];
@@ -1395,10 +1487,23 @@ int main(int argc, char* argv[]) {
           ++argi;
         }
       }
+    } else if (arg == "--generate-ed-asild-dataset-batches") {
+      generate_ed_asild_dataset_batches = true;
+      if (argi + 1 < argc) {
+        const std::string next_arg = argv[argi + 1];
+        if (!next_arg.empty() && next_arg[0] != '-') {
+          dataset_batch_count = static_cast<size_t>(std::stoul(next_arg));
+          ++argi;
+        }
+      }
     } else if (arg == "--run-dataset-batches") {
       run_dataset_batches = true;
     } else if (arg == "--algorithm2") {
       run_algorithm2 = true;
+    } else if (arg == "--algorithm2-disable-route-source-perturbation") {
+      algorithm2_route_source_perturbation_enabled = false;
+    } else if (arg == "--algorithm2-skip-foundation") {
+      algorithm2_skip_foundation = true;
     } else if (arg == "--max-batches-per-spec") {
       if (argi + 1 >= argc) {
         throw std::invalid_argument("--max-batches-per-spec requires a positive integer");
@@ -1409,9 +1514,21 @@ int main(int argc, char* argv[]) {
         throw std::invalid_argument("--dataset-specs requires a comma-separated value");
       }
       selected_spec_names = split_csv_arg(argv[++argi]);
+    } else if (arg == "--dataset-files") {
+      if (argi + 1 >= argc) {
+        throw std::invalid_argument("--dataset-files requires a comma-separated value");
+      }
+      explicit_dataset_files = split_csv_arg(argv[++argi]);
     } else if (arg == "--skip-figures") {
       generate_figures_after_analysis = false;
     }
+  }
+
+  if (generate_ed_asild_dataset_batches) {
+    const std::vector<std::string> dataset_paths =
+        create_ed_asild_dataset_batches(dataset_batch_count, selected_spec_names);
+    DEBUG_MSG_DEBUG1(std::cout, "ED专用ASIL D候选数据集已生成, total=", dataset_paths.size());
+    return 0;
   }
 
   if (generate_dataset_batches) {
@@ -1421,7 +1538,10 @@ int main(int argc, char* argv[]) {
   }
 
   std::vector<std::string> dataset_files;
-  if (run_dataset_batches) {
+  if (!explicit_dataset_files.empty()) {
+    dataset_files = explicit_dataset_files;
+    DEBUG_MSG_DEBUG1(std::cout, "显式实验数据集数量: ", dataset_files.size());
+  } else if (run_dataset_batches) {
     dataset_files = resolve_dataset_batch_files(selected_spec_names, max_batches_per_spec);
     DEBUG_MSG_DEBUG1(std::cout, "批量实验数据集数量: ", dataset_files.size());
   } else {
@@ -1436,6 +1556,8 @@ int main(int argc, char* argv[]) {
                    "批量测试输出目录: ", cfd::storage::path_string(cfd::storage::analysis_batch_dir(batch_run_tag)));
 
   if (run_algorithm2) {
+    cfd::algorithm2::set_route_source_perturbation_enabled(algorithm2_route_source_perturbation_enabled);
+    cfd::algorithm2::set_skip_foundation_enabled(algorithm2_skip_foundation);
     std::vector<cfd::algorithm2::DatasetSummary> dataset_summaries;
     dataset_summaries.reserve(dataset_files.size());
     for (const auto& dataset_file : dataset_files) {

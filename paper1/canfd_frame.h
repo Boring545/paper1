@@ -119,6 +119,19 @@ using MessageInfoVec = std::vector<MessageInfo>;
 
 extern MessageInfoVec MESSAGE_INFO_VEC;  // 全局维护一个message info 表
 
+MessageInfoVec& current_message_infos();
+
+class MessageInfoScope {
+ private:
+  MessageInfoVec* previous_infos = nullptr;
+
+ public:
+  explicit MessageInfoScope(MessageInfoVec& infos);
+  MessageInfoScope(const MessageInfoScope&) = delete;
+  MessageInfoScope& operator=(const MessageInfoScope&) = delete;
+  ~MessageInfoScope();
+};
+
 class CanfdFrame;
 
 using MessageID = size_t;
@@ -160,15 +173,15 @@ class Message {
     return this->get_code() == other.get_code() && this->get_comm_id() == other.get_comm_id() &&
            this->get_id_message() == other.get_id_message();
   }
-  int get_period() const { return MESSAGE_INFO_VEC[message_index].period; }
-  int get_data_size() const { return MESSAGE_INFO_VEC[message_index].data_size; }
-  int get_deadline() const { return MESSAGE_INFO_VEC[message_index].deadline; }
-  MessageCode get_code() const { return MESSAGE_INFO_VEC[message_index].code; }
-  int get_comm_id() const { return MESSAGE_INFO_VEC[message_index].comm_id; }
-  EcuPair get_ecu_pair() const { return MESSAGE_INFO_VEC[message_index].ecu_pair; }
-  int get_offset() const { return MESSAGE_INFO_VEC[message_index].offset; }
-  int get_level() const { return MESSAGE_INFO_VEC[message_index].level; }
-  int get_type() const { return MESSAGE_INFO_VEC[message_index].type; }
+  int get_period() const { return current_message_infos()[message_index].period; }
+  int get_data_size() const { return current_message_infos()[message_index].data_size; }
+  int get_deadline() const { return current_message_infos()[message_index].deadline; }
+  MessageCode get_code() const { return current_message_infos()[message_index].code; }
+  int get_comm_id() const { return current_message_infos()[message_index].comm_id; }
+  EcuPair get_ecu_pair() const { return current_message_infos()[message_index].ecu_pair; }
+  int get_offset() const { return current_message_infos()[message_index].offset; }
+  int get_level() const { return current_message_infos()[message_index].level; }
+  int get_type() const { return current_message_infos()[message_index].type; }
 };
 using MessageVec = std::vector<Message>;
 

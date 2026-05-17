@@ -52,7 +52,7 @@ class PackingScheme {
   double calc_bandwidth_utilization() const;
   void print_frame() { cfd::utils::print_frame(this->frame_map); }
 
-  PackingScheme(bool backup = true, MessageInfoVec& vec = cfd::MESSAGE_INFO_VEC) {
+  PackingScheme(bool backup = true, MessageInfoVec& vec = cfd::current_message_infos()) {
     int original_size = vec.size();
 
     for (size_t i = 0; i < vec.size(); i++) {

@@ -8,6 +8,9 @@
 
 namespace cfd::algorithm2 {
 
+void set_route_source_perturbation_enabled(bool enabled);
+void set_skip_foundation_enabled(bool enabled);
+
 struct RouteMetric {
   MessageCode code = 0;
   int comm_id = 0;
@@ -94,6 +97,7 @@ struct DatasetSummary {
   std::string dataset_tag;
   std::string config_tag;
   FoundationQuickMetrics homo_only_foundation;
+  bool has_homo_only_foundation = true;
   std::vector<SchemeMetrics> schemes;
   std::vector<SignalFrameMappingRow> signal_frame_mappings;
 };

@@ -61,6 +61,12 @@ def parse_args() -> argparse.Namespace:
         help="Comma separated ECU-node-redundant signal counts",
     )
     parser.add_argument(
+        "--dataset-indices",
+        default=None,
+        help="Comma separated 1-based dataset indices to run, for example 3 or 3,5. "
+        "When set, only copied working datasets are modified; original datasets are not changed.",
+    )
+    parser.add_argument(
         "--exe",
         type=Path,
         default=Path("build/paper1/Debug/paper1.exe"),
@@ -84,6 +90,18 @@ def parse_args() -> argparse.Namespace:
         help="Summary tab file path used by --plot-only. "
         "Default: <output-dir>/ed_asild_redundancy_summary_tab.txt",
     )
+    parser.add_argument(
+        "--disable-route-source-perturbation",
+        action="store_true",
+        help="Disable algorithm2 on-demand TMR route source ECU perturbation.",
+    )
+    parser.add_argument(
+        "--bandwidth-order-retry-limit",
+        type=int,
+        default=3,
+        help="Retry a selected-count run when on-demand normal bandwidth is higher than always-on TMR. "
+        "Default: 3. Use 0 to disable.",
+    )
     return parser.parse_args()
 
 
@@ -97,6 +115,23 @@ def parse_selected_counts(value: str) -> list[int]:
     if not counts:
         raise ValueError("selected counts must not be empty")
     return counts
+
+
+def parse_dataset_indices(value: str | None) -> list[int] | None:
+    if value is None:
+        return None
+    indices: list[int] = []
+    for token in value.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        index = int(token)
+        if index <= 0:
+            raise ValueError("dataset indices are 1-based and must be positive")
+        indices.append(index)
+    if not indices:
+        raise ValueError("dataset indices must not be empty when --dataset-indices is set")
+    return indices
 
 
 def dataset_dir_for_spec(project_root: Path, dataset_spec: str) -> Path:
@@ -124,51 +159,47 @@ def write_dataset_rows(path: Path, rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
-def remaining_signal_level_for_rank(rank: int, total: int) -> int:
-    count_a = int(round(total * 0.83))
-    count_b = int(round(total * 0.11))
-    if count_a + count_b > total:
-        count_b = max(0, total - count_a)
-
-    if rank < count_a:
-        return 0
-    if rank < count_a + count_b:
-        return 1
-    return 2
-
-
-def enforce_asild_selected_count(path: Path, selected_count: int, candidate_count: int = 10) -> int:
+def enforce_node_redundant_selected_count(path: Path, selected_count: int, candidate_count: int = 10) -> int:
     rows = read_dataset_rows(path)
 
-    primary_rows: list[tuple[int, int]] = []
+    asild_candidates: list[tuple[int, int]] = []
     for row_index, row in enumerate(rows):
-        comm_id = int(row.get("comm_id", "0"))
-        if comm_id == 0:
-            primary_rows.append((int(row["code"]), row_index))
+        if int(row.get("comm_id", "0")) != 0:
+            continue
+        if int(row.get("level", "0")) != 3:
+            continue
+        if int(row.get("period", "0")) < 2:
+            continue
+        asild_candidates.append((int(row["code"]), row_index))
 
-    primary_rows.sort(key=lambda item: item[0])
-    selected_count = min(selected_count, candidate_count, len(primary_rows))
-    candidate_indices = {row_index for _, row_index in primary_rows[:candidate_count]}
-    chosen_indices = {row_index for _, row_index in primary_rows[:selected_count]}
-    non_candidate_indices = [row_index for _, row_index in primary_rows if row_index not in candidate_indices]
+    asild_candidates.sort(key=lambda item: item[0])
+    if len(asild_candidates) < candidate_count:
+        raise RuntimeError(
+            f"Need {candidate_count} prepared ASIL D candidate signals, but only found {len(asild_candidates)}"
+        )
+
+    selected_count = min(selected_count, candidate_count)
+    candidate_indices = {row_index for _, row_index in asild_candidates[:candidate_count]}
+    chosen_indices = {row_index for _, row_index in asild_candidates[:selected_count]}
 
     for row_index, row in enumerate(rows):
         if int(row.get("comm_id", "0")) != 0:
             continue
-        if row_index in candidate_indices:
-            row["level"] = "3"
-            row["type"] = "1" if row_index in chosen_indices else "0"
-        else:
-            row["type"] = "0"
-
-    for rank, row_index in enumerate(non_candidate_indices):
-        rows[row_index]["level"] = str(remaining_signal_level_for_rank(rank, len(non_candidate_indices)))
+        row["type"] = "1" if row_index in chosen_indices else "0"
 
     write_dataset_rows(path, rows)
     return len(chosen_indices)
 
 
-def run_algorithm2_batch(project_root: Path, exe_path: Path, dataset_spec: str, max_batches: int) -> Path:
+def run_algorithm2_batch(
+    project_root: Path,
+    exe_path: Path,
+    dataset_spec: str,
+    max_batches: int,
+    disable_route_source_perturbation: bool = False,
+    skip_foundation: bool = False,
+    dataset_files: list[Path] | None = None,
+) -> Path:
     cmd = [
         str(exe_path.resolve()),
         "--algorithm2",
@@ -179,6 +210,12 @@ def run_algorithm2_batch(project_root: Path, exe_path: Path, dataset_spec: str, 
         str(max_batches),
         "--skip-figures",
     ]
+    if dataset_files:
+        cmd.extend(["--dataset-files", ",".join(str(path.resolve()) for path in dataset_files)])
+    if disable_route_source_perturbation:
+        cmd.append("--algorithm2-disable-route-source-perturbation")
+    if skip_foundation:
+        cmd.append("--algorithm2-skip-foundation")
 
     process = subprocess.Popen(
         cmd,
@@ -209,6 +246,10 @@ def run_algorithm2_batch(project_root: Path, exe_path: Path, dataset_spec: str, 
 
 def safe_average(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
+
+
+def violates_bandwidth_order(on_demand_normal_bandwidth: float, always_on_bandwidth: float) -> bool:
+    return on_demand_normal_bandwidth > always_on_bandwidth + 1e-9
 
 
 def parse_algorithm2_point(
@@ -516,6 +557,7 @@ def plot_e2e(points: list[ExperimentPoint], output_dir: Path, homogeneous_e2e_ms
 def main() -> int:
     args = parse_args()
     selected_counts = parse_selected_counts(args.selected_counts)
+    dataset_indices = parse_dataset_indices(args.dataset_indices)
 
     project_root = Path(__file__).resolve().parents[1]
     if args.plot_only:
@@ -554,9 +596,16 @@ def main() -> int:
     if not dataset_dir.is_dir():
         raise FileNotFoundError(f"Dataset directory not found: {dataset_dir}")
 
-    dataset_files = sorted(dataset_dir.glob("msg_*_tab.txt"))[: args.max_batches]
-    if len(dataset_files) < args.max_batches:
-        raise RuntimeError(f"Expected at least {args.max_batches} dataset files in {dataset_dir}")
+    source_dataset_files = sorted(dataset_dir.glob("msg_*_tab.txt"))
+    if dataset_indices is not None:
+        missing_indices = [index for index in dataset_indices if index > len(source_dataset_files)]
+        if missing_indices:
+            raise RuntimeError(f"Dataset indices out of range for {dataset_dir}: {missing_indices}")
+        selected_source_files = [source_dataset_files[index - 1] for index in dataset_indices]
+    else:
+        selected_source_files = source_dataset_files[: args.max_batches]
+        if len(selected_source_files) < args.max_batches:
+            raise RuntimeError(f"Expected at least {args.max_batches} dataset files in {dataset_dir}")
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = (
@@ -565,6 +614,14 @@ def main() -> int:
         else project_root / "storage" / "analysis" / f"{timestamp}_ed_asild"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    work_dir = output_dir / "dataset_work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    dataset_files: list[Path] = []
+    for source_path in selected_source_files:
+        work_path = work_dir / source_path.name
+        shutil.copy2(source_path, work_path)
+        dataset_files.append(work_path)
 
     backup_dir = output_dir / "dataset_backup"
     backup_dir.mkdir(parents=True, exist_ok=True)
@@ -577,28 +634,85 @@ def main() -> int:
     homogeneous_e2e_ms: float | None = None
 
     try:
+        baseline_analysis_dir = run_algorithm2_batch(
+            project_root,
+            exe_path,
+            args.dataset_spec,
+            len(dataset_files),
+            args.disable_route_source_perturbation,
+            skip_foundation=False,
+            dataset_files=dataset_files,
+        )
+        (
+            _baseline_on_demand_normal_bandwidth,
+            _baseline_on_demand_fault_bandwidth,
+            _baseline_always_on_bandwidth,
+            _baseline_on_demand_normal_e2e_ms,
+            _baseline_on_demand_fault_e2e_ms,
+            _baseline_always_on_e2e_ms,
+            _baseline_on_demand_route_max_wcrt_ms,
+            homogeneous_bandwidth,
+            homogeneous_e2e_ms,
+            _baseline_on_demand_valid_count,
+            _baseline_on_demand_failed_count,
+            _baseline_always_on_valid_count,
+            _baseline_always_on_failed_count,
+        ) = parse_algorithm2_point(baseline_analysis_dir)
+        print(f"[ED] baseline_no_node_redundancy, analysis={baseline_analysis_dir}")
+
         for selected_count in selected_counts:
             per_file_realized_counts: list[int] = []
             for file_path in dataset_files:
-                realized = enforce_asild_selected_count(file_path, selected_count)
+                realized = enforce_node_redundant_selected_count(file_path, selected_count)
                 per_file_realized_counts.append(realized)
 
-            analysis_dir = run_algorithm2_batch(project_root, exe_path, args.dataset_spec, args.max_batches)
-            (
-                avg_on_demand_normal_bandwidth,
-                avg_on_demand_fault_bandwidth,
-                avg_always_on_bandwidth,
-                avg_on_demand_normal_e2e_ms,
-                avg_on_demand_fault_e2e_ms,
-                avg_always_on_e2e_ms,
-                avg_on_demand_route_max_wcrt_ms,
-                no_redundancy_bandwidth,
-                no_redundancy_e2e_ms,
-                on_demand_valid_count,
-                on_demand_failed_count,
-                always_on_valid_count,
-                always_on_failed_count,
-            ) = parse_algorithm2_point(analysis_dir)
+            retry_limit = max(0, args.bandwidth_order_retry_limit)
+            attempt = 0
+            while True:
+                analysis_dir = run_algorithm2_batch(
+                    project_root,
+                    exe_path,
+                    args.dataset_spec,
+                    len(dataset_files),
+                    args.disable_route_source_perturbation,
+                    skip_foundation=True,
+                    dataset_files=dataset_files,
+                )
+                (
+                    avg_on_demand_normal_bandwidth,
+                    avg_on_demand_fault_bandwidth,
+                    avg_always_on_bandwidth,
+                    avg_on_demand_normal_e2e_ms,
+                    avg_on_demand_fault_e2e_ms,
+                    avg_always_on_e2e_ms,
+                    avg_on_demand_route_max_wcrt_ms,
+                    _no_redundancy_bandwidth,
+                    _no_redundancy_e2e_ms,
+                    on_demand_valid_count,
+                    on_demand_failed_count,
+                    always_on_valid_count,
+                    always_on_failed_count,
+                ) = parse_algorithm2_point(analysis_dir)
+
+                if not violates_bandwidth_order(avg_on_demand_normal_bandwidth, avg_always_on_bandwidth):
+                    break
+                if attempt >= retry_limit:
+                    print(
+                        "[ED] bandwidth order still violated after retries: "
+                        f"selected={selected_count}, normal={avg_on_demand_normal_bandwidth}, "
+                        f"always_on={avg_always_on_bandwidth}, analysis={analysis_dir}"
+                    )
+                    break
+                attempt += 1
+                print(
+                    "[ED] retry selected-count run because normal bandwidth is higher than always-on: "
+                    f"selected={selected_count}, attempt={attempt}/{retry_limit}, "
+                    f"normal={avg_on_demand_normal_bandwidth}, always_on={avg_always_on_bandwidth}, "
+                    f"analysis={analysis_dir}"
+                )
+
+            no_redundancy_bandwidth = homogeneous_bandwidth or 0.0
+            no_redundancy_e2e_ms = homogeneous_e2e_ms or 0.0
 
             points.append(
                 ExperimentPoint(

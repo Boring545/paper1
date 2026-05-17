@@ -30,6 +30,19 @@ namespace cfd {
 		}
 	}
 	MessageInfoVec MESSAGE_INFO_VEC;//全局维护一个message info 表
+	thread_local MessageInfoVec* CURRENT_MESSAGE_INFO_VEC = nullptr;
+
+	MessageInfoVec& current_message_infos() {
+		return CURRENT_MESSAGE_INFO_VEC != nullptr ? *CURRENT_MESSAGE_INFO_VEC : MESSAGE_INFO_VEC;
+	}
+
+	MessageInfoScope::MessageInfoScope(MessageInfoVec& infos) : previous_infos(CURRENT_MESSAGE_INFO_VEC) {
+		CURRENT_MESSAGE_INFO_VEC = &infos;
+	}
+
+	MessageInfoScope::~MessageInfoScope() {
+		CURRENT_MESSAGE_INFO_VEC = previous_infos;
+	}
 
 	int CanfdFrame::payload_size_trans(int size)
 	{

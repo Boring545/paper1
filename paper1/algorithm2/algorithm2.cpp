@@ -7,6 +7,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
+#include <map>
+#include <memory>
 #include <numeric>
 #include <optional>
 #include <sstream>
@@ -24,12 +27,18 @@
 #include "../probabilistic_analysis/no_retry.h"
 #include "../scheme.h"
 #include "../storage_layout.h"
+#include "../utils/fixed_worker_pool.h"
+
+#define MESSAGE_INFO_VEC (::cfd::current_message_infos())
 
 namespace cfd::algorithm2 {
 
 namespace fs = std::filesystem;
 
 namespace {
+
+bool g_route_source_perturbation_enabled = true;
+bool g_skip_foundation_enabled = false;
 
 struct RouteKey {
   MessageCode code = 0;
@@ -93,6 +102,8 @@ struct BuiltSchemeResult {
   double periodic_bandwidth_utilization = 0.0;
 };
 
+enum class RouteBackupAcceptanceMode { PackOnly, StrictFinal };
+
 constexpr int kPrimaryRouteCommId = 0;
 constexpr int kSecondMainRouteCommId = 1;
 constexpr int kBackupRouteCommId = 2;
@@ -103,24 +114,36 @@ constexpr int kEventMessageType = -1;
 constexpr int kEventPayloadBytes = 1;
 constexpr int kEventPriorityPeriodMs = 2;
 constexpr int kMaxRouteBackupIterations = 50;
-constexpr size_t kKeepNumerator = 2;
-constexpr size_t kKeepDenominator = 3;
 constexpr double kCompareTimeMs = 0.01;
 constexpr double kBackupComputeTimeMs = 0.0;
-constexpr double kOuterSaInitialTemperature = 1.0;
-constexpr double kOuterSaFinalTemperature = 0.2;
-constexpr double kOuterSaAlpha = 0.5;
-constexpr double kOuterSaCostScale = 50.0;
+constexpr double kOuterSaInitialTemperature = 5.0;
+constexpr double kOuterSaFinalTemperature = 0.05;
+constexpr double kOuterSaAlpha = 0.90;
+constexpr double kOuterSaCostScale = 30.0;
+constexpr int kOuterSaLocalTrials = 4;
+constexpr int kIntegratedSaMinMoveMessages = 2;
 constexpr double kFaultBandwidthWeight = 0.001;
+thread_local std::string g_current_dataset_log_tag;
 
 SchemeMetrics analyze_scheme(const SchemeAnalysisConfig& config, PackingScheme& scheme,
                              const CanfdFrameMap& fault_frame_map);
+double calculate_scheme_score(const SchemeMetrics& metrics);
+double calc_mode_bandwidth_utilization(const CanfdFrameMap& frame_map, bool include_backup_routes,
+                                       bool include_event_frames);
 
 RouteKey make_route_key(const MessageInfo& info) { return {info.code, info.comm_id}; }
 
 RouteKey make_route_key(const Message& msg) { return {msg.get_code(), msg.get_comm_id()}; }
 
 bool is_backup_route(int comm_id) { return comm_id == kBackupRouteCommId; }
+
+void log_stage(const std::string& scheme, const std::string& stage) {
+  if (g_current_dataset_log_tag.empty()) {
+    DEBUG_MSG_DEBUG1(std::cout, "[algorithm2] ", scheme, " :: ", stage);
+    return;
+  }
+  DEBUG_MSG_DEBUG1(std::cout, "[algorithm2] dataset=", g_current_dataset_log_tag, ", scheme=", scheme, " :: ", stage);
+}
 
 bool is_event_info(const MessageInfo& info) { return info.type == kEventMessageType; }
 
@@ -677,25 +700,615 @@ std::vector<ClusterWcrtMetric> calc_cluster_wcrts_always_on_tmr(
   return metrics;
 }
 
-bool is_scheme_acceptable(const PackingScheme& scheme, const SchemeAnalysisConfig& config) {
+bool is_scheme_acceptable(const PackingScheme& scheme, const SchemeAnalysisConfig& config,
+                          std::string* rejection_reason = nullptr) {
   const size_t message_count_before_events = MESSAGE_INFO_VEC.size();
   PackingScheme trial = scheme;
   const CanfdFrameMap fault_frame_map = build_analysis_frame_map(trial, config);
   SchemeMetrics metrics = analyze_scheme(config, trial, fault_frame_map);
+  if (!metrics.schedulable && rejection_reason != nullptr) {
+    std::vector<std::string> reasons;
+    const double normal_bandwidth = scheme.calc_bandwidth_utilization();
+    const double fault_bandwidth =
+        calc_mode_bandwidth_utilization(fault_frame_map, config.include_backup_routes_in_fault_mode,
+                                        config.include_event_frames_in_fault_mode);
+    if (normal_bandwidth > 1.0) {
+      reasons.push_back("normal bandwidth exceeds limit: " + std::to_string(normal_bandwidth));
+    }
+    if (fault_bandwidth > 1.0) {
+      reasons.push_back("fault bandwidth exceeds limit: " + std::to_string(fault_bandwidth));
+    }
+    if (!cfd::schedule::feasibility_check(scheme.frame_map)) {
+      reasons.push_back("normal frame set is not schedulable");
+    }
+    if (!cfd::schedule::feasibility_check(fault_frame_map)) {
+      reasons.push_back("fault frame set is not schedulable");
+    }
+
+    int route_reliability_failures = 0;
+    int route_wcrt_failures = 0;
+    for (const auto& route : metrics.routes) {
+      if (route.p_comm_fault > route.p_threshold) {
+        ++route_reliability_failures;
+      }
+      if (route.max_wcrt_ms > static_cast<double>(route.deadline_ms)) {
+        ++route_wcrt_failures;
+      }
+    }
+    if (route_reliability_failures > 0) {
+      reasons.push_back("route reliability failures: " + std::to_string(route_reliability_failures));
+    }
+    if (route_wcrt_failures > 0) {
+      reasons.push_back("route WCRT deadline failures: " + std::to_string(route_wcrt_failures));
+    }
+
+    int cluster_reliability_failures = 0;
+    for (const auto& cluster : metrics.clusters) {
+      if (cluster.p_function_fault > cluster.p_threshold) {
+        ++cluster_reliability_failures;
+      }
+    }
+    if (cluster_reliability_failures > 0) {
+      reasons.push_back("cluster reliability failures: " + std::to_string(cluster_reliability_failures));
+    }
+
+    int cluster_wcrt_failures = 0;
+    double max_cluster_e2e_overrun_ms = 0.0;
+    MessageCode max_cluster_e2e_overrun_code = 0;
+    for (const auto& cluster_wcrt : metrics.cluster_wcrts) {
+      if (!cluster_wcrt.meets_deadline) {
+        ++cluster_wcrt_failures;
+        const double overrun =
+            cluster_wcrt.end_to_end_fault_wcrt_ms - static_cast<double>(cluster_wcrt.deadline_ms);
+        if (overrun > max_cluster_e2e_overrun_ms) {
+          max_cluster_e2e_overrun_ms = overrun;
+          max_cluster_e2e_overrun_code = cluster_wcrt.code;
+        }
+      }
+    }
+    if (cluster_wcrt_failures > 0) {
+      reasons.push_back("cluster E2E WCRT failures: " + std::to_string(cluster_wcrt_failures) +
+                        ", max_overrun_code=" + std::to_string(max_cluster_e2e_overrun_code) +
+                        ", max_overrun_ms=" + std::to_string(max_cluster_e2e_overrun_ms));
+    }
+
+    if (reasons.empty()) {
+      *rejection_reason = "strict final analysis rejected scheme for an unclassified reason";
+    } else {
+      std::ostringstream oss;
+      for (size_t index = 0; index < reasons.size(); ++index) {
+        if (index > 0) oss << "; ";
+        oss << reasons[index];
+      }
+      *rejection_reason = oss.str();
+    }
+  }
   MESSAGE_INFO_VEC.resize(message_count_before_events);
   return metrics.schedulable;
 }
 
-size_t shrink_keep_count(size_t current_keep_count) {
-  if (current_keep_count <= 1) {
-    return 0;
+bool is_route_backup_pack_acceptable(const PackingScheme& scheme, const SchemeAnalysisConfig& config,
+                                     std::string* rejection_reason = nullptr) {
+  const double normal_bandwidth = scheme.calc_bandwidth_utilization();
+  if (normal_bandwidth > 1.0) {
+    if (rejection_reason != nullptr) {
+      *rejection_reason = "normal bandwidth exceeds limit: " + std::to_string(normal_bandwidth);
+    }
+    return false;
+  }
+  if (!cfd::schedule::feasibility_check(scheme.frame_map)) {
+    if (rejection_reason != nullptr) {
+      *rejection_reason = "normal frame set is not schedulable";
+    }
+    return false;
   }
 
-  size_t next_keep_count = (current_keep_count * kKeepNumerator) / kKeepDenominator;
-  if (next_keep_count >= current_keep_count) {
-    next_keep_count = current_keep_count - 1;
+  const size_t message_count_before_events = MESSAGE_INFO_VEC.size();
+  PackingScheme trial = scheme;
+  const CanfdFrameMap fault_frame_map = build_analysis_frame_map(trial, config);
+  const double fault_bandwidth =
+      calc_mode_bandwidth_utilization(fault_frame_map, config.include_backup_routes_in_fault_mode,
+                                      config.include_event_frames_in_fault_mode);
+  if (fault_bandwidth > 1.0) {
+    if (rejection_reason != nullptr) {
+      *rejection_reason = "fault bandwidth exceeds limit: " + std::to_string(fault_bandwidth);
+    }
+    MESSAGE_INFO_VEC.resize(message_count_before_events);
+    return false;
   }
-  return next_keep_count;
+  const bool fault_schedulable = cfd::schedule::feasibility_check(fault_frame_map);
+  if (!fault_schedulable && rejection_reason != nullptr) {
+    *rejection_reason = "fault frame set is not schedulable";
+  }
+  MESSAGE_INFO_VEC.resize(message_count_before_events);
+  return fault_schedulable;
+}
+
+std::map<int, std::vector<int>> build_valid_period_map_for_algorithm2() {
+  std::map<int, std::vector<int>> valid_period_map;
+  for (int i = 0; i < NUM_MESSAGE_PERIOD; i++) {
+    for (int j = i; j < NUM_MESSAGE_PERIOD; j++) {
+      if (OPTION_MESSAGE_PERIOD[j] % OPTION_MESSAGE_PERIOD[i] == 0) {
+        const int factor = OPTION_MESSAGE_PERIOD[j] / OPTION_MESSAGE_PERIOD[i];
+        if (factor <= FACTOR_M_F_PERIOD) {
+          valid_period_map[OPTION_MESSAGE_PERIOD[i]].push_back(OPTION_MESSAGE_PERIOD[j]);
+          if (factor == FACTOR_M_F_PERIOD) {
+            break;
+          }
+        }
+      }
+    }
+  }
+  return valid_period_map;
+}
+
+void cleanup_empty_frames(PackingScheme& scheme) {
+  std::vector<int> to_remove;
+  for (const auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame.empty()) {
+      to_remove.push_back(static_cast<int>(frame_id));
+    }
+  }
+  for (const int frame_id : to_remove) {
+    scheme.recover_id(frame_id);
+    scheme.frame_map.erase(frame_id);
+  }
+}
+
+bool insert_message_into_existing_or_new_frame(PackingScheme& scheme, Message& msg, std::mt19937& gen) {
+  std::vector<FrameId> candidates;
+  candidates.reserve(scheme.frame_map.size());
+  for (const auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame.empty()) {
+      continue;
+    }
+    if (!(frame.get_ecu_pair() == msg.get_ecu_pair())) {
+      continue;
+    }
+    candidates.push_back(frame_id);
+  }
+  std::shuffle(candidates.begin(), candidates.end(), gen);
+
+  for (const FrameId frame_id : candidates) {
+    auto it = scheme.frame_map.find(frame_id);
+    if (it == scheme.frame_map.end()) {
+      continue;
+    }
+    if (it->second.add_message(msg)) {
+      return true;
+    }
+  }
+
+  return scheme.new_frame(msg) >= 0;
+}
+
+bool move_message_to_new_frame(PackingScheme& scheme, Message& msg) {
+  const FrameId old_frame_id = msg.get_id_frame();
+  auto old_frame_it = scheme.frame_map.find(old_frame_id);
+  if (old_frame_it == scheme.frame_map.end()) {
+    return false;
+  }
+  if (!old_frame_it->second.extract_message(msg)) {
+    return false;
+  }
+  if (old_frame_it->second.empty()) {
+    scheme.recover_id(static_cast<int>(old_frame_id));
+    scheme.frame_map.erase(old_frame_id);
+  }
+  return scheme.new_frame(msg) >= 0;
+}
+
+bool move_message_to_existing_frame(PackingScheme& scheme, Message& msg, std::mt19937& gen) {
+  const FrameId old_frame_id = msg.get_id_frame();
+  if (scheme.frame_map.find(old_frame_id) == scheme.frame_map.end()) {
+    return false;
+  }
+
+  std::vector<FrameId> candidates;
+  candidates.reserve(scheme.frame_map.size());
+  for (const auto& [frame_id, frame] : scheme.frame_map) {
+    if (frame_id == old_frame_id || frame.empty()) {
+      continue;
+    }
+    if (!(frame.get_ecu_pair() == msg.get_ecu_pair())) {
+      continue;
+    }
+    candidates.push_back(frame_id);
+  }
+  if (candidates.empty()) {
+    return false;
+  }
+  std::shuffle(candidates.begin(), candidates.end(), gen);
+
+  for (const FrameId target_frame_id : candidates) {
+    auto old_it = scheme.frame_map.find(old_frame_id);
+    auto target_it = scheme.frame_map.find(target_frame_id);
+    if (old_it == scheme.frame_map.end() || target_it == scheme.frame_map.end()) {
+      return false;
+    }
+    if (old_it->second.move_message(target_it->second, msg)) {
+      if (old_it->second.empty()) {
+        scheme.recover_id(static_cast<int>(old_frame_id));
+        scheme.frame_map.erase(old_frame_id);
+      }
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void perturb_regular_messages(PackingScheme& scheme, int move_count, std::mt19937& gen,
+                              std::uniform_real_distribution<>& dist) {
+  if (scheme.message_set.empty()) {
+    return;
+  }
+
+  constexpr double kProbabilityNewFrame = 0.01;
+  std::uniform_int_distribution<size_t> msg_dist(0, scheme.message_set.size() - 1);
+  for (int move_index = 0; move_index < move_count; ++move_index) {
+    Message& msg = scheme.message_set[msg_dist(gen)];
+    if (msg.get_id_frame() == static_cast<FrameId>(-1)) {
+      continue;
+    }
+    if (dist(gen) < kProbabilityNewFrame) {
+      move_message_to_new_frame(scheme, msg);
+    } else {
+      move_message_to_existing_frame(scheme, msg, gen);
+    }
+  }
+  cleanup_empty_frames(scheme);
+}
+
+std::vector<MessageCode> build_node_signal_codes() {
+  std::vector<MessageCode> codes;
+  std::unordered_set<MessageCode> seen;
+  for (const auto& info : MESSAGE_INFO_VEC) {
+    if (info.type == 1 && info.comm_id == kPrimaryRouteCommId && seen.insert(info.code).second) {
+      codes.push_back(info.code);
+    }
+  }
+  std::sort(codes.begin(), codes.end());
+  return codes;
+}
+
+bool collect_route_sources(MessageCode code, int comm_id, std::optional<EcuId>& primary_src,
+                           std::optional<EcuId>& sibling_src, std::optional<EcuId>& current_src,
+                           std::optional<EcuId>& dst_ecu) {
+  for (const auto& info : MESSAGE_INFO_VEC) {
+    if (info.code != code) {
+      continue;
+    }
+    if (info.comm_id == kPrimaryRouteCommId) {
+      primary_src = info.ecu_pair.src_ecu;
+      dst_ecu = info.ecu_pair.dst_ecu;
+    } else if (info.comm_id == comm_id) {
+      current_src = info.ecu_pair.src_ecu;
+      dst_ecu = info.ecu_pair.dst_ecu;
+    } else if ((comm_id == kSecondMainRouteCommId && info.comm_id == kBackupRouteCommId) ||
+               (comm_id == kBackupRouteCommId && info.comm_id == kSecondMainRouteCommId)) {
+      sibling_src = info.ecu_pair.src_ecu;
+    }
+  }
+  return primary_src.has_value() && current_src.has_value() && dst_ecu.has_value();
+}
+
+std::optional<EcuId> pick_new_route_source(MessageCode code, int comm_id, const std::vector<EcuId>& active_ecus,
+                                           std::mt19937& gen) {
+  std::optional<EcuId> primary_src;
+  std::optional<EcuId> sibling_src;
+  std::optional<EcuId> current_src;
+  std::optional<EcuId> dst_ecu;
+  if (!collect_route_sources(code, comm_id, primary_src, sibling_src, current_src, dst_ecu)) {
+    return std::nullopt;
+  }
+
+  std::vector<EcuId> candidates;
+  for (const EcuId ecu : active_ecus) {
+    if (ecu == *dst_ecu || ecu == *primary_src || ecu == *current_src) {
+      continue;
+    }
+    if (sibling_src.has_value() && ecu == *sibling_src) {
+      continue;
+    }
+    candidates.push_back(ecu);
+  }
+  if (candidates.empty()) {
+    return std::nullopt;
+  }
+
+  std::uniform_int_distribution<size_t> ecu_dist(0, candidates.size() - 1);
+  return candidates[ecu_dist(gen)];
+}
+
+bool migrate_route_source_in_scheme(PackingScheme& scheme, MessageCode code, int comm_id, EcuId new_src,
+                                    std::mt19937& gen) {
+  std::vector<size_t> message_positions;
+  std::unordered_set<MessageID> info_indices;
+  for (size_t index = 0; index < scheme.message_set.size(); ++index) {
+    const auto& msg = scheme.message_set[index];
+    if (msg.get_code() == code && msg.get_comm_id() == comm_id) {
+      message_positions.push_back(index);
+      info_indices.insert(msg.get_id_message());
+    }
+  }
+  if (message_positions.empty()) {
+    return false;
+  }
+
+  for (const size_t position : message_positions) {
+    Message& msg = scheme.message_set[position];
+    const FrameId old_frame_id = msg.get_id_frame();
+    auto old_frame_it = scheme.frame_map.find(old_frame_id);
+    if (old_frame_it == scheme.frame_map.end()) {
+      continue;
+    }
+    old_frame_it->second.extract_message(msg);
+    if (old_frame_it->second.empty()) {
+      scheme.recover_id(static_cast<int>(old_frame_id));
+      scheme.frame_map.erase(old_frame_id);
+    }
+  }
+
+  for (const MessageID info_index : info_indices) {
+    MESSAGE_INFO_VEC[info_index].ecu_pair.src_ecu = new_src;
+  }
+
+  bool inserted_all = true;
+  for (const size_t position : message_positions) {
+    Message& msg = scheme.message_set[position];
+    if (!insert_message_into_existing_or_new_frame(scheme, msg, gen)) {
+      inserted_all = false;
+    }
+  }
+  cleanup_empty_frames(scheme);
+  return inserted_all;
+}
+
+void perturb_node_route_sources(PackingScheme& scheme, const std::vector<EcuId>& active_ecus, double temperature,
+                                std::mt19937& gen) {
+  auto node_codes = build_node_signal_codes();
+  if (node_codes.empty()) {
+    return;
+  }
+
+  const int perturb_count = std::min<int>(
+      static_cast<int>(node_codes.size()),
+      std::max(1, static_cast<int>(std::ceil(static_cast<double>(node_codes.size()) * temperature /
+                                             kOuterSaInitialTemperature))));
+  std::shuffle(node_codes.begin(), node_codes.end(), gen);
+  std::uniform_int_distribution<int> route_dist(0, 1);
+
+  for (int index = 0; index < perturb_count; ++index) {
+    const MessageCode code = node_codes[index];
+    std::array<int, 2> route_candidates = {kSecondMainRouteCommId, kBackupRouteCommId};
+    if (route_dist(gen) == 1) {
+      std::swap(route_candidates[0], route_candidates[1]);
+    }
+    for (const int comm_id : route_candidates) {
+      const auto new_src = pick_new_route_source(code, comm_id, active_ecus, gen);
+      if (!new_src.has_value()) {
+        continue;
+      }
+      if (migrate_route_source_in_scheme(scheme, code, comm_id, *new_src, gen)) {
+        break;
+      }
+    }
+  }
+}
+
+double evaluate_algorithm2_scheme_score(PackingScheme& scheme, const SchemeAnalysisConfig& config) {
+  const size_t message_count_before_events = MESSAGE_INFO_VEC.size();
+  const CanfdFrameMap fault_frame_map = build_analysis_frame_map(scheme, config);
+  const double normal_bandwidth =
+      calc_mode_bandwidth_utilization(scheme.frame_map, config.include_backup_routes_in_normal_mode, false);
+  const double fault_bandwidth =
+      calc_mode_bandwidth_utilization(fault_frame_map, config.include_backup_routes_in_fault_mode,
+                                      config.include_event_frames_in_fault_mode);
+  const bool schedulable =
+      cfd::schedule::feasibility_check(scheme.frame_map) && cfd::schedule::feasibility_check(fault_frame_map);
+  MESSAGE_INFO_VEC.resize(message_count_before_events);
+  return normal_bandwidth + kFaultBandwidthWeight * fault_bandwidth + (schedulable ? 0.0 : 1.0);
+}
+
+PackingScheme integrated_algorithm2_sa_single_chain(PackingScheme scheme, const SchemeAnalysisConfig& config,
+                                                    const std::vector<EcuId>& active_ecus) {
+  if (!config.enable_route_source_perturbation) {
+    return scheme;
+  }
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dist(0.0, 1.0);
+
+  MessageInfoVec current_infos = MESSAGE_INFO_VEC;
+  PackingScheme current_scheme = scheme;
+  double current_score = evaluate_algorithm2_scheme_score(current_scheme, config);
+
+  MessageInfoVec best_infos = current_infos;
+  PackingScheme best_scheme = current_scheme;
+  double best_score = current_score;
+
+  double temperature = kOuterSaInitialTemperature;
+  const int message_count = static_cast<int>(current_scheme.message_set.size());
+  while (temperature > kOuterSaFinalTemperature) {
+    const double temperature_ratio = temperature / kOuterSaInitialTemperature;
+    const int max_move_count = std::max(kIntegratedSaMinMoveMessages, message_count / 10);
+    const int move_count =
+        std::max(kIntegratedSaMinMoveMessages, static_cast<int>(std::ceil(max_move_count * temperature_ratio)));
+
+    for (int trial = 0; trial < kOuterSaLocalTrials; ++trial) {
+      MessageInfoVec candidate_infos = current_infos;
+      PackingScheme candidate_scheme = current_scheme;
+      MESSAGE_INFO_VEC = candidate_infos;
+
+      perturb_node_route_sources(candidate_scheme, active_ecus, temperature, gen);
+      perturb_regular_messages(candidate_scheme, move_count, gen, dist);
+      assign_algorithm2_priority(candidate_scheme.frame_map, config);
+
+      candidate_infos = MESSAGE_INFO_VEC;
+      const double candidate_score = evaluate_algorithm2_scheme_score(candidate_scheme, config);
+
+      if (candidate_score <= best_score) {
+        best_infos = candidate_infos;
+        best_scheme = candidate_scheme;
+        best_score = candidate_score;
+      }
+
+      const bool accept_better = candidate_score <= current_score;
+      const double acceptance_probability =
+          std::exp(-(candidate_score - current_score) * kOuterSaCostScale / temperature);
+      if (accept_better || dist(gen) < acceptance_probability) {
+        current_infos = std::move(candidate_infos);
+        current_scheme = std::move(candidate_scheme);
+        current_score = candidate_score;
+      }
+    }
+
+    temperature *= kOuterSaAlpha;
+  }
+
+  MESSAGE_INFO_VEC = best_infos;
+  assign_algorithm2_priority(best_scheme.frame_map, config);
+  return best_scheme;
+}
+
+PackingScheme integrated_algorithm2_sa(PackingScheme scheme, const SchemeAnalysisConfig& config,
+                                       const std::vector<EcuId>& active_ecus) {
+  if (!config.enable_route_source_perturbation) {
+    return scheme;
+  }
+
+  constexpr int SA_POPULATION_SIZE = 4;
+  constexpr int SA_MIGRATION_INTERVAL = 8;
+  constexpr bool SA_PARALLEL_ENABLED = true;
+
+  struct Algorithm2SaIndividual {
+    MessageInfoVec current_infos;
+    PackingScheme current_scheme;
+    double current_score = std::numeric_limits<double>::infinity();
+    MessageInfoVec best_infos;
+    PackingScheme best_scheme;
+    double best_score = std::numeric_limits<double>::infinity();
+    std::mt19937 gen;
+    std::uniform_real_distribution<> dist{0.0, 1.0};
+  };
+
+  const MessageInfoVec initial_infos = MESSAGE_INFO_VEC;
+  const int population_size = std::max(1, SA_POPULATION_SIZE);
+  std::random_device rd;
+  std::vector<Algorithm2SaIndividual> population;
+  population.reserve(population_size);
+  for (int i = 0; i < population_size; ++i) {
+    Algorithm2SaIndividual individual;
+    individual.current_infos = initial_infos;
+    individual.current_scheme = scheme;
+    {
+      MessageInfoScope scope(individual.current_infos);
+      individual.current_score = evaluate_algorithm2_scheme_score(individual.current_scheme, config);
+    }
+    individual.best_infos = individual.current_infos;
+    individual.best_scheme = individual.current_scheme;
+    individual.best_score = individual.current_score;
+    individual.gen.seed(rd() ^ (static_cast<unsigned int>(i) * 0x9e3779b9U));
+    population.push_back(std::move(individual));
+  }
+
+  MessageInfoVec global_best_infos = population.front().best_infos;
+  PackingScheme global_best_scheme = population.front().best_scheme;
+  double global_best_score = population.front().best_score;
+  auto refresh_global_best = [&]() {
+    for (const auto& individual : population) {
+      if (individual.best_score < global_best_score) {
+        global_best_infos = individual.best_infos;
+        global_best_scheme = individual.best_scheme;
+        global_best_score = individual.best_score;
+      }
+    }
+  };
+
+  double temperature = kOuterSaInitialTemperature;
+  int temperature_layer = 0;
+  const int message_count = static_cast<int>(scheme.message_set.size());
+  std::unique_ptr<cfd::utils::FixedWorkerPool> worker_pool;
+  if (SA_PARALLEL_ENABLED && population_size > 1) {
+    worker_pool =
+        std::make_unique<cfd::utils::FixedWorkerPool>(cfd::utils::recommended_worker_count(population_size));
+  }
+  while (temperature > kOuterSaFinalTemperature) {
+    const double temperature_ratio = temperature / kOuterSaInitialTemperature;
+    const int max_move_count = std::max(kIntegratedSaMinMoveMessages, message_count / 10);
+    const int move_count =
+        std::max(kIntegratedSaMinMoveMessages, static_cast<int>(std::ceil(max_move_count * temperature_ratio)));
+    const int individual_trial_count =
+        std::max(1, static_cast<int>(std::ceil(static_cast<double>(kOuterSaLocalTrials) / population_size)));
+
+    auto update_individual = [&](Algorithm2SaIndividual individual) {
+      for (int trial = 0; trial < individual_trial_count; ++trial) {
+        MessageInfoVec candidate_infos = individual.current_infos;
+        PackingScheme candidate_scheme = individual.current_scheme;
+        double candidate_score = std::numeric_limits<double>::infinity();
+
+        {
+          MessageInfoScope scope(candidate_infos);
+          perturb_node_route_sources(candidate_scheme, active_ecus, temperature, individual.gen);
+          perturb_regular_messages(candidate_scheme, move_count, individual.gen, individual.dist);
+          assign_algorithm2_priority(candidate_scheme.frame_map, config);
+          candidate_score = evaluate_algorithm2_scheme_score(candidate_scheme, config);
+        }
+
+        if (candidate_score <= individual.best_score) {
+          individual.best_infos = candidate_infos;
+          individual.best_scheme = candidate_scheme;
+          individual.best_score = candidate_score;
+        }
+
+        const bool accept_better = candidate_score <= individual.current_score;
+        const double acceptance_probability =
+            std::exp(-(candidate_score - individual.current_score) * kOuterSaCostScale / temperature);
+        if (accept_better || individual.dist(individual.gen) < acceptance_probability) {
+          individual.current_infos = std::move(candidate_infos);
+          individual.current_scheme = std::move(candidate_scheme);
+          individual.current_score = candidate_score;
+        }
+      }
+      return individual;
+    };
+
+    if (worker_pool != nullptr) {
+      worker_pool->parallel_for(population.size(), [&](size_t i) {
+        population[i] = update_individual(std::move(population[i]));
+      });
+    } else {
+      for (auto& individual : population) {
+        individual = update_individual(std::move(individual));
+      }
+    }
+
+    refresh_global_best();
+
+    if (population_size > 1 && SA_MIGRATION_INTERVAL > 0 && temperature_layer > 0 &&
+        temperature_layer % SA_MIGRATION_INTERVAL == 0) {
+      auto worst_it = std::max_element(population.begin(), population.end(),
+                                       [](const Algorithm2SaIndividual& lhs, const Algorithm2SaIndividual& rhs) {
+                                         return lhs.current_score < rhs.current_score;
+                                       });
+      if (worst_it != population.end() && global_best_score < worst_it->current_score) {
+        worst_it->current_infos = global_best_infos;
+        worst_it->current_scheme = global_best_scheme;
+        worst_it->current_score = global_best_score;
+      }
+    }
+
+    temperature *= kOuterSaAlpha;
+    ++temperature_layer;
+  }
+
+  refresh_global_best();
+  MESSAGE_INFO_VEC = global_best_infos;
+  assign_algorithm2_priority(global_best_scheme.frame_map, config);
+  log_stage(config.name, "population integrated SA best score=" + std::to_string(global_best_score));
+  return global_best_scheme;
 }
 
 std::vector<BackupCandidate> build_route_backup_candidates(
@@ -732,23 +1345,32 @@ std::vector<BackupCandidate> build_route_backup_candidates(
   return candidates;
 }
 
-bool try_apply_route_backup_prefix(const PackingScheme& base_scheme, const std::vector<BackupCandidate>& candidates,
-                                   size_t keep_count, PackingScheme& out_scheme, const SchemeAnalysisConfig& config) {
-  if (keep_count == 0 || keep_count > candidates.size()) {
+bool try_apply_all_route_backup_candidates(const PackingScheme& base_scheme, const std::vector<BackupCandidate>& candidates,
+                                           PackingScheme& out_scheme, const SchemeAnalysisConfig& config,
+                                           RouteBackupAcceptanceMode acceptance_mode, std::string& rejection_reason) {
+  if (candidates.empty()) {
+    rejection_reason = "no route backup candidates";
     return false;
   }
 
   PackingScheme trial = base_scheme;
-  for (size_t index = 0; index < keep_count; ++index) {
-    trial.message_set.emplace_back(candidates[index].message_index);
+  for (const auto& candidate : candidates) {
+    trial.message_set.emplace_back(candidate.message_index);
   }
 
   if (!trial.re_init_frames()) {
+    rejection_reason = "re_init_frames failed after adding all route backup candidates";
     return false;
   }
 
   cfd::packing::frame_pack(trial, cfd::DEFAULT_PACK_METHOD);
-  if (!is_scheme_acceptable(trial, config)) {
+  const bool acceptable = acceptance_mode == RouteBackupAcceptanceMode::PackOnly
+                              ? is_route_backup_pack_acceptable(trial, config, &rejection_reason)
+                              : is_scheme_acceptable(trial, config, &rejection_reason);
+  if (!acceptable) {
+    if (rejection_reason.empty()) {
+      rejection_reason = "acceptance check failed";
+    }
     return false;
   }
 
@@ -757,46 +1379,59 @@ bool try_apply_route_backup_prefix(const PackingScheme& base_scheme, const std::
 }
 
 PackingScheme homo_route_backup(PackingScheme& scheme, const SchemeAnalysisConfig& config,
-                                double lambda = LAMBDA_CONFERENCE) {
+                                double lambda = LAMBDA_CONFERENCE,
+                                RouteBackupAcceptanceMode acceptance_mode = RouteBackupAcceptanceMode::StrictFinal) {
   PackingScheme working = scheme;
   const auto route_index_map = build_route_index_map();
 
   for (int iter = 0; iter < kMaxRouteBackupIterations; ++iter) {
     const auto candidates = build_route_backup_candidates(working, lambda, route_index_map);
     if (candidates.empty()) {
+      log_stage(config.name, "homo route backup has no candidates");
       return working;
     }
 
     PackingScheme feasible_scheme = working;
-    bool found_feasible_prefix = false;
-    size_t keep_count = candidates.size();
-    while (keep_count > 0) {
-      if (try_apply_route_backup_prefix(working, candidates, keep_count, feasible_scheme, config)) {
-        found_feasible_prefix = true;
-        break;
-      }
-      keep_count = shrink_keep_count(keep_count);
-    }
-
-    if (!found_feasible_prefix) {
+    std::string rejection_reason;
+    log_stage(config.name, "homo route backup try all candidates=" + std::to_string(candidates.size()));
+    if (!try_apply_all_route_backup_candidates(working, candidates, feasible_scheme, config, acceptance_mode,
+                                               rejection_reason)) {
+      log_stage(config.name, "homo route backup rejected all candidates: " + rejection_reason);
       return working;
     }
 
     const int added_count = static_cast<int>(feasible_scheme.message_set.size() - working.message_set.size());
     if (added_count <= 0) {
+      log_stage(config.name, "homo route backup accepted no new copy");
       return working;
     }
 
+    log_stage(config.name, "homo route backup accepted copies=" + std::to_string(added_count));
     working = std::move(feasible_scheme);
   }
 
   return working;
 }
 
-PackingScheme build_algorithm2_scheme_from_current_msgs(const SchemeAnalysisConfig& config) {
+PackingScheme build_on_demand_tmr_scheme_from_current_msgs(const SchemeAnalysisConfig& config) {
   PackingScheme scheme{};
+  log_stage(config.name, "frame_pack");
   cfd::packing::frame_pack(scheme, cfd::DEFAULT_PACK_METHOD);
-  return homo_route_backup(scheme, config);
+  if (config.enable_route_source_perturbation) {
+    scheme = integrated_algorithm2_sa(std::move(scheme), config, infer_active_ecus(MESSAGE_INFO_VEC));
+  }
+  log_stage(config.name, "homo route backup");
+  scheme = homo_route_backup(scheme, config, LAMBDA_CONFERENCE, RouteBackupAcceptanceMode::PackOnly);
+  return scheme;
+}
+
+PackingScheme build_always_on_tmr_scheme_from_current_msgs(const SchemeAnalysisConfig& config) {
+  PackingScheme scheme{};
+  log_stage(config.name, "frame_pack");
+  cfd::packing::frame_pack(scheme, cfd::DEFAULT_PACK_METHOD);
+  log_stage(config.name, "homo route backup");
+  scheme = homo_route_backup(scheme, config, LAMBDA_CONFERENCE, RouteBackupAcceptanceMode::StrictFinal);
+  return scheme;
 }
 
 double calc_mode_bandwidth_utilization(const CanfdFrameMap& frame_map, bool include_backup_routes,
@@ -941,77 +1576,13 @@ double calculate_scheme_score(const SchemeMetrics& metrics) {
 }
 
 OptimizedSchemeResult optimize_infos_with_route_sa(const MessageInfoVec& initial_infos, const SchemeAnalysisConfig& config) {
-  if (!config.enable_route_source_perturbation) {
-    MESSAGE_INFO_VEC = initial_infos;
-    PackingScheme scheme = build_algorithm2_scheme_from_current_msgs(config);
-    return {MESSAGE_INFO_VEC, std::move(scheme)};
-  }
-
-  const auto active_ecus = infer_active_ecus(initial_infos);
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<> dist(0.0, 1.0);
-
-  MessageInfoVec current_infos = initial_infos;
-  MESSAGE_INFO_VEC = current_infos;
-  PackingScheme current_scheme = build_algorithm2_scheme_from_current_msgs(config);
-  MessageInfoVec current_scheme_infos = MESSAGE_INFO_VEC;
-  CanfdFrameMap current_fault_frame_map = build_analysis_frame_map(current_scheme, config);
-  SchemeMetrics current_metrics = analyze_scheme(config, current_scheme, current_fault_frame_map);
-  double current_score = calculate_scheme_score(current_metrics);
-  MESSAGE_INFO_VEC.resize(current_infos.size());
-
-  MessageInfoVec best_infos = current_scheme_infos;
-  PackingScheme best_scheme = current_scheme;
-  double best_score = current_score;
-  bool have_feasible_best = current_metrics.schedulable;
-
-  const auto perturbable_keys = build_perturbable_route_keys(initial_infos);
-  if (perturbable_keys.empty()) {
-    MESSAGE_INFO_VEC = best_infos;
-    return {best_infos, best_scheme};
-  }
-
-  double temperature = kOuterSaInitialTemperature;
-  const int local_trials = 1;
-
-  while (temperature > kOuterSaFinalTemperature) {
-    for (int trial = 0; trial < local_trials; ++trial) {
-      MessageInfoVec candidate_infos = current_infos;
-      if (!perturb_route_source(candidate_infos, active_ecus, gen)) {
-        continue;
-      }
-
-      MESSAGE_INFO_VEC = candidate_infos;
-      PackingScheme candidate_scheme = build_algorithm2_scheme_from_current_msgs(config);
-      MessageInfoVec candidate_scheme_infos = MESSAGE_INFO_VEC;
-      CanfdFrameMap candidate_fault_frame_map = build_analysis_frame_map(candidate_scheme, config);
-      SchemeMetrics candidate_metrics = analyze_scheme(config, candidate_scheme, candidate_fault_frame_map);
-      const double candidate_score = calculate_scheme_score(candidate_metrics);
-      MESSAGE_INFO_VEC.resize(candidate_infos.size());
-
-      if (candidate_metrics.schedulable && (!have_feasible_best || candidate_score < best_score)) {
-        best_infos = candidate_scheme_infos;
-        best_scheme = candidate_scheme;
-        best_score = candidate_score;
-        have_feasible_best = true;
-      }
-
-      const bool accept_better = candidate_score <= current_score;
-      const double acceptance_probability =
-          std::exp(-(candidate_score - current_score) * kOuterSaCostScale / temperature);
-      if (accept_better || dist(gen) < acceptance_probability) {
-        current_infos = std::move(candidate_infos);
-        current_scheme = std::move(candidate_scheme);
-        current_metrics = std::move(candidate_metrics);
-        current_score = candidate_score;
-      }
-    }
-    temperature *= kOuterSaAlpha;
-  }
-
-  MESSAGE_INFO_VEC = best_infos;
-  return {best_infos, best_scheme};
+  MESSAGE_INFO_VEC = initial_infos;
+  log_stage(config.name, "build scheme begin");
+  PackingScheme scheme = config.cluster_wcrt_mode == SchemeAnalysisConfig::ClusterWcrtMode::OnDemand
+                             ? build_on_demand_tmr_scheme_from_current_msgs(config)
+                             : build_always_on_tmr_scheme_from_current_msgs(config);
+  log_stage(config.name, "build scheme done");
+  return {MESSAGE_INFO_VEC, std::move(scheme)};
 }
 
 std::vector<RouteKey> sorted_route_keys(const std::unordered_map<RouteKey, RouteMeta, RouteKeyHash>& meta_by_route) {
@@ -1086,9 +1657,12 @@ std::unordered_map<MessageCode, int> calc_signal_instance_count(const PackingSch
 }
 
 FoundationQuickMetrics build_foundation_quick_metrics(const MessageInfoVec& original_infos) {
+  log_stage("homo_only_foundation", "build begin");
   MESSAGE_INFO_VEC = original_infos;
   PackingScheme scheme{};
+  log_stage("homo_only_foundation", "frame_pack");
   cfd::packing::frame_pack(scheme, cfd::DEFAULT_PACK_METHOD);
+  log_stage("homo_only_foundation", "homo signal backup");
   scheme = backups::signal::homo_signal_backup(scheme);
 
   FoundationQuickMetrics metrics;
@@ -1107,6 +1681,7 @@ FoundationQuickMetrics build_foundation_quick_metrics(const MessageInfoVec& orig
     metrics.total_added_signal_copies += std::max(0, instance_count - 1);
   }
 
+  log_stage("homo_only_foundation", "build done");
   return metrics;
 }
 
@@ -1315,9 +1890,11 @@ void write_dataset_report(const std::string& output_path, const DatasetSummary& 
 
   ofs << "[foundation_summary]\n";
   ofs << "scheme\tbandwidth_utilization\tmax_wcrt_ms\ttotal_added_signal_copies\tschedulable\n";
-  ofs << "homo_only_foundation\t" << summary.homo_only_foundation.bandwidth_utilization << '\t'
-      << summary.homo_only_foundation.max_wcrt_ms << '\t' << summary.homo_only_foundation.total_added_signal_copies
-      << '\t' << (summary.homo_only_foundation.schedulable ? 1 : 0) << '\n';
+  if (summary.has_homo_only_foundation) {
+    ofs << "homo_only_foundation\t" << summary.homo_only_foundation.bandwidth_utilization << '\t'
+        << summary.homo_only_foundation.max_wcrt_ms << '\t' << summary.homo_only_foundation.total_added_signal_copies
+        << '\t' << (summary.homo_only_foundation.schedulable ? 1 : 0) << '\n';
+  }
   ofs << '\n';
 
   ofs << "[cluster_summary]\n";
@@ -1364,9 +1941,12 @@ void append_scheme_result(DatasetSummary& summary, const MessageInfoVec& functio
   OptimizedSchemeResult optimized = optimize_infos_with_route_sa(functional_infos, config);
   MESSAGE_INFO_VEC = optimized.infos;
   PackingScheme scheme = std::move(optimized.scheme);
+  log_stage(config.name, build_fault_state_with_events ? "build fault frame map with events"
+                                                       : "build full TMR frame map without events");
   const CanfdFrameMap fault_frame_map =
       build_fault_state_with_events ? build_fault_state_frame_map(scheme, config) : build_full_tmr_frame_map(scheme, config);
 
+  log_stage(config.name, "final analyze");
   summary.schemes.push_back(analyze_scheme(config, scheme, fault_frame_map));
   MESSAGE_INFO_VEC.resize(optimized.infos.size());
   const auto& scheme_metrics = summary.schemes.back();
@@ -1376,12 +1956,15 @@ void append_scheme_result(DatasetSummary& summary, const MessageInfoVec& functio
 
 }  // namespace
 
+void set_route_source_perturbation_enabled(bool enabled) { g_route_source_perturbation_enabled = enabled; }
+void set_skip_foundation_enabled(bool enabled) { g_skip_foundation_enabled = enabled; }
+
 DatasetSummary run_compare_experiment(const std::string& dataset_file, const std::string& run_tag) {
   const std::string full_path = cfd::storage::resolve_dataset_input_path(dataset_file);
   cfd::utils::read_message(full_path);
   const MessageInfoVec original_infos = MESSAGE_INFO_VEC;
   const MessageInfoVec functional_infos = generate_functional_routes(original_infos);
-  const SchemeAnalysisConfig on_demand_config{"on_demand_tmr", false, true, true, true,
+  const SchemeAnalysisConfig on_demand_config{"on_demand_tmr", false, true, true, g_route_source_perturbation_enabled,
                                               SchemeAnalysisConfig::ClusterWcrtMode::OnDemand};
   const SchemeAnalysisConfig always_on_config{"always_on_tmr", true, true, false, false,
                                               SchemeAnalysisConfig::ClusterWcrtMode::AlwaysOnTmr};
@@ -1389,11 +1972,18 @@ DatasetSummary run_compare_experiment(const std::string& dataset_file, const std
   DatasetSummary summary;
   summary.dataset_tag = cfd::storage::dataset_tag_from_file(dataset_file);
   summary.config_tag = dataset_config_tag_from_dataset_tag(summary.dataset_tag);
-  summary.homo_only_foundation = build_foundation_quick_metrics(original_infos);
+  g_current_dataset_log_tag = summary.dataset_tag;
+  log_stage("dataset", "begin");
+  summary.has_homo_only_foundation = !g_skip_foundation_enabled;
+  if (summary.has_homo_only_foundation) {
+    summary.homo_only_foundation = build_foundation_quick_metrics(original_infos);
+  }
   append_scheme_result(summary, functional_infos, on_demand_config, true);
   append_scheme_result(summary, functional_infos, always_on_config, false);
 
   write_dataset_report(compare_report_path(run_tag, summary.dataset_tag), summary);
+  log_stage("dataset", "done");
+  g_current_dataset_log_tag.clear();
   return summary;
 }
 
@@ -1402,7 +1992,7 @@ QuickCompareResult quick_compare_signal_set(const MessageInfoVec& signal_infos) 
   QuickCompareResult result;
 
   const MessageInfoVec functional_infos = generate_functional_routes(signal_infos);
-  const SchemeAnalysisConfig on_demand_config{"on_demand_tmr", false, true, true, true,
+  const SchemeAnalysisConfig on_demand_config{"on_demand_tmr", false, true, true, g_route_source_perturbation_enabled,
                                               SchemeAnalysisConfig::ClusterWcrtMode::OnDemand};
   const SchemeAnalysisConfig always_on_config{"always_on_tmr", true, true, false, false,
                                               SchemeAnalysisConfig::ClusterWcrtMode::AlwaysOnTmr};
@@ -1456,6 +2046,9 @@ void write_batch_summary(const std::string& run_tag, const std::vector<DatasetSu
   ofs << "[foundation_summary]\n";
   ofs << "dataset\tconfig\tscheme\tbandwidth_utilization\tmax_wcrt_ms\ttotal_added_signal_copies\tschedulable\n";
   for (const auto& summary : dataset_summaries) {
+    if (!summary.has_homo_only_foundation) {
+      continue;
+    }
     ofs << summary.dataset_tag << '\t' << summary.config_tag << "\thomo_only_foundation\t"
         << summary.homo_only_foundation.bandwidth_utilization << '\t' << summary.homo_only_foundation.max_wcrt_ms
         << '\t' << summary.homo_only_foundation.total_added_signal_copies << '\t'
