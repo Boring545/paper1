@@ -10,6 +10,7 @@ namespace cfd::algorithm2 {
 
 void set_route_source_perturbation_enabled(bool enabled);
 void set_skip_foundation_enabled(bool enabled);
+void set_foundation_only_enabled(bool enabled);
 
 struct RouteMetric {
   MessageCode code = 0;

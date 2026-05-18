@@ -1569,6 +1569,7 @@ int main(int argc, char* argv[]) {
   bool generate_figures_after_analysis = true;
   bool algorithm2_route_source_perturbation_enabled = true;
   bool algorithm2_skip_foundation = false;
+  bool algorithm2_foundation_only = false;
   size_t dataset_batch_count = 100;
   size_t ed_asild_dataset_index = 0;
   size_t max_batches_per_spec = 0;
@@ -1611,6 +1612,8 @@ int main(int argc, char* argv[]) {
       algorithm2_route_source_perturbation_enabled = false;
     } else if (arg == "--algorithm2-skip-foundation") {
       algorithm2_skip_foundation = true;
+    } else if (arg == "--algorithm2-foundation-only") {
+      algorithm2_foundation_only = true;
     } else if (arg == "--max-batches-per-spec") {
       if (argi + 1 >= argc) {
         throw std::invalid_argument("--max-batches-per-spec requires a positive integer");
@@ -1672,6 +1675,7 @@ int main(int argc, char* argv[]) {
   if (run_algorithm2) {
     cfd::algorithm2::set_route_source_perturbation_enabled(algorithm2_route_source_perturbation_enabled);
     cfd::algorithm2::set_skip_foundation_enabled(algorithm2_skip_foundation);
+    cfd::algorithm2::set_foundation_only_enabled(algorithm2_foundation_only);
     std::vector<cfd::algorithm2::DatasetSummary> dataset_summaries;
     dataset_summaries.reserve(dataset_files.size());
     for (const auto& dataset_file : dataset_files) {

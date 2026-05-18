@@ -219,7 +219,10 @@ def run_algorithm2_batch(
     max_batches: int,
     disable_route_source_perturbation: bool = False,
     skip_foundation: bool = False,
+    foundation_only: bool = False,
     dataset_files: list[Path] | None = None,
+    relocated_runs_dir: Path | None = None,
+    run_label: str | None = None,
 ) -> Path:
     cmd = [
         str(exe_path.resolve()),
@@ -237,6 +240,8 @@ def run_algorithm2_batch(
         cmd.append("--algorithm2-disable-route-source-perturbation")
     if skip_foundation:
         cmd.append("--algorithm2-skip-foundation")
+    if foundation_only:
+        cmd.append("--algorithm2-foundation-only")
 
     process = subprocess.Popen(
         cmd,
@@ -262,7 +267,32 @@ def run_algorithm2_batch(
     match = re.search(r"(?:批量测试输出目录|鎵归噺娴嬭瘯杈撳嚭鐩綍):\s*(.+)", stdout_text)
     if match is None:
         raise RuntimeError("Cannot find analysis output dir in algorithm2 stdout")
-    return Path(match.group(1).strip())
+    analysis_dir = Path(match.group(1).strip())
+    if relocated_runs_dir is None:
+        return analysis_dir
+    return relocate_analysis_dir(analysis_dir, relocated_runs_dir, run_label)
+
+
+def relocate_analysis_dir(analysis_dir: Path, relocated_runs_dir: Path, run_label: str | None = None) -> Path:
+    relocated_runs_dir.mkdir(parents=True, exist_ok=True)
+
+    destination_name = run_label.strip() if run_label else analysis_dir.name
+    destination_name = re.sub(r"[^\w\-.]+", "_", destination_name).strip("._")
+    if not destination_name:
+        destination_name = analysis_dir.name
+
+    destination = relocated_runs_dir / destination_name
+    if destination.exists():
+        suffix = 1
+        while True:
+            candidate = relocated_runs_dir / f"{destination_name}_{suffix:02d}"
+            if not candidate.exists():
+                destination = candidate
+                break
+            suffix += 1
+
+    shutil.move(str(analysis_dir), str(destination))
+    return destination
 
 
 def run_foundation_baseline_batches(
@@ -273,6 +303,7 @@ def run_foundation_baseline_batches(
     repeats: int,
     parallel: bool,
     disable_route_source_perturbation: bool,
+    relocated_runs_dir: Path,
 ) -> list[Path]:
     repeats = max(1, repeats)
 
@@ -287,7 +318,10 @@ def run_foundation_baseline_batches(
             len(dataset_files),
             disable_route_source_perturbation,
             skip_foundation=False,
+            foundation_only=True,
             dataset_files=dataset_files,
+            relocated_runs_dir=relocated_runs_dir,
+            run_label=f"foundation_repeat_{index + 1:02d}",
         )
 
     if repeats == 1 or not parallel:
@@ -704,6 +738,8 @@ def main() -> int:
         else project_root / "storage" / "analysis" / f"{timestamp}_ed_asild"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
+    algorithm2_runs_dir = output_dir / "algorithm2_runs"
+    algorithm2_runs_dir.mkdir(parents=True, exist_ok=True)
 
     work_dir = output_dir / "dataset_work"
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -732,6 +768,7 @@ def main() -> int:
             args.foundation_repeats,
             args.foundation_parallel,
             args.disable_route_source_perturbation,
+            algorithm2_runs_dir,
         )
         baseline_analysis_dir, homogeneous_bandwidth, homogeneous_e2e_ms = select_best_foundation_baseline(
             baseline_analysis_dirs
@@ -761,6 +798,8 @@ def main() -> int:
                     args.disable_route_source_perturbation,
                     skip_foundation=True,
                     dataset_files=dataset_files,
+                    relocated_runs_dir=algorithm2_runs_dir,
+                    run_label=f"selected_{selected_count:02d}_attempt_{attempt:02d}",
                 )
                 (
                     avg_on_demand_normal_bandwidth,

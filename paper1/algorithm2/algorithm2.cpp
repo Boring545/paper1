@@ -39,6 +39,7 @@ namespace {
 
 bool g_route_source_perturbation_enabled = true;
 bool g_skip_foundation_enabled = false;
+bool g_foundation_only_enabled = false;
 
 struct RouteKey {
   MessageCode code = 0;
@@ -1966,6 +1967,7 @@ void append_scheme_result(DatasetSummary& summary, const MessageInfoVec& functio
 
 void set_route_source_perturbation_enabled(bool enabled) { g_route_source_perturbation_enabled = enabled; }
 void set_skip_foundation_enabled(bool enabled) { g_skip_foundation_enabled = enabled; }
+void set_foundation_only_enabled(bool enabled) { g_foundation_only_enabled = enabled; }
 
 DatasetSummary run_compare_experiment(const std::string& dataset_file, const std::string& run_tag) {
   const std::string full_path = cfd::storage::resolve_dataset_input_path(dataset_file);
@@ -1986,8 +1988,10 @@ DatasetSummary run_compare_experiment(const std::string& dataset_file, const std
   if (summary.has_homo_only_foundation) {
     summary.homo_only_foundation = build_foundation_quick_metrics(original_infos);
   }
-  append_scheme_result(summary, functional_infos, on_demand_config, true);
-  append_scheme_result(summary, functional_infos, always_on_config, false);
+  if (!g_foundation_only_enabled) {
+    append_scheme_result(summary, functional_infos, on_demand_config, true);
+    append_scheme_result(summary, functional_infos, always_on_config, false);
+  }
 
   write_dataset_report(compare_report_path(run_tag, summary.dataset_tag), summary);
   log_stage("dataset", "done");
