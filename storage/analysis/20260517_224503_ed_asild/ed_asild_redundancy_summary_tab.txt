@@ -1,6 +1,0 @@
-selected_asild_count	avg_on_demand_normal_bandwidth	avg_on_demand_fault_bandwidth	avg_always_on_bandwidth	avg_on_demand_normal_e2e_ms	avg_on_demand_fault_e2e_ms	avg_always_on_e2e_ms	avg_on_demand_route_max_wcrt_ms	no_redundancy_bandwidth	no_redundancy_e2e_ms	on_demand_valid_count	on_demand_failed_count	always_on_valid_count	always_on_failed_count
-2	0.606936	0.670696	0.467386	0.9854	3.498	0.6978	7.5068	0.564686	5.6834	1	0	0	1
-4	0.594392	0.688292	0.470726	5.7354	13.4526	3.4822	7.8792	0.564686	5.6834	1	0	0	1
-6	0.609848	0.71388	0.474566	5.797	16.8866	3.5774	8.7258	0.564686	5.6834	1	0	0	1
-8	0.63179	0.737058	0.473986	6.7168	18.6346	3.643	9.3186	0.564686	5.6834	0	1	0	1
-10	0.659458	0.881606	0.504656	6.7828	29.2234	3.689	18.8966	0.564686	5.6834	0	1	0	1

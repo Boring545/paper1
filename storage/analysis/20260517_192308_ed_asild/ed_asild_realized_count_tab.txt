@@ -1,2 +1,0 @@
-target_selected_count	min_realized	max_realized	avg_realized
-2	2	2	2.0
