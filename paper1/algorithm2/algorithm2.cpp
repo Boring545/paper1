@@ -108,11 +108,11 @@ constexpr int kPrimaryRouteCommId = 0;
 constexpr int kSecondMainRouteCommId = 1;
 constexpr int kBackupRouteCommId = 2;
 constexpr int kActEventCommId = 1001;
-constexpr int kIsoEventCommId = 1002;
 constexpr int kHangEventCommId = 1003;
 constexpr int kEventMessageType = -1;
 constexpr int kEventPayloadBytes = 1;
-constexpr int kEventPriorityPeriodMs = 2;
+constexpr int kEventPriorityPeriodMs = 4;
+constexpr int kType1PriorityPeriodMs = 4;
 constexpr int kMaxRouteBackupIterations = 50;
 constexpr double kCompareTimeMs = 0.01;
 constexpr double kBackupComputeTimeMs = 0.0;
@@ -149,11 +149,21 @@ bool is_event_info(const MessageInfo& info) { return info.type == kEventMessageT
 
 bool is_event_message(const Message& msg) { return is_event_info(MESSAGE_INFO_VEC[msg.get_id_message()]); }
 
+bool is_type1_periodic_message(const Message& msg) {
+  const auto& info = MESSAGE_INFO_VEC[msg.get_id_message()];
+  return !is_event_info(info) && info.type == 1;
+}
+
 int calc_priority_period_for_frame(const CanfdFrame& frame, const SchemeAnalysisConfig& config) {
   (void)config;
   for (const auto& msg : frame.msg_set) {
     if (is_event_message(msg)) {
       return kEventPriorityPeriodMs;
+    }
+  }
+  for (const auto& msg : frame.msg_set) {
+    if (is_type1_periodic_message(msg)) {
+      return kType1PriorityPeriodMs;
     }
   }
   return frame.get_period();
@@ -390,7 +400,6 @@ CanfdFrameMap build_fault_state_frame_map(const PackingScheme& scheme, const Sch
   CanfdFrameMap frame_map = scheme.frame_map;
   for (const auto& cluster : build_event_cluster_meta()) {
     append_event_frame(frame_map, cluster, kActEventCommId, EcuPair(cluster.dst_ecu, cluster.backup_src_ecu));
-    append_event_frame(frame_map, cluster, kIsoEventCommId, EcuPair(cluster.dst_ecu, cluster.primary_src_ecu));
     append_event_frame(frame_map, cluster, kHangEventCommId, EcuPair(cluster.dst_ecu, cluster.backup_src_ecu));
   }
 
@@ -1878,7 +1887,7 @@ void write_dataset_report(const std::string& output_path, const DatasetSummary& 
 
   ofs << "# algorithm2: 按需三模冗余 + 功能路内同源通信副本。\n";
   ofs << "# 正常模式带宽只统计 comm_id=0/1 的功能路；故障模式带宽统计全量功能路与事件触发控制报文。\n";
-  ofs << "# 事件报文集合 F_evt={f_act,f_iso,f_hang}，统一取 1 byte 负载，MIT 取对应功能簇原始信号周期。\n\n";
+  ofs << "# 事件报文集合 F_evt={f_act,f_hang}，统一取 1 byte 负载，MIT 取对应功能簇原始信号周期。\n\n";
 
   ofs << "[scheme_summary]\n";
   ofs << "scheme\tnormal_bandwidth_utilization\tfault_bandwidth_utilization\ttotal_added_signal_copies\tschedulable\n";

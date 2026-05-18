@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import csv
 import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -102,6 +104,25 @@ def parse_args() -> argparse.Namespace:
         help="Retry a selected-count run when on-demand normal bandwidth is higher than always-on TMR. "
         "Default: 3. Use 0 to disable.",
     )
+    parser.add_argument(
+        "--foundation-repeats",
+        type=int,
+        default=3,
+        help="Number of homo_only_foundation baseline runs per base dataset (default: 3).",
+    )
+    parser.add_argument(
+        "--foundation-parallel",
+        dest="foundation_parallel",
+        action="store_true",
+        help="Run repeated homo_only_foundation baseline analyses in parallel.",
+    )
+    parser.add_argument(
+        "--disable-foundation-parallel",
+        dest="foundation_parallel",
+        action="store_false",
+        help="Run repeated homo_only_foundation baseline analyses serially.",
+    )
+    parser.set_defaults(foundation_parallel=True)
     return parser.parse_args()
 
 
@@ -244,8 +265,77 @@ def run_algorithm2_batch(
     return Path(match.group(1).strip())
 
 
+def run_foundation_baseline_batches(
+    project_root: Path,
+    exe_path: Path,
+    dataset_spec: str,
+    dataset_files: list[Path],
+    repeats: int,
+    parallel: bool,
+    disable_route_source_perturbation: bool,
+) -> list[Path]:
+    repeats = max(1, repeats)
+
+    def run_once(index: int) -> Path:
+        if parallel and repeats > 1:
+            # C++ analysis tags are second-resolution; stagger starts to avoid collisions.
+            time.sleep(index)
+        return run_algorithm2_batch(
+            project_root,
+            exe_path,
+            dataset_spec,
+            len(dataset_files),
+            disable_route_source_perturbation,
+            skip_foundation=False,
+            dataset_files=dataset_files,
+        )
+
+    if repeats == 1 or not parallel:
+        return [run_once(index) for index in range(repeats)]
+
+    max_workers = min(repeats, 3)
+    analysis_dirs: list[Path] = [Path()] * repeats
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_index = {executor.submit(run_once, index): index for index in range(repeats)}
+        for future in concurrent.futures.as_completed(future_to_index):
+            index = future_to_index[future]
+            analysis_dirs[index] = future.result()
+    return analysis_dirs
+
+
 def safe_average(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
+
+
+def select_best_foundation_baseline(analysis_dirs: list[Path]) -> tuple[Path, float, float]:
+    best_analysis_dir: Path | None = None
+    best_bandwidth: float | None = None
+    best_e2e_ms = 0.0
+
+    for analysis_dir in analysis_dirs:
+        (
+            _baseline_on_demand_normal_bandwidth,
+            _baseline_on_demand_fault_bandwidth,
+            _baseline_always_on_bandwidth,
+            _baseline_on_demand_normal_e2e_ms,
+            _baseline_on_demand_fault_e2e_ms,
+            _baseline_always_on_e2e_ms,
+            _baseline_on_demand_route_max_wcrt_ms,
+            no_redundancy_bandwidth,
+            no_redundancy_e2e_ms,
+            _baseline_on_demand_valid_count,
+            _baseline_on_demand_failed_count,
+            _baseline_always_on_valid_count,
+            _baseline_always_on_failed_count,
+        ) = parse_algorithm2_point(analysis_dir)
+        if best_bandwidth is None or no_redundancy_bandwidth < best_bandwidth - 1e-12:
+            best_analysis_dir = analysis_dir
+            best_bandwidth = no_redundancy_bandwidth
+            best_e2e_ms = no_redundancy_e2e_ms
+
+    if best_analysis_dir is None or best_bandwidth is None:
+        raise RuntimeError("Failed to select repeated homo_only_foundation baseline")
+    return best_analysis_dir, best_bandwidth, best_e2e_ms
 
 
 def violates_bandwidth_order(on_demand_normal_bandwidth: float, always_on_bandwidth: float) -> bool:
@@ -634,31 +724,22 @@ def main() -> int:
     homogeneous_e2e_ms: float | None = None
 
     try:
-        baseline_analysis_dir = run_algorithm2_batch(
+        baseline_analysis_dirs = run_foundation_baseline_batches(
             project_root,
             exe_path,
             args.dataset_spec,
-            len(dataset_files),
+            dataset_files,
+            args.foundation_repeats,
+            args.foundation_parallel,
             args.disable_route_source_perturbation,
-            skip_foundation=False,
-            dataset_files=dataset_files,
         )
-        (
-            _baseline_on_demand_normal_bandwidth,
-            _baseline_on_demand_fault_bandwidth,
-            _baseline_always_on_bandwidth,
-            _baseline_on_demand_normal_e2e_ms,
-            _baseline_on_demand_fault_e2e_ms,
-            _baseline_always_on_e2e_ms,
-            _baseline_on_demand_route_max_wcrt_ms,
-            homogeneous_bandwidth,
-            homogeneous_e2e_ms,
-            _baseline_on_demand_valid_count,
-            _baseline_on_demand_failed_count,
-            _baseline_always_on_valid_count,
-            _baseline_always_on_failed_count,
-        ) = parse_algorithm2_point(baseline_analysis_dir)
-        print(f"[ED] baseline_no_node_redundancy, analysis={baseline_analysis_dir}")
+        baseline_analysis_dir, homogeneous_bandwidth, homogeneous_e2e_ms = select_best_foundation_baseline(
+            baseline_analysis_dirs
+        )
+        print(
+            f"[ED] baseline_no_node_redundancy, repeats={args.foundation_repeats}, "
+            f"analysis={baseline_analysis_dir}, bandwidth={homogeneous_bandwidth}, e2e_ms={homogeneous_e2e_ms}"
+        )
 
         for selected_count in selected_counts:
             per_file_realized_counts: list[int] = []
@@ -668,6 +749,9 @@ def main() -> int:
 
             retry_limit = max(0, args.bandwidth_order_retry_limit)
             attempt = 0
+            attempt_results: list[
+                tuple[float, float, float, float, float, float, float, float, float, int, int, int, int, Path]
+            ] = []
             while True:
                 analysis_dir = run_algorithm2_batch(
                     project_root,
@@ -693,6 +777,24 @@ def main() -> int:
                     always_on_valid_count,
                     always_on_failed_count,
                 ) = parse_algorithm2_point(analysis_dir)
+                attempt_results.append(
+                    (
+                        avg_on_demand_normal_bandwidth,
+                        avg_on_demand_fault_bandwidth,
+                        avg_always_on_bandwidth,
+                        avg_on_demand_normal_e2e_ms,
+                        avg_on_demand_fault_e2e_ms,
+                        avg_always_on_e2e_ms,
+                        avg_on_demand_route_max_wcrt_ms,
+                        _no_redundancy_bandwidth,
+                        _no_redundancy_e2e_ms,
+                        on_demand_valid_count,
+                        on_demand_failed_count,
+                        always_on_valid_count,
+                        always_on_failed_count,
+                        analysis_dir,
+                    )
+                )
 
                 if not violates_bandwidth_order(avg_on_demand_normal_bandwidth, avg_always_on_bandwidth):
                     break
@@ -709,6 +811,29 @@ def main() -> int:
                     f"selected={selected_count}, attempt={attempt}/{retry_limit}, "
                     f"normal={avg_on_demand_normal_bandwidth}, always_on={avg_always_on_bandwidth}, "
                     f"analysis={analysis_dir}"
+                )
+
+            (
+                avg_on_demand_normal_bandwidth,
+                avg_on_demand_fault_bandwidth,
+                avg_always_on_bandwidth,
+                avg_on_demand_normal_e2e_ms,
+                avg_on_demand_fault_e2e_ms,
+                avg_always_on_e2e_ms,
+                avg_on_demand_route_max_wcrt_ms,
+                _no_redundancy_bandwidth,
+                _no_redundancy_e2e_ms,
+                on_demand_valid_count,
+                on_demand_failed_count,
+                always_on_valid_count,
+                always_on_failed_count,
+                analysis_dir,
+            ) = min(attempt_results, key=lambda item: (item[0], item[1], item[2]))
+            if len(attempt_results) > 1:
+                print(
+                    "[ED] selected-count run chose minimum normal-bandwidth attempt: "
+                    f"selected={selected_count}, normal={avg_on_demand_normal_bandwidth}, "
+                    f"always_on={avg_always_on_bandwidth}, analysis={analysis_dir}"
                 )
 
             no_redundancy_bandwidth = homogeneous_bandwidth or 0.0
