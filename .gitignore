@@ -370,3 +370,5 @@ build/
 
 build_codex_vs/
 build_codex_nmake/
+
+storage/analysis/
