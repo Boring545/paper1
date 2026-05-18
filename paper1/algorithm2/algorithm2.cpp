@@ -86,6 +86,7 @@ struct SchemeAnalysisConfig {
   bool include_backup_routes_in_fault_mode = true;
   bool include_event_frames_in_fault_mode = false;
   bool enable_route_source_perturbation = false;
+  bool enable_route_backup_acceptance_check = false;
   enum class ClusterWcrtMode { None, OnDemand, AlwaysOnTmr };
   ClusterWcrtMode cluster_wcrt_mode = ClusterWcrtMode::None;
 };
@@ -111,8 +112,8 @@ constexpr int kActEventCommId = 1001;
 constexpr int kHangEventCommId = 1003;
 constexpr int kEventMessageType = -1;
 constexpr int kEventPayloadBytes = 1;
-constexpr int kEventPriorityPeriodMs = 4;
-constexpr int kType1PriorityPeriodMs = 4;
+constexpr int kActEventPriorityPeriodMs = 2;
+constexpr int kHangEventPriorityPeriodMs = 20;
 constexpr int kMaxRouteBackupIterations = 50;
 constexpr double kCompareTimeMs = 0.01;
 constexpr double kBackupComputeTimeMs = 0.0;
@@ -149,21 +150,14 @@ bool is_event_info(const MessageInfo& info) { return info.type == kEventMessageT
 
 bool is_event_message(const Message& msg) { return is_event_info(MESSAGE_INFO_VEC[msg.get_id_message()]); }
 
-bool is_type1_periodic_message(const Message& msg) {
-  const auto& info = MESSAGE_INFO_VEC[msg.get_id_message()];
-  return !is_event_info(info) && info.type == 1;
-}
-
 int calc_priority_period_for_frame(const CanfdFrame& frame, const SchemeAnalysisConfig& config) {
   (void)config;
   for (const auto& msg : frame.msg_set) {
     if (is_event_message(msg)) {
-      return kEventPriorityPeriodMs;
-    }
-  }
-  for (const auto& msg : frame.msg_set) {
-    if (is_type1_periodic_message(msg)) {
-      return kType1PriorityPeriodMs;
+      if (msg.get_comm_id() == kActEventCommId) {
+        return kActEventPriorityPeriodMs;
+      }
+      return kHangEventPriorityPeriodMs;
     }
   }
   return frame.get_period();
@@ -1373,6 +1367,11 @@ bool try_apply_all_route_backup_candidates(const PackingScheme& base_scheme, con
   }
 
   cfd::packing::frame_pack(trial, cfd::DEFAULT_PACK_METHOD);
+  if (!config.enable_route_backup_acceptance_check) {
+    out_scheme = std::move(trial);
+    return true;
+  }
+
   const bool acceptable = acceptance_mode == RouteBackupAcceptanceMode::PackOnly
                               ? is_route_backup_pack_acceptable(trial, config, &rejection_reason)
                               : is_scheme_acceptable(trial, config, &rejection_reason);
@@ -1974,8 +1973,8 @@ DatasetSummary run_compare_experiment(const std::string& dataset_file, const std
   const MessageInfoVec original_infos = MESSAGE_INFO_VEC;
   const MessageInfoVec functional_infos = generate_functional_routes(original_infos);
   const SchemeAnalysisConfig on_demand_config{"on_demand_tmr", false, true, true, g_route_source_perturbation_enabled,
-                                              SchemeAnalysisConfig::ClusterWcrtMode::OnDemand};
-  const SchemeAnalysisConfig always_on_config{"always_on_tmr", true, true, false, false,
+                                              false, SchemeAnalysisConfig::ClusterWcrtMode::OnDemand};
+  const SchemeAnalysisConfig always_on_config{"always_on_tmr", true, true, false, false, false,
                                               SchemeAnalysisConfig::ClusterWcrtMode::AlwaysOnTmr};
 
   DatasetSummary summary;
@@ -2002,8 +2001,8 @@ QuickCompareResult quick_compare_signal_set(const MessageInfoVec& signal_infos) 
 
   const MessageInfoVec functional_infos = generate_functional_routes(signal_infos);
   const SchemeAnalysisConfig on_demand_config{"on_demand_tmr", false, true, true, g_route_source_perturbation_enabled,
-                                              SchemeAnalysisConfig::ClusterWcrtMode::OnDemand};
-  const SchemeAnalysisConfig always_on_config{"always_on_tmr", true, true, false, false,
+                                              false, SchemeAnalysisConfig::ClusterWcrtMode::OnDemand};
+  const SchemeAnalysisConfig always_on_config{"always_on_tmr", true, true, false, false, false,
                                               SchemeAnalysisConfig::ClusterWcrtMode::AlwaysOnTmr};
 
   result.homo_only_foundation = build_foundation_quick_metrics(signal_infos);
