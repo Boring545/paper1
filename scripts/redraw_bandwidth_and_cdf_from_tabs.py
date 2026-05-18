@@ -275,38 +275,9 @@ def redraw_bandwidth_variants(bandwidth_tab: Path, output_dir: Path) -> list[Pat
     grouped = load_bandwidth_grouped(bandwidth_tab)
     generated: list[Path] = []
 
-    output = output_dir / "bandwidth_two_panel_color.png"
-    draw_bandwidth_two_panel(grouped, output, "color")
-    generated.append(output)
-
     output = output_dir / "bandwidth_two_panel_marker.png"
     draw_bandwidth_two_panel(grouped, output, "marker")
     generated.append(output)
-
-    output = output_dir / "bandwidth_two_panel_color_marker.png"
-    draw_bandwidth_two_panel(grouped, output, "color_marker")
-    generated.append(output)
-
-    for ecu_count in (5, 8):
-        output = output_dir / f"bandwidth_{ecu_count}ecu_default.png"
-        draw_single_ecu_bandwidth(grouped, ecu_count, output, "default")
-        generated.append(output)
-
-        output = output_dir / f"bandwidth_{ecu_count}ecu_same_color_diff_style.png"
-        draw_single_ecu_bandwidth(grouped, ecu_count, output, "same_color_diff_style")
-        generated.append(output)
-
-        output = output_dir / f"bandwidth_{ecu_count}ecu_color_and_style.png"
-        draw_single_ecu_bandwidth(grouped, ecu_count, output, "color_and_style")
-        generated.append(output)
-
-    combined_output = output_dir / "bandwidth_combined_ecu_color_method_style.png"
-    draw_combined_bandwidth(grouped, combined_output)
-    generated.append(combined_output)
-
-    combined_all_color_output = output_dir / "bandwidth_combined_all_diff_colors_same_style.png"
-    draw_combined_bandwidth_all_diff_colors(grouped, combined_all_color_output)
-    generated.append(combined_all_color_output)
 
     return generated
 

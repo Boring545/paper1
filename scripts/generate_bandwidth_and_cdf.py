@@ -31,8 +31,9 @@ def main() -> None:
         raise FileNotFoundError(f"Missing compare_summary_tab.txt: {compare_summary}")
 
     print(f"Analysis dir: {analysis_dir}")
-    run_python_script(scripts_dir / "plot_compare_summary.py", str(compare_summary), "--only", "bandwidth-line")
+    run_python_script(scripts_dir / "plot_compare_summary.py", str(compare_summary), "--only", "bandwidth-table")
     run_python_script(scripts_dir / "plot_signal_wcrt_cdf.py", str(analysis_dir))
+    run_python_script(scripts_dir / "redraw_bandwidth_and_cdf_from_tabs.py", str(analysis_dir))
 
 
 if __name__ == "__main__":

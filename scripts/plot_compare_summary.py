@@ -68,7 +68,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--only",
-        choices=["all", "bandwidth", "bandwidth-line", "bandwidth-bar"],
+        choices=["all", "bandwidth", "bandwidth-line", "bandwidth-bar", "bandwidth-table"],
         default="all",
         help="Restrict generated outputs to a subset.",
     )

@@ -213,15 +213,6 @@ def plot_for_ecu_by_period(
         period = subplot_periods[idx]
         signal_map = period_map[period]
 
-        # 画图前修正规则：若报文备份 WCRT 更小，则交换两者用于绘图展示
-        for signal_count, scheme_map in signal_map.items():
-            if "foundation" in scheme_map and "baseline1" in scheme_map:
-                if scheme_map["baseline1"] < scheme_map["foundation"]:
-                    scheme_map["foundation"], scheme_map["baseline1"] = (
-                        scheme_map["baseline1"],
-                        scheme_map["foundation"],
-                    )
-
         signal_counts = sorted(signal_map.keys())
         x_positions = list(range(len(signal_counts)))
 
