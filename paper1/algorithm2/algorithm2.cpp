@@ -1179,7 +1179,7 @@ PackingScheme integrated_algorithm2_sa(PackingScheme scheme, const SchemeAnalysi
     return scheme;
   }
 
-  constexpr int SA_POPULATION_SIZE = 4;
+  constexpr int SA_POPULATION_SIZE = 6;
   constexpr int SA_MIGRATION_INTERVAL = 8;
   constexpr bool SA_PARALLEL_ENABLED = true;
 

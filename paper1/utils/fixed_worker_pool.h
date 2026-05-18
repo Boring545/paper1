@@ -116,7 +116,7 @@ class FixedWorkerPool {
   std::exception_ptr first_exception_ = nullptr;
 };
 
-inline size_t recommended_worker_count(size_t task_count, size_t max_worker_count = 4) {
+inline size_t recommended_worker_count(size_t task_count, size_t max_worker_count = 6) {
   const size_t hardware_workers = std::max<size_t>(1, std::thread::hardware_concurrency());
   return std::max<size_t>(1, std::min({task_count, max_worker_count, hardware_workers}));
 }

@@ -300,7 +300,7 @@ double simulated_annealing(PackingScheme& scheme) {
   constexpr double ALPHA = 0.99;
   constexpr int NUM_MIN_MOVE = 2;
   constexpr double FACTOR_COST_SCALE = 100.0;
-  constexpr int SA_POPULATION_SIZE = 4;
+  constexpr int SA_POPULATION_SIZE = 6;
   constexpr int SA_MIGRATION_INTERVAL = 8;
   constexpr bool SA_PARALLEL_ENABLED = true;
 

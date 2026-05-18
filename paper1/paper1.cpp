@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <limits>
+#include <random>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -158,7 +160,11 @@ const std::array<const char*, 3> kFocusedBatchSchemeNames = {{"foundation", "bas
 const std::array<const char*, 4> kWcrtSchemeNames = {
     {"foundation_no_offset", "baseline1_no_offset", "foundation", "baseline1"}};
 constexpr size_t kEdAsildCandidateCount = 10;
-constexpr int kEdAsildMinPeriodMs = 2;
+constexpr int kEdAsildMinPeriodMs = 10;
+constexpr int kEdAsildMaxCandidateDataSizeBits = 64;
+constexpr double kEdAsildMaxCandidateLoad = 8.0;
+constexpr size_t kEdAsildCandidateSelectionAttempts = 4000;
+constexpr size_t kEdAsildDatasetGenerationAttempts = 200;
 
 const ExperimentDatasetSpec* find_dataset_spec(std::string_view name) {
   for (const auto& spec : kScalingDatasetSpecs) {
@@ -348,26 +354,80 @@ int remaining_ed_signal_level_for_rank(size_t rank, size_t total) {
   return 2;
 }
 
-void apply_ed_asild_candidate_distribution(MessageInfoVec& infos, size_t candidate_count = kEdAsildCandidateCount) {
+double calc_ed_asild_candidate_load(const MessageInfoVec& infos, const std::vector<size_t>& indices) {
+  double load = 0.0;
+  for (const size_t index : indices) {
+    const auto& info = infos.at(index);
+    if (info.period > 0) {
+      load += static_cast<double>(info.data_size) / static_cast<double>(info.period);
+    }
+  }
+  return load;
+}
+
+std::vector<size_t> select_ed_asild_candidate_indices(const MessageInfoVec& infos, size_t candidate_count,
+                                                      std::mt19937& gen) {
   std::vector<size_t> eligible_indices;
   eligible_indices.reserve(infos.size());
   for (size_t index = 0; index < infos.size(); ++index) {
     const auto& info = infos[index];
-    if (info.comm_id == 0 && info.period >= kEdAsildMinPeriodMs) {
+    if (info.comm_id == 0 && info.period >= kEdAsildMinPeriodMs &&
+        info.data_size <= kEdAsildMaxCandidateDataSizeBits) {
       eligible_indices.push_back(index);
     }
   }
   if (eligible_indices.size() < candidate_count) {
     throw std::runtime_error("ED dataset needs " + std::to_string(candidate_count) +
                              " ASIL D candidates with period >= " + std::to_string(kEdAsildMinPeriodMs) +
-                             "ms, but only found " + std::to_string(eligible_indices.size()));
+                             "ms and data_size <= " + std::to_string(kEdAsildMaxCandidateDataSizeBits) +
+                             "bit, but only found " + std::to_string(eligible_indices.size()));
   }
 
+  auto load_of_index = [&infos](size_t index) {
+    const auto& info = infos[index];
+    return info.period > 0 ? static_cast<double>(info.data_size) / static_cast<double>(info.period)
+                           : std::numeric_limits<double>::infinity();
+  };
+
+  std::vector<size_t> greedy_indices = eligible_indices;
+  std::sort(greedy_indices.begin(), greedy_indices.end(), [&](size_t lhs, size_t rhs) {
+    const double lhs_load = load_of_index(lhs);
+    const double rhs_load = load_of_index(rhs);
+    if (std::abs(lhs_load - rhs_load) > 1e-12) return lhs_load < rhs_load;
+    return infos[lhs].code < infos[rhs].code;
+  });
+  greedy_indices.resize(candidate_count);
+  const double min_possible_load = calc_ed_asild_candidate_load(infos, greedy_indices);
+  if (min_possible_load > kEdAsildMaxCandidateLoad) {
+    throw std::runtime_error("ED dataset minimum ASIL D candidate load is " + std::to_string(min_possible_load) +
+                             ", above limit " + std::to_string(kEdAsildMaxCandidateLoad));
+  }
+
+  std::vector<size_t> best_indices = greedy_indices;
+  double best_load = min_possible_load;
+  std::vector<size_t> shuffled = eligible_indices;
+  for (size_t attempt = 0; attempt < kEdAsildCandidateSelectionAttempts; ++attempt) {
+    std::shuffle(shuffled.begin(), shuffled.end(), gen);
+    std::vector<size_t> candidate(shuffled.begin(), shuffled.begin() + static_cast<std::ptrdiff_t>(candidate_count));
+    const double load = calc_ed_asild_candidate_load(infos, candidate);
+    if (load <= kEdAsildMaxCandidateLoad) {
+      std::sort(candidate.begin(), candidate.end());
+      return candidate;
+    }
+    if (load < best_load) {
+      best_load = load;
+      best_indices = std::move(candidate);
+    }
+  }
+
+  std::sort(best_indices.begin(), best_indices.end());
+  return best_indices;
+}
+
+void apply_ed_asild_candidate_distribution(MessageInfoVec& infos, size_t candidate_count = kEdAsildCandidateCount) {
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::shuffle(eligible_indices.begin(), eligible_indices.end(), gen);
-  eligible_indices.resize(candidate_count);
-  std::sort(eligible_indices.begin(), eligible_indices.end());
+  const std::vector<size_t> eligible_indices = select_ed_asild_candidate_indices(infos, candidate_count, gen);
 
   std::set<size_t> candidate_indices(eligible_indices.begin(), eligible_indices.end());
   std::vector<size_t> remaining_primary_indices;
@@ -394,6 +454,21 @@ void apply_ed_asild_candidate_distribution(MessageInfoVec& infos, size_t candida
   }
 }
 
+void generate_ed_asild_message_infos(MessageInfoVec& infos, size_t signal_count, size_t ecu_count) {
+  std::string last_error;
+  for (size_t attempt = 1; attempt <= kEdAsildDatasetGenerationAttempts; ++attempt) {
+    cfd::utils::generate_msg_info_set(infos, signal_count, ecu_count);
+    try {
+      apply_ed_asild_candidate_distribution(infos);
+      return;
+    } catch (const std::exception& ex) {
+      last_error = ex.what();
+    }
+  }
+  throw std::runtime_error("Failed to generate ED ASIL D candidate dataset after " +
+                           std::to_string(kEdAsildDatasetGenerationAttempts) + " attempts: " + last_error);
+}
+
 std::vector<std::string> create_ed_asild_dataset_batches(size_t batch_count_per_spec,
                                                          const std::vector<std::string>& selected_spec_names) {
   const auto specs = resolve_selected_specs(selected_spec_names);
@@ -407,12 +482,36 @@ std::vector<std::string> create_ed_asild_dataset_batches(size_t batch_count_per_
 
     DEBUG_MSG_DEBUG1(std::cout, "开始生成ED专用ASIL D候选数据集: ", spec->name, ", count=", batch_count_per_spec);
     for (size_t batch_index = 1; batch_index <= batch_count_per_spec; ++batch_index) {
-      cfd::utils::generate_msg_info_set(cfd::MESSAGE_INFO_VEC, spec->signal_count, spec->ecu_count);
-      apply_ed_asild_candidate_distribution(cfd::MESSAGE_INFO_VEC);
+      generate_ed_asild_message_infos(cfd::MESSAGE_INFO_VEC, spec->signal_count, spec->ecu_count);
       const std::string output_path = normalize_dataset_output_path(batched_dataset_filename(*spec, batch_index));
       cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
       dataset_paths.push_back(output_path);
     }
+  }
+
+  return dataset_paths;
+}
+
+std::vector<std::string> create_ed_asild_dataset_batch_index(size_t batch_index,
+                                                            const std::vector<std::string>& selected_spec_names) {
+  if (batch_index == 0) {
+    throw std::invalid_argument("ED ASIL D dataset batch index must be positive");
+  }
+
+  const auto specs = resolve_selected_specs(selected_spec_names);
+  std::vector<std::string> dataset_paths;
+  dataset_paths.reserve(specs.size());
+
+  for (const auto* spec : specs) {
+    if (spec->ecu_count > cfd::NUM_ECU) {
+      throw std::invalid_argument("Current config does not provide enough ECU ids for " + spec->name);
+    }
+
+    DEBUG_MSG_DEBUG1(std::cout, "开始生成单个ED专用ASIL D候选数据集: ", spec->name, ", index=", batch_index);
+    generate_ed_asild_message_infos(cfd::MESSAGE_INFO_VEC, spec->signal_count, spec->ecu_count);
+    const std::string output_path = normalize_dataset_output_path(batched_dataset_filename(*spec, batch_index));
+    cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
+    dataset_paths.push_back(output_path);
   }
 
   return dataset_paths;
@@ -1464,12 +1563,14 @@ int main(int argc, char* argv[]) {
   bool regenerate_datasets = false;
   bool generate_dataset_batches = false;
   bool generate_ed_asild_dataset_batches = false;
+  bool generate_ed_asild_dataset_batch_index = false;
   bool run_dataset_batches = false;
   bool run_algorithm2 = false;
   bool generate_figures_after_analysis = true;
   bool algorithm2_route_source_perturbation_enabled = true;
   bool algorithm2_skip_foundation = false;
   size_t dataset_batch_count = 100;
+  size_t ed_asild_dataset_index = 0;
   size_t max_batches_per_spec = 0;
   std::vector<std::string> selected_spec_names;
   std::vector<std::string> explicit_dataset_files;
@@ -1496,6 +1597,12 @@ int main(int argc, char* argv[]) {
           ++argi;
         }
       }
+    } else if (arg == "--generate-ed-asild-dataset-index") {
+      generate_ed_asild_dataset_batch_index = true;
+      if (argi + 1 >= argc) {
+        throw std::invalid_argument("--generate-ed-asild-dataset-index requires a positive integer");
+      }
+      ed_asild_dataset_index = static_cast<size_t>(std::stoul(argv[++argi]));
     } else if (arg == "--run-dataset-batches") {
       run_dataset_batches = true;
     } else if (arg == "--algorithm2") {
@@ -1528,6 +1635,13 @@ int main(int argc, char* argv[]) {
     const std::vector<std::string> dataset_paths =
         create_ed_asild_dataset_batches(dataset_batch_count, selected_spec_names);
     DEBUG_MSG_DEBUG1(std::cout, "ED专用ASIL D候选数据集已生成, total=", dataset_paths.size());
+    return 0;
+  }
+
+  if (generate_ed_asild_dataset_batch_index) {
+    const std::vector<std::string> dataset_paths =
+        create_ed_asild_dataset_batch_index(ed_asild_dataset_index, selected_spec_names);
+    DEBUG_MSG_DEBUG1(std::cout, "单个ED专用ASIL D候选数据集已生成, total=", dataset_paths.size());
     return 0;
   }
 
