@@ -136,7 +136,7 @@ char level_to_asil(int level) {
   }
 }
 
-const std::array<size_t, 3> kScalingEcuCounts = {{5, 8, 12}};
+const std::array<size_t, 2> kScalingEcuCounts = {{5, 8}};
 const std::array<size_t, 6> kScalingSignalCounts = {{50, 80, 120, 150, 200, 250}};
 const std::array<size_t, 1> kSelectedRunSignalCounts = {{250}};
 
@@ -154,6 +154,8 @@ const std::vector<ExperimentDatasetSpec> kScalingDatasetSpecs = [] {
 const std::array<const char*, 3> kFocusedBatchSchemeNames = {{"foundation", "baseline1", "baseline2"}};
 const std::array<const char*, 4> kWcrtSchemeNames = {
     {"foundation_no_offset", "baseline1_no_offset", "foundation", "baseline1"}};
+
+std::vector<const ExperimentDatasetSpec*> resolve_selected_specs(const std::vector<std::string>& selected_spec_names);
 
 const ExperimentDatasetSpec* find_dataset_spec(std::string_view name) {
   for (const auto& spec : kScalingDatasetSpecs) {
@@ -175,6 +177,18 @@ std::vector<std::string> split_csv_arg(const std::string& csv) {
     }
   }
   return items;
+}
+
+std::vector<size_t> split_csv_size_t_arg(const std::string& csv) {
+  std::vector<size_t> values;
+  for (const auto& item : split_csv_arg(csv)) {
+    const size_t value = static_cast<size_t>(std::stoul(item));
+    if (value == 0) {
+      throw std::invalid_argument("Dataset batch indices are 1-based and must be positive");
+    }
+    values.push_back(value);
+  }
+  return values;
 }
 
 std::string dataset_config_tag_from_dataset_tag(const std::string& dataset_tag) {
@@ -272,6 +286,14 @@ std::string create_msg(const std::string& dataset_file = "", size_t message_coun
   return output_path;
 }
 
+void generate_msg_info_set_for_spec(MessageInfoVec& infos, const ExperimentDatasetSpec& spec) {
+  if (spec.name == "E12S250") {
+    cfd::utils::generate_msg_info_set(infos, spec.signal_count, spec.ecu_count, std::vector<int>{1, 2, 5, 20});
+    return;
+  }
+  cfd::utils::generate_msg_info_set(infos, spec.signal_count, spec.ecu_count);
+}
+
 std::vector<std::string> create_scaling_experiment_datasets() {
   std::vector<std::string> dataset_paths;
   dataset_paths.reserve(kScalingDatasetSpecs.size());
@@ -308,21 +330,28 @@ std::vector<std::string> create_scaling_experiment_datasets() {
   return dataset_paths;
 }
 
-std::vector<std::string> create_random_dataset_batches(size_t batch_count_per_spec) {
+std::vector<std::string> create_random_dataset_batches(size_t batch_count_per_spec,
+                                                       const std::vector<std::string>& selected_spec_names = {},
+                                                       const std::vector<size_t>& selected_batch_indices = {}) {
+  const auto specs = resolve_selected_specs(selected_spec_names);
   std::vector<std::string> dataset_paths;
-  dataset_paths.reserve(kScalingDatasetSpecs.size() * batch_count_per_spec);
+  const size_t batch_count = selected_batch_indices.empty() ? batch_count_per_spec : selected_batch_indices.size();
+  dataset_paths.reserve(specs.size() * batch_count);
 
-  for (const auto& spec : kScalingDatasetSpecs) {
+  for (const auto* spec_ptr : specs) {
+    const auto& spec = *spec_ptr;
     if (spec.ecu_count > cfd::NUM_ECU) {
       throw std::invalid_argument("Current config does not provide enough ECU ids for " + spec.name);
     }
 
-    DEBUG_MSG_DEBUG1(std::cout, "开始批量生成配置: ", spec.name, ", count=", batch_count_per_spec);
-    for (size_t batch_index = 1; batch_index <= batch_count_per_spec; ++batch_index) {
-      cfd::utils::generate_msg_info_set(cfd::MESSAGE_INFO_VEC, spec.signal_count, spec.ecu_count);
+    DEBUG_MSG_DEBUG1(std::cout, "开始批量生成配置: ", spec.name, ", count=", batch_count);
+    for (size_t ordinal = 0; ordinal < batch_count; ++ordinal) {
+      const size_t batch_index = selected_batch_indices.empty() ? (ordinal + 1) : selected_batch_indices[ordinal];
+      generate_msg_info_set_for_spec(cfd::MESSAGE_INFO_VEC, spec);
       const std::string output_path = normalize_dataset_output_path(batched_dataset_filename(spec, batch_index));
       cfd::utils::write_message(cfd::MESSAGE_INFO_VEC, output_path, false);
       dataset_paths.push_back(output_path);
+      DEBUG_MSG_DEBUG1(std::cout, "已生成批量数据集: ", output_path);
     }
   }
 
@@ -351,7 +380,8 @@ std::vector<const ExperimentDatasetSpec*> resolve_selected_specs(const std::vect
 }
 
 std::vector<std::string> resolve_dataset_batch_files(const std::vector<std::string>& selected_spec_names,
-                                                     size_t max_batches_per_spec = 0) {
+                                                     size_t max_batches_per_spec = 0,
+                                                     const std::vector<size_t>& selected_batch_indices = {}) {
   const auto specs = resolve_selected_specs(selected_spec_names);
   std::vector<std::string> dataset_files;
 
@@ -362,22 +392,33 @@ std::vector<std::string> resolve_dataset_batch_files(const std::vector<std::stri
     }
 
     std::vector<fs::path> paths;
-    for (const auto& entry : fs::directory_iterator(dir)) {
-      if (!entry.is_regular_file()) {
-        continue;
+    if (!selected_batch_indices.empty()) {
+      paths.reserve(selected_batch_indices.size());
+      for (const size_t batch_index : selected_batch_indices) {
+        fs::path path = cfd::storage::storage_root() / batched_dataset_filename(*spec, batch_index);
+        if (!fs::exists(path) || !fs::is_regular_file(path)) {
+          throw std::runtime_error("Missing selected dataset batch file: " + cfd::storage::path_string(path));
+        }
+        paths.push_back(path);
       }
-      if (entry.path().extension() != ".txt") {
-        continue;
+    } else {
+      for (const auto& entry : fs::directory_iterator(dir)) {
+        if (!entry.is_regular_file()) {
+          continue;
+        }
+        if (entry.path().extension() != ".txt") {
+          continue;
+        }
+        paths.push_back(entry.path());
       }
-      paths.push_back(entry.path());
-    }
 
-    std::sort(paths.begin(), paths.end());
+      std::sort(paths.begin(), paths.end());
+    }
     if (paths.empty()) {
       throw std::runtime_error("No dataset batch files found in: " + cfd::storage::path_string(dir));
     }
 
-    if (max_batches_per_spec > 0 && paths.size() > max_batches_per_spec) {
+    if (selected_batch_indices.empty() && max_batches_per_spec > 0 && paths.size() > max_batches_per_spec) {
       paths.resize(max_batches_per_spec);
     }
 
@@ -1379,6 +1420,7 @@ int main(int argc, char* argv[]) {
   size_t dataset_batch_count = 100;
   size_t max_batches_per_spec = 0;
   std::vector<std::string> selected_spec_names;
+  std::vector<size_t> selected_batch_indices;
 
   for (int argi = 1; argi < argc; ++argi) {
     const std::string arg = argv[argi];
@@ -1405,20 +1447,26 @@ int main(int argc, char* argv[]) {
         throw std::invalid_argument("--dataset-specs requires a comma-separated value");
       }
       selected_spec_names = split_csv_arg(argv[++argi]);
+    } else if (arg == "--batch-indices") {
+      if (argi + 1 >= argc) {
+        throw std::invalid_argument("--batch-indices requires a comma-separated value, e.g. 2,6,7,8");
+      }
+      selected_batch_indices = split_csv_size_t_arg(argv[++argi]);
     } else if (arg == "--skip-figures") {
       generate_figures_after_analysis = false;
     }
   }
 
   if (generate_dataset_batches) {
-    const std::vector<std::string> dataset_paths = create_random_dataset_batches(dataset_batch_count);
+    const std::vector<std::string> dataset_paths =
+        create_random_dataset_batches(dataset_batch_count, selected_spec_names, selected_batch_indices);
     DEBUG_MSG_DEBUG1(std::cout, "批量随机数据集已生成, total=", dataset_paths.size());
     return 0;
   }
 
   std::vector<std::string> dataset_files;
   if (run_dataset_batches) {
-    dataset_files = resolve_dataset_batch_files(selected_spec_names, max_batches_per_spec);
+    dataset_files = resolve_dataset_batch_files(selected_spec_names, max_batches_per_spec, selected_batch_indices);
     DEBUG_MSG_DEBUG1(std::cout, "批量实验数据集数量: ", dataset_files.size());
   } else {
     // 默认模式复用 storage/datasets 下当前配置的数据集；

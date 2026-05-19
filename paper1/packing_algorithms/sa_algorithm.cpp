@@ -1,6 +1,8 @@
-#include <algorithm>
+﻿#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
+#include <memory>
 #include <random>
 #include <unordered_map>
 #include <vector>
@@ -8,6 +10,7 @@
 #include "../debug_tool.h"
 #include "../priority_allocation.h"
 #include "../scheme.h"
+#include "../utils/fixed_worker_pool.h"
 
 namespace cfd::packing::heuristics {
 
@@ -199,7 +202,7 @@ inline bool try_move_message(PackingScheme& sol, FrameIndexMap& fmap,
  *    f) 温度衰减
  * 5. 返回最优解，返回带宽利用率
  */
-double simulated_annealing(PackingScheme& scheme) {
+double simulated_annealing_single_chain(PackingScheme& scheme) {
   //----- 构建 valid_period_map
   std::map<int, std::vector<int>> valid_period_map = build_valid_period_map();
 
@@ -286,6 +289,149 @@ double simulated_annealing(PackingScheme& scheme) {
   double utilization = scheme.calc_bandwidth_utilization();
   DEBUG_MSG_DEBUG1(std::cout, "Utilization = ", utilization);
   DEBUG_MSG_DEBUG1(std::cout, "simulated_annealing 优化 打包方案 完毕");
+  return utilization;
+}
+
+double simulated_annealing(PackingScheme& scheme) {
+  std::map<int, std::vector<int>> valid_period_map = build_valid_period_map();
+
+  constexpr double INITIAL_TEMPERATURE = 10;
+  constexpr double FINAL_TEMPERATURE = 0.01;
+  constexpr double ALPHA = 0.99;
+  constexpr int NUM_MIN_MOVE = 2;
+  constexpr double FACTOR_COST_SCALE = 100.0;
+  constexpr int SA_POPULATION_SIZE = 6;
+  constexpr int SA_MIGRATION_INTERVAL = 8;
+  constexpr bool SA_PARALLEL_ENABLED = true;
+
+  const int message_count = static_cast<int>(scheme.message_set.size());
+  if (message_count <= 0) {
+    return scheme.calc_bandwidth_utilization();
+  }
+
+  struct SaIndividual {
+    PackingScheme current_solution;
+    PackingScheme best_solution;
+    double current_cost = std::numeric_limits<double>::infinity();
+    double best_cost = std::numeric_limits<double>::infinity();
+    std::mt19937 gen;
+    std::uniform_real_distribution<> dist{0.0, 1.0};
+  };
+
+  std::random_device rd;
+  const int population_size = std::max(1, SA_POPULATION_SIZE);
+  std::vector<SaIndividual> population;
+  population.reserve(population_size);
+  for (int i = 0; i < population_size; ++i) {
+    SaIndividual individual{scheme, scheme};
+    individual.current_cost = calculate_fitness_a(individual.current_solution);
+    individual.best_cost = individual.current_cost;
+    individual.gen.seed(rd() ^ (static_cast<unsigned int>(i) * 0x9e3779b9U));
+    population.push_back(std::move(individual));
+  }
+
+  PackingScheme global_best_solution = scheme;
+  double global_best_cost = calculate_fitness_a(global_best_solution);
+  auto refresh_global_best = [&]() {
+    for (const auto& individual : population) {
+      if (individual.best_cost < global_best_cost) {
+        global_best_solution = individual.best_solution;
+        global_best_cost = individual.best_cost;
+      }
+    }
+  };
+
+  double current_temperature = INITIAL_TEMPERATURE;
+  int temperature_layer = 0;
+  const int neighborhood_trials_per_temperature = std::clamp(message_count / 24, 6, 18);
+  std::unique_ptr<cfd::utils::FixedWorkerPool> worker_pool;
+  if (SA_PARALLEL_ENABLED && population_size > 1) {
+    worker_pool =
+        std::make_unique<cfd::utils::FixedWorkerPool>(cfd::utils::recommended_worker_count(population_size));
+  }
+
+  while (current_temperature > FINAL_TEMPERATURE) {
+    const double temperature_ratio = current_temperature / INITIAL_TEMPERATURE;
+    const int max_select_num = std::max(NUM_MIN_MOVE, message_count / 10);
+    const int select_num = std::max(NUM_MIN_MOVE, static_cast<int>(std::ceil(max_select_num * temperature_ratio)));
+    const int local_trial_count =
+        std::max(1, static_cast<int>(std::ceil(neighborhood_trials_per_temperature * (0.5 + 0.5 * temperature_ratio))));
+    const int individual_trial_count =
+        std::max(1, static_cast<int>(std::ceil(static_cast<double>(local_trial_count) / population_size)));
+
+    auto update_individual = [&](SaIndividual individual) {
+      std::uniform_int_distribution<> msg_dist(0, message_count - 1);
+      for (int trial = 0; trial < individual_trial_count; ++trial) {
+        PackingScheme new_solution = individual.current_solution;
+        FrameIndexMap frame_index_map = build_frame_index_map(new_solution, valid_period_map);
+
+        for (int i = 0; i < select_num; i++) {
+          int mid = msg_dist(individual.gen);
+          auto& msg = new_solution.message_set[mid];
+          try_move_message(new_solution, frame_index_map, valid_period_map, msg, individual.gen, individual.dist);
+        }
+        schedule::assign_priority(new_solution.frame_map);
+        cleanup_empty_frames(new_solution);
+
+        const double new_cost = calculate_fitness_a(new_solution);
+        if (new_cost <= individual.current_cost) {
+          if (new_cost <= individual.best_cost) {
+            individual.best_solution = new_solution;
+            individual.best_cost = new_cost;
+          }
+          individual.current_solution = std::move(new_solution);
+          individual.current_cost = new_cost;
+        } else {
+          const double acceptance_probability =
+              std::exp(-(new_cost - individual.current_cost) * FACTOR_COST_SCALE / current_temperature);
+          if (individual.dist(individual.gen) < acceptance_probability) {
+            individual.current_solution = std::move(new_solution);
+            individual.current_cost = new_cost;
+          }
+        }
+      }
+      return individual;
+    };
+
+    if (worker_pool != nullptr) {
+      worker_pool->parallel_for(population.size(), [&](size_t i) {
+        population[i] = update_individual(std::move(population[i]));
+      });
+    } else {
+      for (auto& individual : population) {
+        individual = update_individual(std::move(individual));
+      }
+    }
+
+    refresh_global_best();
+
+    if (population_size > 1 && SA_MIGRATION_INTERVAL > 0 && temperature_layer > 0 &&
+        temperature_layer % SA_MIGRATION_INTERVAL == 0) {
+      auto worst_it = std::max_element(population.begin(), population.end(),
+                                       [](const SaIndividual& lhs, const SaIndividual& rhs) {
+                                         return lhs.current_cost < rhs.current_cost;
+                                       });
+      if (worst_it != population.end() && global_best_cost < worst_it->current_cost) {
+        worst_it->current_solution = global_best_solution;
+        worst_it->current_cost = global_best_cost;
+      }
+    }
+
+    DEBUG_MSG_DEBUG2(std::cout, "Fitness = ", global_best_cost);
+    DEBUG_MSG_DEBUG2(std::cout, "Utilization = ", global_best_solution.calc_bandwidth_utilization());
+    DEBUG_MSG_DEBUG2(std::cout, "Temperature = ", current_temperature);
+    DEBUG_MSG_DEBUG2(std::cout, "LocalTrial = ", local_trial_count);
+    DEBUG_MSG_DEBUG2(std::cout, "MoveCount = ", select_num, "\n");
+
+    current_temperature *= ALPHA;
+    ++temperature_layer;
+  }
+
+  refresh_global_best();
+  scheme = std::move(global_best_solution);
+  double utilization = scheme.calc_bandwidth_utilization();
+  DEBUG_MSG_DEBUG1(std::cout, "Utilization = ", utilization);
+  DEBUG_MSG_DEBUG1(std::cout, "population simulated_annealing optimized packing scheme done");
   return utilization;
 }
 

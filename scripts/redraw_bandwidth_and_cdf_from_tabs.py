@@ -125,7 +125,7 @@ def _plot_paper_line(
     )
 
 
-def _apply_paper_legend(ax: plt.Axes, *, fontsize: float = 9.0, ncol: int = 1) -> None:
+def _apply_paper_legend(ax: plt.Axes, *, fontsize: float = 9.0, ncol: int = 1, loc: str = "upper left") -> None:
     ax.legend(
         frameon=True,
         fancybox=False,
@@ -133,7 +133,7 @@ def _apply_paper_legend(ax: plt.Axes, *, fontsize: float = 9.0, ncol: int = 1) -
         facecolor="white",
         framealpha=1.0,
         ncol=ncol,
-        loc="upper left",
+        loc=loc,
         fontsize=fontsize,
         handlelength=2.0,
         borderaxespad=0.4,
@@ -333,13 +333,13 @@ def redraw_cdf(cdf_points_tab: Path, output_dir: Path) -> list[Path]:
                 )
 
             _, signal_count = dataset_dimensions(config)
-            ax.set_xlabel("确定性 WCRT（ms）")
+            ax.set_xlabel("WCRT（ms）")
             ax.set_ylabel("累计比例(%)")
             ax.set_xlim(left=0.0, right=max_x * 1.03 if max_x > 0 else 1.0)
             ax.set_ylim(0.0, 1.0)
             ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0, decimals=0))
             ax.tick_params(axis="y", labelleft=True)
-            _apply_paper_legend(ax, fontsize=8.5)
+            _apply_paper_legend(ax, fontsize=8.5, loc="lower right")
 
             subfig_prefix = f"({chr(ord('a') + axis_index)})"
             subfig_desc = f"{signal_count}信号" if signal_count is not None else config

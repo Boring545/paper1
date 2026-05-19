@@ -371,6 +371,8 @@ std::string store_frm(CanfdFrameMap& fmap, const std::string& folder_path);
 
 // 随机生成一组消息
 void generate_msg_info_set(MessageInfoVec& mset, size_t num, size_t ecu_count);
+void generate_msg_info_set(MessageInfoVec& mset, size_t num, size_t ecu_count,
+                           const std::vector<int>& restricted_short_periods);
 void generate_msg_info_set(MessageInfoVec& mset = MESSAGE_INFO_VEC, size_t num = SIZE_ORIGINAL_MESSAGE);
 
 }  // namespace cfd::utils

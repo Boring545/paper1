@@ -8,9 +8,9 @@ namespace cfd {
 		constexpr std::array<int, 3> kRestrictedShortPeriods = {1, 2, 5};
 		constexpr size_t kRestrictedShortPeriodEcuCount = 3;
 
-		bool is_restricted_short_period(int period) {
-			return std::find(kRestrictedShortPeriods.begin(), kRestrictedShortPeriods.end(), period) !=
-				kRestrictedShortPeriods.end();
+		bool is_restricted_short_period(int period, const std::vector<int>& restricted_short_periods) {
+			return std::find(restricted_short_periods.begin(), restricted_short_periods.end(), period) !=
+				restricted_short_periods.end();
 		}
 
 		std::pair<int, int> sample_distinct_ecu_pair(std::mt19937& gen, const std::vector<int>& ecu_pool) {
@@ -880,6 +880,12 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 
 
 	void generate_msg_info_set(MessageInfoVec& mset, size_t num, size_t ecu_count) {
+		const std::vector<int> default_restricted_periods(kRestrictedShortPeriods.begin(), kRestrictedShortPeriods.end());
+		generate_msg_info_set(mset, num, ecu_count, default_restricted_periods);
+	}
+
+	void generate_msg_info_set(MessageInfoVec& mset, size_t num, size_t ecu_count,
+	                           const std::vector<int>& restricted_short_periods) {
 		if (ecu_count < 2 || ecu_count > NUM_ECU) {
 			throw std::invalid_argument("ecu_count must be in [2, " + std::to_string(NUM_ECU) + "]");
 		}
@@ -927,7 +933,7 @@ void read_message_table(std::istream& is, MessageInfoVec& mset, char separator) 
 
 			// 1/2/5ms use ECU 0/1/2 only; other periods still use the full active ECU pool.
 			const auto& ecu_pool =
-				(is_restricted_short_period(period) && restricted_ecu_options.size() >= 2) ? restricted_ecu_options : ecu_options;
+				(is_restricted_short_period(period, restricted_short_periods) && restricted_ecu_options.size() >= 2) ? restricted_ecu_options : ecu_options;
 			std::tie(src, dst) = sample_distinct_ecu_pair(gen, ecu_pool);
 
 			// offset = dist_offset(gen) * period;

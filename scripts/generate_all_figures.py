@@ -50,27 +50,12 @@ def main() -> None:
 
     print(f"Analysis dir: {analysis_dir}")
 
-    run_python_script(scripts_dir / "plot_compare_summary.py", str(compare_summary))
-    run_python_script(scripts_dir / "plot_foundation_fault_threshold.py", str(analysis_dir))
+    run_python_script(scripts_dir / "plot_compare_summary.py", str(compare_summary), "--only", "bandwidth-table")
     run_python_script(scripts_dir / "plot_signal_wcrt_cdf.py", str(analysis_dir))
+    run_python_script(scripts_dir / "redraw_bandwidth_and_cdf_from_tabs.py", str(analysis_dir))
+    run_python_script(scripts_dir / "export_summary_tables.py", str(analysis_dir))
 
-    if args.skip_retry:
-        print("Skip retry figures.")
-        return
-
-    retry_dir = resolve_retry_dir(analysis_dir)
-    if retry_dir is None:
-        print("No retry directory found, skip retry figures.")
-        return
-
-    retry_reports = sorted(retry_dir.glob("*.txt"))
-    if not retry_reports:
-        print("No retry report files found, skip retry figures.")
-        return
-
-    for retry_report in retry_reports:
-        print(f"Generate retry figures: {retry_report.name}")
-        run_python_script(scripts_dir / "plot_retry_report.py", str(retry_report))
+    print("Skip retry distribution figures.")
 
 
 if __name__ == "__main__":
