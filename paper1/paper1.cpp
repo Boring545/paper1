@@ -1336,6 +1336,124 @@ void write_batch_signal_frame_mapping_summary(const std::string& output_path,
   }
 }
 
+std::string join_ints(std::vector<int> values) {
+  std::sort(values.begin(), values.end());
+  values.erase(std::unique(values.begin(), values.end()), values.end());
+
+  std::ostringstream oss;
+  for (size_t i = 0; i < values.size(); ++i) {
+    if (i > 0) {
+      oss << ',';
+    }
+    oss << values[i];
+  }
+  return oss.str();
+}
+
+struct PackingPlanKey {
+  std::string dataset;
+  std::string scheme;
+  MessageCode code = 0;
+  EcuId src_ecu = 0;
+  EcuId dst_ecu = 0;
+  int period_ms = 0;
+  int deadline_ms = 0;
+  int level = 0;
+  int type = 0;
+
+  bool operator<(const PackingPlanKey& other) const {
+    return std::tie(dataset, scheme, code, src_ecu, dst_ecu, period_ms, deadline_ms, level, type) <
+           std::tie(other.dataset, other.scheme, other.code, other.src_ecu, other.dst_ecu, other.period_ms,
+                    other.deadline_ms, other.level, other.type);
+  }
+};
+
+struct PackingPlanAggregate {
+  int signal_copy_count = 0;
+  int added_copy_count = 0;
+  std::vector<int> frame_ids;
+  std::vector<int> frame_priorities;
+  std::vector<int> frame_payload_bytes;
+};
+
+void write_packing_plan_rows(std::ostream& os, const std::map<PackingPlanKey, PackingPlanAggregate>& plan_by_signal,
+                             const std::string& dataset_filter, const std::string& scheme_filter) {
+  os << "[packing_plan]\n";
+  os << "dataset\tscheme\tcode\tsrc_ecu\tdst_ecu\tperiod_ms\tdeadline_ms\tasil\tlevel\ttype\t"
+        "signal_copy_count\tadded_copy_count\tframe_ids\tframe_priorities\tframe_payload_bytes\n";
+
+  for (const auto& [key, aggregate] : plan_by_signal) {
+    if (!dataset_filter.empty() && key.dataset != dataset_filter) {
+      continue;
+    }
+    if (!scheme_filter.empty() && key.scheme != scheme_filter) {
+      continue;
+    }
+    os << key.dataset << '\t' << key.scheme << '\t' << key.code << '\t' << key.src_ecu << '\t' << key.dst_ecu
+       << '\t' << key.period_ms << '\t' << key.deadline_ms << '\t' << level_to_asil(key.level) << '\t'
+       << key.level << '\t' << key.type << '\t' << aggregate.signal_copy_count << '\t' << aggregate.added_copy_count
+       << '\t' << join_ints(aggregate.frame_ids) << '\t' << join_ints(aggregate.frame_priorities) << '\t'
+       << join_ints(aggregate.frame_payload_bytes) << '\n';
+  }
+}
+
+void write_batch_packing_plan_summary(const std::string& run_tag,
+                                      const std::vector<DatasetCompareSummary>& dataset_summaries) {
+  std::map<PackingPlanKey, PackingPlanAggregate> plan_by_signal;
+  for (const auto& dataset_summary : dataset_summaries) {
+    for (const auto& row : dataset_summary.signal_frame_mappings) {
+      PackingPlanKey key;
+      key.dataset = row.dataset_tag;
+      key.scheme = row.scheme_name;
+      key.code = row.code;
+      key.src_ecu = row.src_ecu;
+      key.dst_ecu = row.dst_ecu;
+      key.period_ms = row.signal_period_ms;
+      key.deadline_ms = row.signal_deadline_ms;
+      key.level = row.level;
+      key.type = row.type;
+
+      auto& aggregate = plan_by_signal[key];
+      aggregate.signal_copy_count += 1;
+      aggregate.added_copy_count += row.is_added_copy != 0 ? 1 : 0;
+      aggregate.frame_ids.push_back(static_cast<int>(row.frame_id));
+      aggregate.frame_priorities.push_back(row.frame_priority);
+      aggregate.frame_payload_bytes.push_back(row.frame_payload_bytes);
+    }
+  }
+
+  const fs::path analysis_dir = cfd::storage::analysis_batch_dir(run_tag);
+  const fs::path output_path = analysis_dir / "packing_plan_tab.txt";
+  {
+    std::ofstream ofs(output_path, std::ios::trunc);
+    if (!ofs) {
+      DEBUG_MSG_DEBUG1(std::cout, "无法写入打包方案汇总文件: ", cfd::storage::path_string(output_path));
+    } else {
+      write_packing_plan_rows(ofs, plan_by_signal, "", "");
+    }
+  }
+
+  const fs::path scheme_root = analysis_dir / "scheme";
+  cfd::storage::ensure_directory(scheme_root);
+  for (const auto& dataset_summary : dataset_summaries) {
+    std::unordered_set<std::string> schemes;
+    for (const auto& row : dataset_summary.signal_frame_mappings) {
+      schemes.insert(row.scheme_name);
+    }
+    for (const auto& scheme_name : schemes) {
+      const fs::path scheme_dir = scheme_root / scheme_name;
+      cfd::storage::ensure_directory(scheme_dir);
+      const fs::path file_path = scheme_dir / (dataset_summary.dataset_tag + "_packing_plan_tab.txt");
+      std::ofstream ofs(file_path, std::ios::trunc);
+      if (!ofs) {
+        DEBUG_MSG_DEBUG1(std::cout, "无法写入单数据集打包方案文件: ", cfd::storage::path_string(file_path));
+        continue;
+      }
+      write_packing_plan_rows(ofs, plan_by_signal, dataset_summary.dataset_tag, scheme_name);
+    }
+  }
+}
+
 DatasetCompareSummary run_compare_experiment(const std::string& dataset_file, const std::string& run_tag) {
   read_data_1(dataset_file);
   const MessageInfoVec original_infos = MESSAGE_INFO_VEC;
@@ -1494,6 +1612,7 @@ int main(int argc, char* argv[]) {
   const std::string signal_frame_mapping_output_path = cfd::storage::signal_frame_mapping_report_path(batch_run_tag);
   write_batch_signal_frame_mapping_summary(signal_frame_mapping_output_path, dataset_summaries);
   DEBUG_MSG_DEBUG1(std::cout, "信号装帧映射汇总已输出: ", signal_frame_mapping_output_path);
+  write_batch_packing_plan_summary(batch_run_tag, dataset_summaries);
 
   if (generate_figures_after_analysis) {
     run_figure_generation_script(batch_run_tag);
