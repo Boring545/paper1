@@ -1684,6 +1684,7 @@ int main(int argc, char* argv[]) {
 
     cfd::algorithm2::write_batch_summary(batch_run_tag, dataset_summaries);
     cfd::algorithm2::write_batch_signal_frame_mapping_summary(batch_run_tag, dataset_summaries);
+    cfd::algorithm2::write_batch_packing_plan_summary(batch_run_tag, dataset_summaries);
     DEBUG_MSG_DEBUG1(std::cout, "算法二批量汇总结果已输出: ",
                      cfd::storage::path_string(cfd::storage::analysis_batch_dir(batch_run_tag)));
 

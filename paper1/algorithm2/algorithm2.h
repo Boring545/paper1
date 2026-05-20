@@ -124,4 +124,7 @@ void write_batch_summary(const std::string& run_tag, const std::vector<DatasetSu
 void write_batch_signal_frame_mapping_summary(const std::string& run_tag,
                                               const std::vector<DatasetSummary>& dataset_summaries);
 
+void write_batch_packing_plan_summary(const std::string& run_tag,
+                                      const std::vector<DatasetSummary>& dataset_summaries);
+
 }  // namespace cfd::algorithm2

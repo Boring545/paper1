@@ -219,6 +219,10 @@ std::string signal_frame_mapping_report_path(const std::string& run_tag) {
   return cfd::storage::path_string(cfd::storage::analysis_batch_dir(run_tag) / "algorithm2_signal_frame_mapping_tab.txt");
 }
 
+std::string packing_plan_report_path(const std::string& run_tag) {
+  return cfd::storage::path_string(cfd::storage::analysis_batch_dir(run_tag) / "algorithm2_packing_plan_tab.txt");
+}
+
 std::vector<EcuId> infer_active_ecus(const MessageInfoVec& infos) {
   std::unordered_set<EcuId> seen;
   for (const auto& info : infos) {
@@ -2142,6 +2146,107 @@ void write_batch_signal_frame_mapping_summary(const std::string& run_tag,
           << row.signal_deadline_ms << '\t' << row.level << '\t' << row.type << '\t' << row.src_ecu << '\t'
           << row.dst_ecu << '\n';
     }
+  }
+}
+
+std::string route_role_name(int comm_id) {
+  if (comm_id == kPrimaryRouteCommId) {
+    return "primary";
+  }
+  if (comm_id == kSecondMainRouteCommId) {
+    return "second_main";
+  }
+  if (comm_id == kBackupRouteCommId) {
+    return "backup";
+  }
+  return "comm_" + std::to_string(comm_id);
+}
+
+std::string join_ints(std::vector<int> values) {
+  std::sort(values.begin(), values.end());
+  values.erase(std::unique(values.begin(), values.end()), values.end());
+
+  std::ostringstream oss;
+  for (size_t i = 0; i < values.size(); ++i) {
+    if (i > 0) {
+      oss << ',';
+    }
+    oss << values[i];
+  }
+  return oss.str();
+}
+
+struct PackingPlanKey {
+  std::string dataset;
+  std::string scheme;
+  MessageCode code = 0;
+  int comm_id = 0;
+  EcuId src_ecu = 0;
+  EcuId dst_ecu = 0;
+  int period_ms = 0;
+  int deadline_ms = 0;
+  int level = 0;
+  int type = 0;
+
+  bool operator<(const PackingPlanKey& other) const {
+    return std::tie(dataset, scheme, code, comm_id, src_ecu, dst_ecu, period_ms, deadline_ms, level, type) <
+           std::tie(other.dataset, other.scheme, other.code, other.comm_id, other.src_ecu, other.dst_ecu,
+                    other.period_ms, other.deadline_ms, other.level, other.type);
+  }
+};
+
+struct PackingPlanAggregate {
+  int signal_copy_count = 0;
+  int added_copy_count = 0;
+  std::vector<int> frame_ids;
+  std::vector<int> frame_priorities;
+  std::vector<int> frame_payload_bytes;
+};
+
+void write_batch_packing_plan_summary(const std::string& run_tag,
+                                      const std::vector<DatasetSummary>& dataset_summaries) {
+  const std::string output_path = packing_plan_report_path(run_tag);
+  std::ofstream ofs(output_path, std::ios::trunc);
+  if (!ofs) {
+    DEBUG_MSG_DEBUG1(std::cout, "鏃犳硶鍐欏叆绠楁硶浜岃甯ц仛鍚堟枃浠? ", output_path);
+    return;
+  }
+
+  std::map<PackingPlanKey, PackingPlanAggregate> plan_by_route;
+  for (const auto& summary : dataset_summaries) {
+    for (const auto& row : summary.signal_frame_mappings) {
+      PackingPlanKey key;
+      key.dataset = row.dataset_tag;
+      key.scheme = row.scheme_name;
+      key.code = row.code;
+      key.comm_id = row.comm_id;
+      key.src_ecu = row.src_ecu;
+      key.dst_ecu = row.dst_ecu;
+      key.period_ms = row.signal_period_ms;
+      key.deadline_ms = row.signal_deadline_ms;
+      key.level = row.level;
+      key.type = row.type;
+
+      auto& aggregate = plan_by_route[key];
+      aggregate.signal_copy_count += 1;
+      aggregate.added_copy_count += row.is_added_copy != 0 ? 1 : 0;
+      aggregate.frame_ids.push_back(static_cast<int>(row.frame_id));
+      aggregate.frame_priorities.push_back(row.frame_priority);
+      aggregate.frame_payload_bytes.push_back(row.frame_payload_bytes);
+    }
+  }
+
+  ofs << "[packing_plan]\n";
+  ofs << "dataset\tscheme\tcode\tcomm_id\troute_role\tsrc_ecu\tdst_ecu\tperiod_ms\tdeadline_ms\tlevel\ttype\t"
+         "signal_copy_count\tadded_copy_count\tframe_ids\tframe_priorities\tframe_payload_bytes\n";
+
+  for (const auto& [key, aggregate] : plan_by_route) {
+    ofs << key.dataset << '\t' << key.scheme << '\t' << key.code << '\t' << key.comm_id << '\t'
+        << route_role_name(key.comm_id) << '\t' << key.src_ecu << '\t' << key.dst_ecu << '\t' << key.period_ms
+        << '\t' << key.deadline_ms << '\t' << key.level << '\t' << key.type << '\t'
+        << aggregate.signal_copy_count << '\t' << aggregate.added_copy_count << '\t'
+        << join_ints(aggregate.frame_ids) << '\t' << join_ints(aggregate.frame_priorities) << '\t'
+        << join_ints(aggregate.frame_payload_bytes) << '\n';
   }
 }
 

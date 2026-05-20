@@ -372,6 +372,57 @@ def select_best_foundation_baseline(analysis_dirs: list[Path]) -> tuple[Path, fl
     return best_analysis_dir, best_bandwidth, best_e2e_ms
 
 
+def export_on_demand_packing_plan(analysis_dir: Path, output_dir: Path, selected_count: int) -> list[Path]:
+    plan_path = analysis_dir / "algorithm2_packing_plan_tab.txt"
+    if not plan_path.exists():
+        return []
+
+    sections = parse_sectioned_tsv(plan_path)
+    rows = [row for row in sections.get("packing_plan", []) if row.get("scheme") == "on_demand_tmr"]
+    if not rows:
+        return []
+
+    scheme_dir = output_dir / "scheme" / f"selected_{selected_count:02d}"
+    scheme_dir.mkdir(parents=True, exist_ok=True)
+
+    header = [
+        "dataset",
+        "scheme",
+        "code",
+        "comm_id",
+        "route_role",
+        "src_ecu",
+        "dst_ecu",
+        "period_ms",
+        "deadline_ms",
+        "level",
+        "type",
+        "signal_copy_count",
+        "added_copy_count",
+        "frame_ids",
+        "frame_priorities",
+        "frame_payload_bytes",
+    ]
+
+    rows_by_dataset: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        dataset = row.get("dataset", "unknown_dataset")
+        rows_by_dataset.setdefault(dataset, []).append(row)
+
+    outputs: list[Path] = []
+    for dataset, dataset_rows in sorted(rows_by_dataset.items()):
+        output_path = scheme_dir / f"{dataset}_packing_plan_tab.txt"
+        with output_path.open("w", encoding="utf-8", newline="") as handle:
+            handle.write("[packing_plan]\n")
+            writer = csv.DictWriter(handle, fieldnames=header, delimiter="\t", extrasaction="ignore", lineterminator="\n")
+            writer.writeheader()
+            for row in dataset_rows:
+                writer.writerow(row)
+        outputs.append(output_path)
+
+    return outputs
+
+
 def violates_bandwidth_order(on_demand_normal_bandwidth: float, always_on_bandwidth: float) -> bool:
     return on_demand_normal_bandwidth > always_on_bandwidth + 1e-9
 
@@ -873,6 +924,13 @@ def main() -> int:
                     "[ED] selected-count run chose minimum normal-bandwidth attempt: "
                     f"selected={selected_count}, normal={avg_on_demand_normal_bandwidth}, "
                     f"always_on={avg_always_on_bandwidth}, analysis={analysis_dir}"
+                )
+            exported_scheme_files = export_on_demand_packing_plan(analysis_dir, output_dir, selected_count)
+            if exported_scheme_files:
+                print(
+                    "[ED] exported on-demand packing plans: "
+                    f"selected={selected_count}, files={len(exported_scheme_files)}, "
+                    f"dir={exported_scheme_files[0].parent}"
                 )
 
             no_redundancy_bandwidth = homogeneous_bandwidth or 0.0
